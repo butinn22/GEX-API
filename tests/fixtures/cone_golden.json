@@ -1,0 +1,1227 @@
+{
+ "TEST1": {
+  "cone_path": [
+   {
+    "date": "2026-09-17",
+    "lower": 96.7259,
+    "t": 1.0,
+    "upper": 102.244
+   },
+   {
+    "date": "2026-09-18",
+    "lower": 95.4283,
+    "t": 2.0,
+    "upper": 103.1688
+   },
+   {
+    "date": "2026-09-19",
+    "lower": 94.7903,
+    "t": 3.0,
+    "upper": 103.8708
+   },
+   {
+    "date": "2026-09-20",
+    "lower": 94.2703,
+    "t": 4.0,
+    "upper": 104.4551
+   },
+   {
+    "date": "2026-09-21",
+    "lower": 93.6911,
+    "t": 5.0,
+    "upper": 104.9626
+   },
+   {
+    "date": "2026-09-22",
+    "lower": 93.1168,
+    "t": 6.0,
+    "upper": 104.9406
+   },
+   {
+    "date": "2026-09-23",
+    "lower": 92.5691,
+    "t": 7.0,
+    "upper": 104.9657
+   }
+  ],
+  "expiries": [
+   {
+    "ag": 5044927.268064,
+    "ag_weight": 1.0,
+    "date": "2026-09-23",
+    "dte": 7.0,
+    "expected_move_1sd": 2.890225,
+    "gamma_score": 14.285714,
+    "gex_net": 720703.895438,
+    "iv_atm": 0.20584,
+    "levels": [
+     {
+      "ag": 14176.610792,
+      "gex_net": 2025.230113,
+      "kind": "composite",
+      "oi": 1400.0,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0339,
+        "dte": 7.0,
+        "p_above": 6.3e-05,
+        "p_above_base": 0.000402,
+        "p_below": 0.999937,
+        "p_touch": 0.000126
+       }
+      ],
+      "side": "resistance",
+      "strength": 0.268601,
+      "strike": 110.0
+     },
+     {
+      "ag": 939271.313257,
+      "gex_net": 134181.61618,
+      "kind": "composite",
+      "oi": 2625.0,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 3.1372,
+        "dte": 7.0,
+        "p_above": 0.012487,
+        "p_above_base": 0.043859,
+        "p_below": 0.987513,
+        "p_touch": 0.024974
+       }
+      ],
+      "side": "resistance",
+      "strength": 0.628144,
+      "strike": 105.0
+     },
+     {
+      "ag": 3835.843587,
+      "gex_net": 547.977655,
+      "kind": "composite",
+      "oi": 1400.0,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0068,
+        "dte": 7.0,
+        "p_above": 0.999975,
+        "p_above_base": 0.999908,
+        "p_below": 2.5e-05,
+        "p_touch": 4.9e-05
+       }
+      ],
+      "side": "support",
+      "strength": 0.26719,
+      "strike": 90.0
+     },
+     {
+      "ag": 422747.946244,
+      "gex_net": 60392.563749,
+      "kind": "composite",
+      "oi": 1662.5,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 1.7772,
+        "dte": 7.0,
+        "p_above": 0.984049,
+        "p_above_base": 0.966277,
+        "p_below": 0.015951,
+        "p_touch": 0.031901
+       }
+      ],
+      "side": "support",
+      "strength": 0.374342,
+      "strike": 95.0
+     }
+    ],
+    "lower_1sd": 97.238617,
+    "lower_2sd": 94.468427,
+    "lower_3sd": 91.777156,
+    "lower_cone": 92.482491,
+    "lower_stick": null,
+    "median": 100.090041,
+    "p10": 96.410275,
+    "p25": 98.116764,
+    "p75": 102.017747,
+    "p90": 103.82349,
+    "regime": "POSITIVE",
+    "upper_1sd": 103.025079,
+    "upper_2sd": 106.046184,
+    "upper_3sd": 109.15588,
+    "upper_cone": 105.01017,
+    "upper_stick": null,
+    "vol_gex": 0.20437
+   }
+  ],
+  "global_levels": [
+   {
+    "ag": 14176.610792,
+    "gex_net": 2025.230113,
+    "kind": "composite",
+    "oi": 1400.0,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 0.0339,
+      "dte": 7.0,
+      "p_above": 6.3e-05,
+      "p_above_base": 0.000402,
+      "p_below": 0.999937,
+      "p_touch": 0.000126
+     }
+    ],
+    "side": "resistance",
+    "strength": 0.268601,
+    "strike": 110.0
+   },
+   {
+    "ag": 939271.313257,
+    "gex_net": 134181.61618,
+    "kind": "composite",
+    "oi": 2625.0,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 3.1372,
+      "dte": 7.0,
+      "p_above": 0.012487,
+      "p_above_base": 0.043859,
+      "p_below": 0.987513,
+      "p_touch": 0.024974
+     }
+    ],
+    "side": "resistance",
+    "strength": 0.628144,
+    "strike": 105.0
+   },
+   {
+    "ag": 3835.843587,
+    "gex_net": 547.977655,
+    "kind": "composite",
+    "oi": 1400.0,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 0.0068,
+      "dte": 7.0,
+      "p_above": 0.999975,
+      "p_above_base": 0.999908,
+      "p_below": 2.5e-05,
+      "p_touch": 4.9e-05
+     }
+    ],
+    "side": "support",
+    "strength": 0.26719,
+    "strike": 90.0
+   },
+   {
+    "ag": 422747.946244,
+    "gex_net": 60392.563749,
+    "kind": "composite",
+    "oi": 1662.5,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 1.7772,
+      "dte": 7.0,
+      "p_above": 0.984049,
+      "p_above_base": 0.966277,
+      "p_below": 0.015951,
+      "p_touch": 0.031901
+     }
+    ],
+    "side": "support",
+    "strength": 0.374342,
+    "strike": 95.0
+   }
+  ],
+  "meta": {
+   "atr": 3.5,
+   "axis": [
+    90.0,
+    105.0
+   ],
+   "call_wall": 100.0,
+   "gamma_flip": null,
+   "gamma_score": 14.285714,
+   "hv": 0.25,
+   "iv_atm": 0.213263,
+   "net_gex": 720717.602006,
+   "oi_quantile": 0.9,
+   "put_wall": null,
+   "q": 0.0,
+   "r": 0.045,
+   "regime": "POSITIVE",
+   "spot": 100.0,
+   "ticker": "TEST1",
+   "total_ag": 5045023.21404,
+   "vol_mult": 0.992857
+  },
+  "opts": {
+   "expiries": 3,
+   "horizon_days": 14,
+   "oi_quantile": 0.9,
+   "top_oi": 3,
+   "wall_decay": 2.0
+  }
+ },
+ "TEST2": {
+  "cone_path": [
+   {
+    "date": "2026-09-17",
+    "lower": 96.7376,
+    "t": 1.0,
+    "upper": 102.2358
+   },
+   {
+    "date": "2026-09-18",
+    "lower": 95.4532,
+    "t": 2.0,
+    "upper": 103.1509
+   },
+   {
+    "date": "2026-09-19",
+    "lower": 94.8869,
+    "t": 3.0,
+    "upper": 103.8411
+   },
+   {
+    "date": "2026-09-20",
+    "lower": 94.4979,
+    "t": 4.0,
+    "upper": 104.4117
+   },
+   {
+    "date": "2026-09-21",
+    "lower": 94.0179,
+    "t": 5.0,
+    "upper": 104.904
+   },
+   {
+    "date": "2026-09-22",
+    "lower": 93.5198,
+    "t": 6.0,
+    "upper": 104.8506
+   },
+   {
+    "date": "2026-09-23",
+    "lower": 93.0323,
+    "t": 7.0,
+    "upper": 104.7523
+   },
+   {
+    "date": "2026-09-24",
+    "lower": 92.4992,
+    "t": 8.0,
+    "upper": 104.7253
+   },
+   {
+    "date": "2026-09-25",
+    "lower": 91.9807,
+    "t": 9.0,
+    "upper": 104.7624
+   },
+   {
+    "date": "2026-09-26",
+    "lower": 91.4804,
+    "t": 10.0,
+    "upper": 104.8478
+   },
+   {
+    "date": "2026-09-27",
+    "lower": 90.9993,
+    "t": 11.0,
+    "upper": 104.9699
+   },
+   {
+    "date": "2026-09-28",
+    "lower": 90.5375,
+    "t": 12.0,
+    "upper": 105.1205
+   },
+   {
+    "date": "2026-09-29",
+    "lower": 90.0941,
+    "t": 13.0,
+    "upper": 105.2933
+   },
+   {
+    "date": "2026-09-30",
+    "lower": 89.6684,
+    "t": 14.0,
+    "upper": 105.4835
+   },
+   {
+    "date": "2026-10-01",
+    "lower": 89.2594,
+    "t": 15.0,
+    "upper": 105.6873
+   },
+   {
+    "date": "2026-10-02",
+    "lower": 88.8659,
+    "t": 16.0,
+    "upper": 105.9018
+   },
+   {
+    "date": "2026-10-03",
+    "lower": 88.4869,
+    "t": 17.0,
+    "upper": 106.1246
+   },
+   {
+    "date": "2026-10-04",
+    "lower": 88.1214,
+    "t": 18.0,
+    "upper": 106.354
+   }
+  ],
+  "expiries": [
+   {
+    "ag": 15204367.614028,
+    "ag_weight": 1.0,
+    "date": "2026-09-23",
+    "dte": 7.0,
+    "expected_move_1sd": 2.845067,
+    "gamma_score": 14.285714,
+    "gex_net": 2172052.51629,
+    "iv_atm": 0.202624,
+    "levels": [
+     {
+      "ag": 4501640.182351,
+      "gex_net": 643091.454622,
+      "kind": "composite",
+      "oi": 2625.0,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0,
+        "dte": 7.0,
+        "p_above": 0.04144,
+        "p_above_base": 0.04144,
+        "p_below": 0.95856,
+        "p_touch": 0.082879
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 0.0,
+        "dte": 18.0,
+        "p_above": 0.142842,
+        "p_above_base": 0.142842,
+        "p_below": 0.857158,
+        "p_touch": 0.285683
+       }
+      ],
+      "side": "resistance",
+      "strength": 0.767175,
+      "strike": 105.0
+     },
+     {
+      "ag": 2278202.879433,
+      "gex_net": 325457.554205,
+      "kind": "composite",
+      "oi": 1662.5,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0,
+        "dte": 7.0,
+        "p_above": 0.968427,
+        "p_above_base": 0.968427,
+        "p_below": 0.031573,
+        "p_touch": 0.063146
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 0.0,
+        "dte": 18.0,
+        "p_above": 0.880782,
+        "p_above_base": 0.880782,
+        "p_below": 0.119218,
+        "p_touch": 0.238437
+       }
+      ],
+      "side": "support",
+      "strength": 0.451879,
+      "strike": 95.0
+     }
+    ],
+    "lower_1sd": 97.282539,
+    "lower_2sd": 94.553787,
+    "lower_3sd": 91.901576,
+    "lower_cone": 92.95302,
+    "lower_stick": null,
+    "median": 100.090041,
+    "p10": 96.467336,
+    "p25": 98.147925,
+    "p75": 101.987999,
+    "p90": 103.764765,
+    "regime": "POSITIVE",
+    "upper_1sd": 102.978565,
+    "upper_2sd": 105.950449,
+    "upper_3sd": 109.0081,
+    "upper_cone": 104.728679,
+    "upper_stick": null,
+    "vol_gex": 0.201177
+   },
+   {
+    "ag": 15204367.614028,
+    "ag_weight": 1.0,
+    "date": "2026-10-04",
+    "dte": 18.0,
+    "expected_move_1sd": 4.485831,
+    "gamma_score": 14.285714,
+    "gex_net": 2172052.51629,
+    "iv_atm": 0.202056,
+    "levels": [
+     {
+      "ag": 4501640.182351,
+      "gex_net": 643091.454622,
+      "kind": "composite",
+      "oi": 2625.0,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0,
+        "dte": 7.0,
+        "p_above": 0.04144,
+        "p_above_base": 0.04144,
+        "p_below": 0.95856,
+        "p_touch": 0.082879
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 0.0,
+        "dte": 18.0,
+        "p_above": 0.142842,
+        "p_above_base": 0.142842,
+        "p_below": 0.857158,
+        "p_touch": 0.285683
+       }
+      ],
+      "side": "resistance",
+      "strength": 0.767175,
+      "strike": 105.0
+     },
+     {
+      "ag": 2278202.879433,
+      "gex_net": 325457.554205,
+      "kind": "composite",
+      "oi": 1662.5,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0,
+        "dte": 7.0,
+        "p_above": 0.968427,
+        "p_above_base": 0.968427,
+        "p_below": 0.031573,
+        "p_touch": 0.063146
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 0.0,
+        "dte": 18.0,
+        "p_above": 0.880782,
+        "p_above_base": 0.880782,
+        "p_below": 0.119218,
+        "p_touch": 0.238437
+       }
+      ],
+      "side": "support",
+      "strength": 0.451879,
+      "strike": 95.0
+     }
+    ],
+    "lower_1sd": 95.828667,
+    "lower_2sd": 91.624946,
+    "lower_3sd": 87.60563,
+    "lower_cone": 88.250872,
+    "lower_stick": null,
+    "median": 100.225253,
+    "p10": 94.530811,
+    "p25": 97.140422,
+    "p75": 103.200172,
+    "p90": 106.049109,
+    "regime": "POSITIVE",
+    "upper_1sd": 104.823553,
+    "upper_2sd": 109.632822,
+    "upper_3sd": 114.662738,
+    "upper_cone": 106.632902,
+    "upper_stick": null,
+    "vol_gex": 0.200612
+   }
+  ],
+  "global_levels": [
+   {
+    "ag": 4501640.182351,
+    "gex_net": 643091.454622,
+    "kind": "composite",
+    "oi": 10500.0,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 0.0,
+      "dte": 7.0,
+      "p_above": 0.04144,
+      "p_above_base": 0.04144,
+      "p_below": 0.95856,
+      "p_touch": 0.082879
+     },
+     {
+      "date": "2026-10-04",
+      "drop_pp": 0.0,
+      "dte": 18.0,
+      "p_above": 0.142842,
+      "p_above_base": 0.142842,
+      "p_below": 0.857158,
+      "p_touch": 0.285683
+     }
+    ],
+    "side": "resistance",
+    "strength": 0.767175,
+    "strike": 105.0
+   },
+   {
+    "ag": 2278202.879433,
+    "gex_net": 325457.554205,
+    "kind": "composite",
+    "oi": 6650.0,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 0.0,
+      "dte": 7.0,
+      "p_above": 0.968427,
+      "p_above_base": 0.968427,
+      "p_below": 0.031573,
+      "p_touch": 0.063146
+     },
+     {
+      "date": "2026-10-04",
+      "drop_pp": 0.0,
+      "dte": 18.0,
+      "p_above": 0.880782,
+      "p_above_base": 0.880782,
+      "p_below": 0.119218,
+      "p_touch": 0.238437
+     }
+    ],
+    "side": "support",
+    "strength": 0.451879,
+    "strike": 95.0
+   }
+  ],
+  "meta": {
+   "atr": 3.5,
+   "axis": [
+    88.1214,
+    106.354
+   ],
+   "call_wall": 100.0,
+   "gamma_flip": null,
+   "gamma_score": 14.285714,
+   "hv": 0.25,
+   "iv_atm": 0.212897,
+   "net_gex": 2507974.526934,
+   "oi_quantile": 0.5,
+   "put_wall": null,
+   "q": 0.0,
+   "r": 0.045,
+   "regime": "POSITIVE",
+   "spot": 100.0,
+   "ticker": "TEST2",
+   "total_ag": 17555821.688541,
+   "vol_mult": 0.992857
+  },
+  "opts": {
+   "expiries": 4,
+   "horizon_days": 7,
+   "oi_quantile": 0.5,
+   "top_oi": 5,
+   "wall_decay": 0.0
+  }
+ },
+ "TEST3": {
+  "cone_path": [
+   {
+    "date": "2026-09-17",
+    "lower": 52.5052,
+    "t": 1.0,
+    "upper": 53.8389
+   },
+   {
+    "date": "2026-09-18",
+    "lower": 52.2378,
+    "t": 2.0,
+    "upper": 54.3548
+   },
+   {
+    "date": "2026-09-19",
+    "lower": 51.9175,
+    "t": 3.0,
+    "upper": 54.7206
+   },
+   {
+    "date": "2026-09-20",
+    "lower": 51.6167,
+    "t": 4.0,
+    "upper": 55.0027
+   },
+   {
+    "date": "2026-09-21",
+    "lower": 51.3511,
+    "t": 5.0,
+    "upper": 55.2277
+   },
+   {
+    "date": "2026-09-22",
+    "lower": 51.1229,
+    "t": 6.0,
+    "upper": 55.4093
+   },
+   {
+    "date": "2026-09-23",
+    "lower": 50.931,
+    "t": 7.0,
+    "upper": 55.5562
+   },
+   {
+    "date": "2026-09-24",
+    "lower": 50.6392,
+    "t": 8.0,
+    "upper": 55.7719
+   },
+   {
+    "date": "2026-09-25",
+    "lower": 50.3557,
+    "t": 9.0,
+    "upper": 55.9748
+   },
+   {
+    "date": "2026-09-26",
+    "lower": 50.0808,
+    "t": 10.0,
+    "upper": 56.1672
+   },
+   {
+    "date": "2026-09-27",
+    "lower": 49.8144,
+    "t": 11.0,
+    "upper": 56.3504
+   },
+   {
+    "date": "2026-09-28",
+    "lower": 46.9973,
+    "t": 12.0,
+    "upper": 56.5257
+   },
+   {
+    "date": "2026-09-29",
+    "lower": 46.898,
+    "t": 13.0,
+    "upper": 56.6942
+   },
+   {
+    "date": "2026-09-30",
+    "lower": 46.7692,
+    "t": 14.0,
+    "upper": 56.8564
+   },
+   {
+    "date": "2026-10-01",
+    "lower": 46.6218,
+    "t": 15.0,
+    "upper": 56.9987
+   },
+   {
+    "date": "2026-10-02",
+    "lower": 46.4633,
+    "t": 16.0,
+    "upper": 56.9962
+   },
+   {
+    "date": "2026-10-03",
+    "lower": 46.2986,
+    "t": 17.0,
+    "upper": 57.015
+   },
+   {
+    "date": "2026-10-04",
+    "lower": 46.1312,
+    "t": 18.0,
+    "upper": 57.0513
+   }
+  ],
+  "expiries": [
+   {
+    "ag": 3334058.56237,
+    "ag_weight": 1.0,
+    "date": "2026-09-23",
+    "dte": 7.0,
+    "expected_move_1sd": 1.516778,
+    "gamma_score": 14.285714,
+    "gex_net": 476294.080339,
+    "iv_atm": 0.20576,
+    "levels": [
+     {
+      "ag": 5423.641214,
+      "gex_net": 774.805888,
+      "kind": "composite",
+      "oi": 1426.25,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0,
+        "dte": 7.0,
+        "p_above": 0.0,
+        "p_above_base": 0.0,
+        "p_below": 1.0,
+        "p_touch": 0.0
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 0.0125,
+        "dte": 18.0,
+        "p_above": 0.0,
+        "p_above_base": 0.000125,
+        "p_below": 1.0,
+        "p_touch": 0.0
+       }
+      ],
+      "side": "resistance",
+      "strength": 0.272582,
+      "strike": 62.0
+     },
+     {
+      "ag": 324357.181227,
+      "gex_net": 46336.740175,
+      "kind": "composite",
+      "oi": 2625.0,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.19,
+        "dte": 7.0,
+        "p_above": 2.3e-05,
+        "p_above_base": 0.001923,
+        "p_below": 0.999977,
+        "p_touch": 4.5e-05
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 3.5745,
+        "dte": 18.0,
+        "p_above": 0.000428,
+        "p_above_base": 0.036173,
+        "p_below": 0.999572,
+        "p_touch": 0.000855
+       }
+      ],
+      "side": "resistance",
+      "strength": 0.554733,
+      "strike": 57.0
+     },
+     {
+      "ag": 41127.227391,
+      "gex_net": 5875.318199,
+      "kind": "composite",
+      "oi": 1636.25,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0043,
+        "dte": 7.0,
+        "p_above": 1.0,
+        "p_above_base": 0.999957,
+        "p_below": 0.0,
+        "p_touch": 0.0
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 0.6558,
+        "dte": 18.0,
+        "p_above": 1.0,
+        "p_above_base": 0.993442,
+        "p_below": 0.0,
+        "p_touch": 0.0
+       }
+      ],
+      "side": "support",
+      "strength": 0.318607,
+      "strike": 47.0
+     },
+     {
+      "ag": 2963073.349473,
+      "gex_net": 423296.192782,
+      "kind": "call_wall",
+      "oi": 2625.0,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 36.132,
+        "dte": 7.0,
+        "p_above": 0.999879,
+        "p_above_base": 0.638558,
+        "p_below": 0.000121,
+        "p_touch": 0.000243
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 40.5471,
+        "dte": 18.0,
+        "p_above": 0.999864,
+        "p_above_base": 0.594393,
+        "p_below": 0.000136,
+        "p_touch": 0.000272
+       }
+      ],
+      "side": "support",
+      "strength": 1.0,
+      "strike": 52.0
+     }
+    ],
+    "lower_1sd": 51.050848,
+    "lower_2sd": 49.59704,
+    "lower_3sd": 48.184632,
+    "lower_cone": 50.886624,
+    "lower_stick": null,
+    "median": 52.547271,
+    "p10": 50.61614,
+    "p25": 51.511709,
+    "p75": 53.558928,
+    "p90": 54.506564,
+    "regime": "POSITIVE",
+    "upper_1sd": 54.087558,
+    "upper_2sd": 55.672994,
+    "upper_3sd": 57.304904,
+    "upper_cone": 55.672994,
+    "upper_stick": null,
+    "vol_gex": 0.20429
+   },
+   {
+    "ag": 3334058.56237,
+    "ag_weight": 1.0,
+    "date": "2026-10-04",
+    "dte": 18.0,
+    "expected_move_1sd": 2.383959,
+    "gamma_score": 14.285714,
+    "gex_net": 476294.080339,
+    "iv_atm": 0.204535,
+    "levels": [
+     {
+      "ag": 5423.641214,
+      "gex_net": 774.805888,
+      "kind": "composite",
+      "oi": 1426.25,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0,
+        "dte": 7.0,
+        "p_above": 0.0,
+        "p_above_base": 0.0,
+        "p_below": 1.0,
+        "p_touch": 0.0
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 0.0125,
+        "dte": 18.0,
+        "p_above": 0.0,
+        "p_above_base": 0.000125,
+        "p_below": 1.0,
+        "p_touch": 0.0
+       }
+      ],
+      "side": "resistance",
+      "strength": 0.272582,
+      "strike": 62.0
+     },
+     {
+      "ag": 324357.181227,
+      "gex_net": 46336.740175,
+      "kind": "composite",
+      "oi": 2625.0,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.19,
+        "dte": 7.0,
+        "p_above": 2.3e-05,
+        "p_above_base": 0.001923,
+        "p_below": 0.999977,
+        "p_touch": 4.5e-05
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 3.5745,
+        "dte": 18.0,
+        "p_above": 0.000428,
+        "p_above_base": 0.036173,
+        "p_below": 0.999572,
+        "p_touch": 0.000855
+       }
+      ],
+      "side": "resistance",
+      "strength": 0.554733,
+      "strike": 57.0
+     },
+     {
+      "ag": 41127.227391,
+      "gex_net": 5875.318199,
+      "kind": "composite",
+      "oi": 1636.25,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 0.0043,
+        "dte": 7.0,
+        "p_above": 1.0,
+        "p_above_base": 0.999957,
+        "p_below": 0.0,
+        "p_touch": 0.0
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 0.6558,
+        "dte": 18.0,
+        "p_above": 1.0,
+        "p_above_base": 0.993442,
+        "p_below": 0.0,
+        "p_touch": 0.0
+       }
+      ],
+      "side": "support",
+      "strength": 0.318607,
+      "strike": 47.0
+     },
+     {
+      "ag": 2963073.349473,
+      "gex_net": 423296.192782,
+      "kind": "call_wall",
+      "oi": 2625.0,
+      "probs": [
+       {
+        "date": "2026-09-23",
+        "drop_pp": 36.132,
+        "dte": 7.0,
+        "p_above": 0.999879,
+        "p_above_base": 0.638558,
+        "p_below": 0.000121,
+        "p_touch": 0.000243
+       },
+       {
+        "date": "2026-10-04",
+        "drop_pp": 40.5471,
+        "dte": 18.0,
+        "p_above": 0.999864,
+        "p_above_base": 0.594393,
+        "p_below": 0.000136,
+        "p_touch": 0.000272
+       }
+      ],
+      "side": "support",
+      "strength": 1.0,
+      "strike": 52.0
+     }
+    ],
+    "lower_1sd": 50.282366,
+    "lower_2sd": 48.050171,
+    "lower_3sd": 45.917071,
+    "lower_cone": 46.190732,
+    "lower_stick": null,
+    "median": 52.618258,
+    "p10": 49.592448,
+    "p25": 50.978525,
+    "p75": 54.198862,
+    "p90": 55.713686,
+    "regime": "POSITIVE",
+    "upper_1sd": 55.062665,
+    "upper_2sd": 57.620629,
+    "upper_3sd": 60.297423,
+    "upper_cone": 57.112782,
+    "upper_stick": null,
+    "vol_gex": 0.203074
+   }
+  ],
+  "global_levels": [
+   {
+    "ag": 5423.641214,
+    "gex_net": 774.805888,
+    "kind": "composite",
+    "oi": 2852.5,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 0.0,
+      "dte": 7.0,
+      "p_above": 0.0,
+      "p_above_base": 0.0,
+      "p_below": 1.0,
+      "p_touch": 0.0
+     },
+     {
+      "date": "2026-10-04",
+      "drop_pp": 0.0125,
+      "dte": 18.0,
+      "p_above": 0.0,
+      "p_above_base": 0.000125,
+      "p_below": 1.0,
+      "p_touch": 0.0
+     }
+    ],
+    "side": "resistance",
+    "strength": 0.272582,
+    "strike": 62.0
+   },
+   {
+    "ag": 324357.181227,
+    "gex_net": 46336.740175,
+    "kind": "composite",
+    "oi": 5250.0,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 0.19,
+      "dte": 7.0,
+      "p_above": 2.3e-05,
+      "p_above_base": 0.001923,
+      "p_below": 0.999977,
+      "p_touch": 4.5e-05
+     },
+     {
+      "date": "2026-10-04",
+      "drop_pp": 3.5745,
+      "dte": 18.0,
+      "p_above": 0.000428,
+      "p_above_base": 0.036173,
+      "p_below": 0.999572,
+      "p_touch": 0.000855
+     }
+    ],
+    "side": "resistance",
+    "strength": 0.554733,
+    "strike": 57.0
+   },
+   {
+    "ag": 77.163065,
+    "gex_net": 11.023295,
+    "kind": "composite",
+    "oi": 2747.5,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 0.0,
+      "dte": 7.0,
+      "p_above": 1.0,
+      "p_above_base": 1.0,
+      "p_below": 0.0,
+      "p_touch": 0.0
+     },
+     {
+      "date": "2026-10-04",
+      "drop_pp": 0.0,
+      "dte": 18.0,
+      "p_above": 1.0,
+      "p_above_base": 1.0,
+      "p_below": 0.0,
+      "p_touch": 0.0
+     }
+    ],
+    "side": "support",
+    "strength": 0.26168,
+    "strike": 42.0
+   },
+   {
+    "ag": 41127.227391,
+    "gex_net": 5875.318199,
+    "kind": "composite",
+    "oi": 3272.5,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 0.0043,
+      "dte": 7.0,
+      "p_above": 1.0,
+      "p_above_base": 0.999957,
+      "p_below": 0.0,
+      "p_touch": 0.0
+     },
+     {
+      "date": "2026-10-04",
+      "drop_pp": 0.6558,
+      "dte": 18.0,
+      "p_above": 1.0,
+      "p_above_base": 0.993442,
+      "p_below": 0.0,
+      "p_touch": 0.0
+     }
+    ],
+    "side": "support",
+    "strength": 0.318607,
+    "strike": 47.0
+   },
+   {
+    "ag": 2963073.349473,
+    "gex_net": 423296.192782,
+    "kind": "call_wall",
+    "oi": 5250.0,
+    "probs": [
+     {
+      "date": "2026-09-23",
+      "drop_pp": 36.132,
+      "dte": 7.0,
+      "p_above": 0.999879,
+      "p_above_base": 0.638558,
+      "p_below": 0.000121,
+      "p_touch": 0.000243
+     },
+     {
+      "date": "2026-10-04",
+      "drop_pp": 40.5471,
+      "dte": 18.0,
+      "p_above": 0.999864,
+      "p_above_base": 0.594393,
+      "p_below": 0.000136,
+      "p_touch": 0.000272
+     }
+    ],
+    "side": "support",
+    "strength": 1.0,
+    "strike": 52.0
+   }
+  ],
+  "meta": {
+   "atr": 3.5,
+   "axis": [
+    46.1312,
+    57.0513
+   ],
+   "call_wall": 52.0,
+   "gamma_flip": null,
+   "gamma_score": 14.285714,
+   "hv": 0.25,
+   "iv_atm": 0.246606,
+   "net_gex": 476352.728109,
+   "oi_quantile": 1.0,
+   "put_wall": null,
+   "q": 0.0,
+   "r": 0.045,
+   "regime": "POSITIVE",
+   "spot": 52.5,
+   "ticker": "TEST3",
+   "total_ag": 3334469.096765,
+   "vol_mult": 0.992857
+  },
+  "opts": {
+   "expiries": 2,
+   "horizon_days": 30,
+   "oi_quantile": 1.0,
+   "top_oi": 2,
+   "wall_decay": 8.0
+  }
+ }
+}

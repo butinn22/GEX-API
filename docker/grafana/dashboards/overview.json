@@ -1,0 +1,36 @@
+{
+  "uid": "gex-overview",
+  "title": "GEX Trading Overview",
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Orders / s",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {"refId": "A", "expr": "sum(rate(trading_orders_total[5m]))"}
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Signals / s",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {"refId": "A", "expr": "sum(rate(trading_strategy_signals_total[5m]))"}
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Data fetch errors",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {"refId": "A", "expr": "sum(rate(trading_data_fetch_errors_total[5m]))"}
+      ]
+    }
+  ]
+}

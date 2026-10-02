@@ -1,0 +1,86 @@
+[
+ {
+  "method": "POST",
+  "path": "/scanner/auto/reset",
+  "handler": "reset_scanner",
+  "full": "/scanner/auto/reset",
+  "file": "auto_scanner_router.py"
+ },
+ {
+  "method": "POST",
+  "path": "/scanner/auto/run",
+  "handler": "run_scan",
+  "full": "/scanner/auto/run",
+  "file": "auto_scanner_router.py"
+ },
+ {
+  "method": "POST",
+  "path": "/scanner/auto/run/next",
+  "handler": "run_next_batch",
+  "full": "/scanner/auto/run/next",
+  "file": "auto_scanner_router.py"
+ },
+ {
+  "method": "GET",
+  "path": "/scanner/auto/signals",
+  "handler": "get_signals",
+  "full": "/scanner/auto/signals",
+  "file": "auto_scanner_router.py"
+ },
+ {
+  "method": "GET",
+  "path": "/scanner/auto/status",
+  "handler": "get_status",
+  "full": "/scanner/auto/status",
+  "file": "auto_scanner_router.py"
+ },
+ {
+  "method": "GET",
+  "path": "/scanner/auto/tickers",
+  "handler": "get_tickers",
+  "full": "/scanner/auto/tickers",
+  "file": "auto_scanner_router.py"
+ },
+ {
+  "method": "GET",
+  "path": "/scanner/signals",
+  "handler": "get_signals",
+  "full": "/scanner/signals",
+  "file": "signal_scanner_router.py"
+ },
+ {
+  "method": "POST",
+  "path": "/scanner/signals/run",
+  "handler": "run_signals_now",
+  "full": "/scanner/signals/run",
+  "file": "signal_scanner_router.py"
+ },
+ {
+  "method": "POST",
+  "path": "/scanner/signals/watchlist",
+  "handler": "update_watchlist",
+  "full": "/scanner/signals/watchlist",
+  "file": "signal_scanner_router.py"
+ },
+ {
+  "method": "GET",
+  "path": "/scans",
+  "handler": "get_scans",
+  "full": "/scans",
+  "file": "scanner_router.py"
+ },
+ {
+  "method": "POST",
+  "path": "/scans/run",
+  "handler": "run_scans_now",
+  "full": "/scans/run",
+  "file": "scanner_router.py"
+ },
+ {
+  "method": "GET",
+  "path": "/scans/{ticker}",
+  "handler": "get_scan_ticker",
+  "full": "/scans/{ticker}",
+  "file": "scanner_router.py"
+ }
+]

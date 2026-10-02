@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ── GEX-API ────────────────────────────────────────────────────────────
+# Local dev databases (schema is managed by SQLAlchemy + Alembic)
+*.db
+trading.db
+
+# Local agent/assistant scratch state (not part of the application)
+.workbuddy-ai/

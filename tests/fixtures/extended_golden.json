@@ -1,0 +1,185 @@
+{
+ "hedge_scenarios": [
+  {
+   "dollar_value": -2305002.274548,
+   "scenario_pct": -1.0,
+   "shares": -23050.022745
+  },
+  {
+   "dollar_value": 2305002.274548,
+   "scenario_pct": 1.0,
+   "shares": 23050.022745
+  }
+ ],
+ "key_levels": [
+  {
+   "distance_pct": 0.0,
+   "strength": 1478836.966041,
+   "strike": 100.0,
+   "type": "RESISTANCE"
+  },
+  {
+   "distance_pct": 5.0,
+   "strength": 760752.694152,
+   "strike": 105.0,
+   "type": "RESISTANCE"
+  },
+  {
+   "distance_pct": -5.0,
+   "strength": 53049.929312,
+   "strike": 95.0,
+   "type": "RESISTANCE"
+  },
+  {
+   "distance_pct": 10.0,
+   "strength": 8542.623372,
+   "strike": 110.0,
+   "type": "RESISTANCE"
+  },
+  {
+   "distance_pct": -10.0,
+   "strength": 3197.712555,
+   "strike": 90.0,
+   "type": "RESISTANCE"
+  }
+ ],
+ "per_strike": [
+  {
+   "ag": 302.016019,
+   "ag_normalized": 3.6e-05,
+   "delta_hedge_ratio": 1.428571,
+   "gamma_call": 7.2e-05,
+   "gamma_dollar": 45.302403,
+   "gamma_put": 7.2e-05,
+   "gex_call": 177.656482,
+   "gex_net": 53.296944,
+   "gex_put": -124.359537,
+   "oi_call": 400.0,
+   "oi_put": 280.0,
+   "strike": 85.0,
+   "weight": 1.229344
+  },
+  {
+   "ag": 18120.371145,
+   "ag_normalized": 0.002162,
+   "delta_hedge_ratio": 1.428571,
+   "gamma_call": 0.003153,
+   "gamma_dollar": 2877.9413,
+   "gamma_put": 0.003153,
+   "gex_call": 10659.04185,
+   "gex_net": 3197.712555,
+   "gex_put": -7461.329295,
+   "oi_call": 550.0,
+   "oi_put": 385.0,
+   "strike": 90.0,
+   "weight": 1.229344
+  },
+  {
+   "ag": 300616.266104,
+   "ag_normalized": 0.035873,
+   "delta_hedge_ratio": 1.428571,
+   "gamma_call": 0.041098,
+   "gamma_dollar": 50397.432847,
+   "gamma_put": 0.041098,
+   "gex_call": 176833.097708,
+   "gex_net": 53049.929312,
+   "gex_put": -123783.168396,
+   "oi_call": 700.0,
+   "oi_put": 490.0,
+   "strike": 95.0,
+   "weight": 1.229344
+  },
+  {
+   "ag": 8380076.140902,
+   "ag_normalized": 1.0,
+   "delta_hedge_ratio": 1.428571,
+   "gamma_call": 0.100246,
+   "gamma_dollar": 1478836.966041,
+   "gamma_put": 0.100246,
+   "gex_call": 4929456.553472,
+   "gex_net": 1478836.966041,
+   "gex_put": -3450619.58743,
+   "oi_call": 8000.0,
+   "oi_put": 5600.0,
+   "strike": 100.0,
+   "weight": 1.229344
+  },
+  {
+   "ag": 4310931.933528,
+   "ag_normalized": 0.514426,
+   "delta_hedge_ratio": 1.428571,
+   "gamma_call": 0.051569,
+   "gamma_dollar": 798790.32886,
+   "gamma_put": 0.051569,
+   "gex_call": 2535842.31384,
+   "gex_net": 760752.694152,
+   "gex_put": -1775089.619688,
+   "oi_call": 8000.0,
+   "oi_put": 5600.0,
+   "strike": 105.0,
+   "weight": 1.229344
+  },
+  {
+   "ag": 48408.19911,
+   "ag_normalized": 0.005777,
+   "delta_hedge_ratio": 1.428571,
+   "gamma_call": 0.008423,
+   "gamma_dollar": 9396.88571,
+   "gamma_put": 0.008423,
+   "gex_call": 28475.411241,
+   "gex_net": 8542.623372,
+   "gex_put": -19932.787869,
+   "oi_call": 550.0,
+   "oi_put": 385.0,
+   "strike": 110.0,
+   "weight": 1.229344
+  },
+  {
+   "ag": 3224.628962,
+   "ag_normalized": 0.000385,
+   "delta_hedge_ratio": 1.428571,
+   "gamma_call": 0.000771,
+   "gamma_dollar": 654.409995,
+   "gamma_put": 0.000771,
+   "gex_call": 1896.840566,
+   "gex_net": 569.05217,
+   "gex_put": -1327.788396,
+   "oi_call": 400.0,
+   "oi_put": 280.0,
+   "strike": 115.0,
+   "weight": 1.229344
+  }
+ ],
+ "power_zones": [
+  {
+   "center": 100.0,
+   "dominant_type": "CALL",
+   "max_strike": 100.0,
+   "min_strike": 100.0,
+   "n_strikes": 1.0,
+   "total_ag": 8380076.140902,
+   "width": 0.0
+  }
+ ],
+ "scalars": {
+  "call_wall": 100.0,
+  "call_wall_strength": 0.641577,
+  "directional_bias": "BULLISH",
+  "gamma_dollar_total": 2340999.267155,
+  "gamma_exposure_score": 17.647059,
+  "max_pain": 105.0,
+  "net_gex": 2305002.274548,
+  "per_contract": 100.0,
+  "put_call_ratio": 0.7,
+  "put_wall": null,
+  "put_wall_strength": 0.0,
+  "regime": "POSITIVE",
+  "source": "stock",
+  "spot": 100.0,
+  "symbol": "TEST",
+  "total_ag": 13061679.55577,
+  "total_call_gex": 7683340.915159,
+  "total_put_gex": -5378338.640611
+ },
+ "volume_zones": []
+}

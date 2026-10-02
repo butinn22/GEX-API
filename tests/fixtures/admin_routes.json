@@ -1,0 +1,254 @@
+[
+ {
+  "method": "POST",
+  "path": "/cache/clear",
+  "handler": "clear_cache",
+  "full": "/auth/admin/cache/clear",
+  "file": "system.py"
+ },
+ {
+  "method": "GET",
+  "path": "/db-stats",
+  "handler": "get_db_metrics_stats",
+  "full": "/auth/admin/db-stats",
+  "file": "system.py"
+ },
+ {
+  "method": "POST",
+  "path": "/db/reset",
+  "handler": "reset_db",
+  "full": "/auth/admin/db/reset",
+  "file": "system.py"
+ },
+ {
+  "method": "GET",
+  "path": "/email-config",
+  "handler": "get_email_config",
+  "full": "/auth/admin/email-config",
+  "file": "notify.py"
+ },
+ {
+  "method": "PUT",
+  "path": "/email-config",
+  "handler": "set_email_config",
+  "full": "/auth/admin/email-config",
+  "file": "notify.py"
+ },
+ {
+  "method": "GET",
+  "path": "/finagent-key",
+  "handler": "get_finagent_key_config",
+  "full": "/auth/admin/finagent-key",
+  "file": "notify.py"
+ },
+ {
+  "method": "PUT",
+  "path": "/finagent-key",
+  "handler": "set_finagent_key_config",
+  "full": "/auth/admin/finagent-key",
+  "file": "notify.py"
+ },
+ {
+  "method": "GET",
+  "path": "/http-stats",
+  "handler": "get_http_metrics_stats",
+  "full": "/auth/admin/http-stats",
+  "file": "system.py"
+ },
+ {
+  "method": "GET",
+  "path": "/logs",
+  "handler": "get_recent_logs",
+  "full": "/auth/admin/logs",
+  "file": "system.py"
+ },
+ {
+  "method": "GET",
+  "path": "/metrics",
+  "handler": "get_metrics",
+  "full": "/auth/admin/metrics",
+  "file": "system.py"
+ },
+ {
+  "method": "GET",
+  "path": "/metrics/history",
+  "handler": "get_system_metric_history",
+  "full": "/auth/admin/metrics/history",
+  "file": "system.py"
+ },
+ {
+  "method": "GET",
+  "path": "/payment-requisites",
+  "handler": "admin_get_payment_requisites",
+  "full": "/auth/admin/payment-requisites",
+  "file": "payments.py"
+ },
+ {
+  "method": "PUT",
+  "path": "/payment-requisites",
+  "handler": "admin_set_payment_requisites",
+  "full": "/auth/admin/payment-requisites",
+  "file": "payments.py"
+ },
+ {
+  "method": "GET",
+  "path": "/payments",
+  "handler": "list_payments",
+  "full": "/auth/admin/payments",
+  "file": "payments.py"
+ },
+ {
+  "method": "GET",
+  "path": "/payments/export",
+  "handler": "export_payments",
+  "full": "/auth/admin/payments/export",
+  "file": "payments.py"
+ },
+ {
+  "method": "POST",
+  "path": "/payments/import",
+  "handler": "import_payments",
+  "full": "/auth/admin/payments/import",
+  "file": "payments.py"
+ },
+ {
+  "method": "POST",
+  "path": "/payments/{payment_id}/confirm",
+  "handler": "admin_confirm_payment",
+  "full": "/auth/admin/payments/{payment_id}/confirm",
+  "file": "payments.py"
+ },
+ {
+  "method": "POST",
+  "path": "/payments/{payment_id}/reject",
+  "handler": "admin_reject_payment",
+  "full": "/auth/admin/payments/{payment_id}/reject",
+  "file": "payments.py"
+ },
+ {
+  "method": "POST",
+  "path": "/redis/restart",
+  "handler": "restart_redis",
+  "full": "/auth/admin/redis/restart",
+  "file": "system.py"
+ },
+ {
+  "method": "GET",
+  "path": "/stats",
+  "handler": "get_admin_stats",
+  "full": "/auth/admin/stats",
+  "file": "system.py"
+ },
+ {
+  "method": "GET",
+  "path": "/system",
+  "handler": "get_system_health",
+  "full": "/auth/admin/system",
+  "file": "system.py"
+ },
+ {
+  "method": "GET",
+  "path": "/telegram-config",
+  "handler": "get_telegram_config",
+  "full": "/auth/admin/telegram-config",
+  "file": "notify.py"
+ },
+ {
+  "method": "PUT",
+  "path": "/telegram-config",
+  "handler": "set_telegram_config",
+  "full": "/auth/admin/telegram-config",
+  "file": "notify.py"
+ },
+ {
+  "method": "POST",
+  "path": "/test-email",
+  "handler": "admin_test_email",
+  "full": "/auth/admin/test-email",
+  "file": "notify.py"
+ },
+ {
+  "method": "GET",
+  "path": "/users",
+  "handler": "list_users",
+  "full": "/auth/admin/users",
+  "file": "users.py"
+ },
+ {
+  "method": "GET",
+  "path": "/users/export",
+  "handler": "export_users",
+  "full": "/auth/admin/users/export",
+  "file": "users.py"
+ },
+ {
+  "method": "POST",
+  "path": "/users/import",
+  "handler": "import_users",
+  "full": "/auth/admin/users/import",
+  "file": "users.py"
+ },
+ {
+  "method": "DELETE",
+  "path": "/users/{user_id}",
+  "handler": "delete_user",
+  "full": "/auth/admin/users/{user_id}",
+  "file": "users.py"
+ },
+ {
+  "method": "GET",
+  "path": "/users/{user_id}",
+  "handler": "get_user",
+  "full": "/auth/admin/users/{user_id}",
+  "file": "users.py"
+ },
+ {
+  "method": "PATCH",
+  "path": "/users/{user_id}",
+  "handler": "update_user",
+  "full": "/auth/admin/users/{user_id}",
+  "file": "users.py"
+ },
+ {
+  "method": "POST",
+  "path": "/users/{user_id}/activate",
+  "handler": "admin_activate_subscription",
+  "full": "/auth/admin/users/{user_id}/activate",
+  "file": "users.py"
+ },
+ {
+  "method": "POST",
+  "path": "/users/{user_id}/block",
+  "handler": "admin_block_user",
+  "full": "/auth/admin/users/{user_id}/block",
+  "file": "users.py"
+ },
+ {
+  "method": "POST",
+  "path": "/users/{user_id}/moderate",
+  "handler": "moderate_user",
+  "full": "/auth/admin/users/{user_id}/moderate",
+  "file": "users.py"
+ },
+ {
+  "method": "POST",
+  "path": "/users/{user_id}/resend-email",
+  "handler": "admin_resend_email",
+  "full": "/auth/admin/users/{user_id}/resend-email",
+  "file": "users.py"
+ },
+ {
+  "method": "POST",
+  "path": "/users/{user_id}/resend-telegram",
+  "handler": "admin_resend_telegram",
+  "full": "/auth/admin/users/{user_id}/resend-telegram",
+  "file": "users.py"
+ },
+ {
+  "method": "POST",
+  "path": "/users/{user_id}/unblock",
+  "handler": "admin_unblock_user",
+  "full": "/auth/admin/users/{user_id}/unblock",
+  "file": "users.py"
+ }
+]

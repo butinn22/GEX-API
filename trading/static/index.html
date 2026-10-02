@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<title>GEX Trading — Portfolio Backtest Console</title>
+<style>
+  :root {
+    --bg:#0d1117; --panel:#161b22; --panel2:#11161d; --border:#30363d;
+    --fg:#e6edf3; --muted:#8b949e; --accent:#2f81f7; --danger:#f85149;
+    --green:#3fb950; --orange:#f0883e; --purple:#a371f7; --teal:#39c5cf;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg)}
+  .wrap{max-width:1080px;margin:32px auto 80px;padding:0 20px}
+  h1{font-size:21px;margin:0 0 4px}
+  h2{margin:0 0 12px;font-size:16px}
+  h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 6px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:18px}
+  label{display:block;font-size:11px;color:var(--muted);margin:0 0 4px}
+  input,select{width:100%;padding:7px 9px;background:#0d1117;color:var(--fg);border:1px solid var(--border);border-radius:6px;font-size:13px}
+  input[type=checkbox]{width:auto}
+  button{padding:8px 15px;background:var(--accent);color:#fff;border:0;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px}
+  button.ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
+  button.danger{background:transparent;border:1px solid var(--danger);color:var(--danger);padding:4px 9px}
+  button#pf-stop{padding:8px 15px;font-weight:600}
+  button#pf-stop:not(:disabled){background:var(--danger);border-color:var(--danger);color:#fff}
+  button:disabled{opacity:.5;cursor:default}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:120px}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .muted{color:var(--muted);font-size:12px}
+  .error{color:var(--danger);font-size:13px;margin-top:8px;white-space:pre-wrap}
+  .hidden{display:none!important}
+  .grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px}
+  .tcard{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+  .thead{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .thead .sym{flex:1}
+  .tparams{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .badge{padding:2px 7px;border-radius:9px;font-size:10px;background:#1f6feb33;color:#58a6ff;text-transform:uppercase}
+  .metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+  .metric{background:var(--panel2);border:1px solid var(--border);border-radius:7px;padding:8px 10px}
+  .metric .k{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .metric .v{font-size:15px;font-weight:600}
+  .pos{color:var(--green)} .neg{color:var(--danger)}
+  svg.chart{background:var(--panel2);border:1px solid var(--border);border-radius:8px;margin-top:6px;display:block;width:100%}
+  .legend{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin-top:8px;font-size:12px}
+  .legend .lbl{color:var(--muted)}
+  .legend .val{font-weight:600}
+  table{width:100%;border-collapse:collapse;margin-top:6px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);font-size:12.5px}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .kv{display:flex;gap:18px;flex-wrap:wrap;margin:6px 0}
+  .kv .item{background:var(--panel2);border:1px solid var(--border);border-radius:7px;padding:7px 11px}
+  .kv .k{font-size:10px;color:var(--muted);text-transform:uppercase}
+  .kv .v{font-size:14px;font-weight:600}
+  .spinner{width:14px;height:14px;border:2px solid #ffffff40;border-top-color:#fff;border-radius:50%;
+    display:inline-block;vertical-align:-2px;margin-right:7px;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .hint{font-size:11px;color:var(--muted);margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>GEX Trading Console</h1>
+  <div class="muted">Multi-ticker portfolio backtesting · Monte-Carlo · live brokers</div>
+
+  <!-- ── Login ─────────────────────────────────────────────────────── -->
+  <section id="login" class="card" style="margin-top:18px">
+    <h2>Sign in</h2>
+    <label>Password</label>
+    <input id="password" type="password" autocomplete="current-password" />
+    <div class="hint">Server admin account (default admin/admin).</div>
+    <div style="margin-top:12px"><button id="login-btn">Sign in</button></div>
+    <div id="login-error" class="error"></div>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="toolbar">
+      <span class="badge">backtest console</span>
+      <button id="logout" class="ghost">Sign out</button>
+    </div>
+
+    <!-- ── Portfolio backtest ──────────────────────────────────────── -->
+    <div class="card">
+      <h2>Portfolio backtest</h2>
+      <div class="row">
+        <div>
+          <label>Timeframe</label>
+          <select id="pf-timeframe">
+            <option value="1d" selected>1 day</option>
+            <option value="1h">1 hour</option>
+            <option value="1wk">1 week</option>
+            <option value="1mo">1 month</option>
+          </select>
+        </div>
+        <div><label>Initial cash</label><input id="pf-cash" type="number" value="100000" min="100" /></div>
+        <div><label>Fee %</label><input id="pf-fee" type="number" step="0.01" min="0" value="0.1" /></div>
+        <div><label>Slippage %</label><input id="pf-slip" type="number" step="0.01" min="0" value="0.05" /></div>
+        <div><label>Position fraction</label><input id="pf-frac" type="number" step="0.05" min="0.05" max="1" value="0.95" /></div>
+        <div><label>Bars / ticker</label><input id="pf-limit" type="number" min="60" max="10000" value="1500" /></div>
+      </div>
+
+      <h3>Auto-select tickers</h3>
+      <div class="row">
+        <div>
+          <label>Universe</label>
+          <select id="pf-category">
+            <option value="us" selected>US equities</option>
+            <option value="sectors">Sectors (ETF)</option>
+            <option value="crypto">Crypto</option>
+            <option value="fx">FX / commodities</option>
+            <option value="ru">RU (MOEX)</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+        <div><label>How many tickers</label><input id="pf-count" type="number" min="1" max="50" value="5" /></div>
+        <div>
+          <label>Strategy for selected</label>
+          <select id="pf-default-strategy">
+            <option value="sma_crossover">SMA crossover</option>
+            <option value="sma_crossover_ls">SMA crossover — long &amp; short</option>
+            <option value="momentum">Momentum</option>
+            <option value="mean_reversion">Mean reversion</option>
+            <option value="buy_and_hold">Buy &amp; hold</option>
+            <option value="gex_emf">EMF + ADL (auto_scanner)</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <button id="pf-auto" class="ghost">Auto-select N</button>
+          <button id="pf-add" class="ghost">+ Add ticker</button>
+          <button id="pf-clear" class="ghost">Clear</button>
+        </div>
+      </div>
+      <div class="hint">
+        Each ticker runs its own strategy and settings. Weight = relative capital share;
+        set an explicit capital to override.
+      </div>
+
+      <h3>Tickers <span id="pf-count-label" class="muted"></span></h3>
+      <div id="pf-tickers" class="grid-cards"></div>
+
+      <h3>Monte-Carlo (optional)</h3>
+      <div class="row">
+        <div style="max-width:180px">
+          <label class="muted" style="margin-top:8px">
+            <input type="checkbox" id="pf-mc-on" checked /> run Monte-Carlo
+          </label>
+        </div>
+        <div>
+          <label>Paths</label>
+          <select id="pf-mc-paths">
+            <option value="1000">1 000</option>
+            <option value="5000" selected>5 000</option>
+            <option value="10000">10 000</option>
+            <option value="25000">25 000</option>
+          </select>
+        </div>
+        <div>
+          <label>Method</label>
+          <select id="pf-mc-method">
+            <option value="block_bootstrap">Block bootstrap</option>
+            <option value="bootstrap" selected>Bootstrap residuals</option>
+            <option value="gbm">Geometric Brownian Motion</option>
+            <option value="historical">Historical resampling</option>
+          </select>
+        </div>
+        <div>
+          <label>Demo mode</label>
+          <label class="muted"><input type="checkbox" id="pf-demo" /> synthetic data (offline)</label>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button id="pf-run">Run portfolio backtest</button>
+        <button id="pf-stop" class="danger" disabled>Stop</button>
+        <button id="pf-report" class="ghost">Download HTML report</button>
+        <span id="pf-status" class="muted"></span>
+      </div>
+      <div id="pf-hint" class="muted" style="font-size:12px;margin-top:6px"></div>
+      <div id="pf-error" class="error"></div>
+    </div>
+
+    <!-- ── Results ─────────────────────────────────────────────────── -->
+    <div id="pf-results" class="hidden">
+      <div class="card">
+        <h2>Portfolio performance</h2>
+        <div id="pf-legend" class="legend"></div>
+        <div id="pf-metrics" class="metrics-grid" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <h2>Equity curve</h2>
+        <div class="muted" id="pf-equity-sub"></div>
+        <svg id="pf-chart-equity" class="chart" viewBox="0 0 900 360" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div class="card">
+        <h2>Drawdown (underwater)</h2>
+        <svg id="pf-chart-dd" class="chart" viewBox="0 0 900 220" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div id="pf-corr-card" class="card hidden">
+        <h2>Return correlation</h2>
+        <svg id="pf-chart-corr" class="chart" viewBox="0 0 640 420" preserveAspectRatio="xMinYMin meet"></svg>
+      </div>
+
+      <div class="card">
+        <h2>Per-ticker attribution</h2>
+        <table>
+          <thead><tr><th>Symbol</th><th>Strategy</th><th>Weight</th><th>Capital</th>
+            <th>Trades</th><th>Return</th><th>Sharpe</th><th>Max DD</th></tr></thead>
+          <tbody id="pf-tickers-body"></tbody>
+        </table>
+        <div id="pf-errors" class="error"></div>
+      </div>
+
+      <div id="pf-mc-card" class="card hidden">
+        <h2>Monte-Carlo <span class="badge" id="pf-mc-badge"></span></h2>
+        <div id="pf-mc-stats" class="kv"></div>
+        <h3>Equity fan (p5–p95, p25–p75, median)</h3>
+        <svg id="pf-chart-fan" class="chart" viewBox="0 0 900 360" preserveAspectRatio="none"></svg>
+        <h3>Final return distribution</h3>
+        <svg id="pf-chart-hist" class="chart" viewBox="0 0 900 280" preserveAspectRatio="none"></svg>
+        <h3>Metric confidence intervals (5–95 %)</h3>
+        <table>
+          <thead><tr><th>Metric</th><th>Mean</th><th>5 %</th><th>95 %</th></tr></thead>
+          <tbody id="pf-mc-ci"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── API keys ────────────────────────────────────────────────── -->
+    <div class="card">
+      <h2>API keys</h2>
+      <div class="row">
+        <div>
+          <label>Exchange</label>
+          <select id="exchange">
+            <option value="bingx">BingX</option>
+            <option value="tbank">TBANK</option>
+          </select>
+        </div>
+        <div><label>Label</label><input id="label" placeholder="e.g. main / sandbox" /></div>
+      </div>
+      <label>API key</label>
+      <input id="api_key" placeholder="public key / token" />
+      <label>API secret</label>
+      <input id="api_secret" placeholder="secret / (TBANK: leave blank)" />
+      <label id="account-label" class="hidden">Account ID (TBANK)</label>
+      <input id="account_id" class="hidden" placeholder="account id" />
+      <div style="margin-top:14px"><button id="add-btn">Save key</button></div>
+      <div id="add-error" class="error"></div>
+      <table>
+        <thead><tr><th>Exchange</th><th>Label</th><th>API key</th><th></th></tr></thead>
+        <tbody id="keys-body"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<datalist id="instrument-list"></datalist>
+
+<script>
+const API = "/api/v1";
+const $ = (id) => document.getElementById(id);
+let token = localStorage.getItem("gex_token");
+let instruments = [];
+
+/* ── tiny helpers ──────────────────────────────────────────────────── */
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money = (v) => Math.abs(v)>=1e6 ? "$"+(v/1e6).toFixed(2)+"M"
+                    : Math.abs(v)>=1e3 ? "$"+(v/1e3).toFixed(1)+"k" : "$"+v.toFixed(0);
+const pct = (v) => (v*100).toFixed(2)+"%";
+const num = (v) => (v===null||v===undefined) ? "—" : (Math.abs(v)<10 ? v.toFixed(3) : v.toFixed(2));
+const sign = (v) => (typeof v==="number" && v<0) ? "neg" : "pos";
+function minMax(a){ let lo=Infinity, hi=-Infinity; for(let i=0;i<a.length;i++){ const v=a[i]; if(v<lo)lo=v; if(v>hi)hi=v; } return [lo,hi]; }
+function authHeaders(){ return {"Authorization":"Bearer "+token,"Content-Type":"application/json"}; }
+function show(id,on){ $(id).classList.toggle("hidden", !on); }
+
+/* ── SVG chart primitives ──────────────────────────────────────────── */
+const C = { grid:"#21262d", axis:"#6e7681", text:"#c9d1d9", muted:"#8b949e",
+            palette:["#58a6ff","#f0883e","#3fb950","#a371f7","#f85149","#39c5cf","#d29922"] };
+
+function frame(W,H,inner){ return `<rect x="0" y="0" width="${W}" height="${H}" fill="none"/>`+inner; }
+function yGrid(W,H,L,R,T,B,lo,hi,fmt){
+  let g="";
+  for(let t=0;t<=4;t++){
+    const v=lo+(hi-lo)*t/4, y=(T+(1-t/4)*(H-T-B)).toFixed(1);
+    g+=`<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="${C.grid}"/>`;
+    g+=`<text x="${L-8}" y="${(+y+3.5).toFixed(1)}" font-size="10" fill="${C.axis}" text-anchor="end">${fmt(v)}</text>`;
+  }
+  return g;
+}
+function xLabels(W,H,L,R,B,labels,count){
+  const n=labels.length; if(!n) return "";
+  const pw=W-L-R; let g="";
+  const idx=[]; const step=n<=count?1:(n-1)/(count-1);
+  for(let i=0;i<count;i++){ idx.push(n<=count?i:Math.round(i*step)); }
+  for(const i of [...new Set(idx)]){
+    const x=(L+(n<=1?0:i/(n-1)*pw)).toFixed(1);
+    g+=`<text x="${x}" y="${H-B+18}" font-size="10" fill="${C.axis}" text-anchor="middle">${esc(labels[i])}</text>`;
+  }
+  return g;
+}
+function legendRow(series, W, H){
+  let g="", x=96;
+  series.forEach((s,k)=>{
+    const color = s.color || C.palette[k % C.palette.length];
+    g+=`<rect x="${x}" y="${H-13}" width="9" height="9" rx="2" fill="${color}"/>`;
+    g+=`<text x="${x+13}" y="${H-5}" font-size="10" fill="${C.muted}">${esc(s.name)}</text>`;
+    x += 24 + String(s.name).length*6.2;
+  });
+  return g;
+}
+function lineChart(svg, labels, series, opts={}){
+  const W=900,H=360,L=80,R=14,T=16,B=44, pw=W-L-R, ph=H-T-B;
+  const yKind = opts.yKind || "money";
+  const fmt = yKind==="pct" ? pct : (yKind==="money" ? money : num);
+  let all=[]; series.forEach(s=>s.values.forEach(v=>all.push(v)));
+  if(!all.length){ svg.innerHTML=frame(W,H,`<text x="20" y="${H/2}" font-size="12" fill="${C.muted}">no data</text>`); return; }
+  let [lo,hi]=minMax(all); if(hi<=lo) hi=lo+1; const p=(hi-lo)*0.06; lo-=p; hi+=p;
+  const n=labels.length;
+  const xs=i=>(n<=1?L:L+i/(n-1)*pw);
+  const ys=v=>T+(1-(v-lo)/(hi-lo))*ph;
+  let g = yGrid(W,H,L,R,T,B,lo,hi,fmt) + xLabels(W,H,L,R,B,labels,6);
+  series.forEach((s,k)=>{
+    const color = s.color || C.palette[k % C.palette.length];
+    const width = s.width || (k===0?2.2:1.4);
+    let d=""; let started=false;
+    for(let i=0;i<s.values.length;i++){
+      const v=s.values[i]; if(v===null||v===undefined||!isFinite(v)){ started=false; continue; }
+      d += (started?" L ":" M ") + xs(i).toFixed(1)+","+ys(v).toFixed(1);
+      started=true;
+    }
+    g += `<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}"/>`;
+  });
+  g += legendRow(series.slice(0,7), W, H);
+  svg.innerHTML = frame(W,H,g);
+}
+function drawdownChart(svg, labels, equity){
+  const W=900,H=220,L=80,R=14,T=16,B=34, pw=W-L-R, ph=H-T-B;
+  let peak=equity[0]||1; const dd=equity.map(v=>{ peak=Math.max(peak,v); return peak>0?(v-peak)/peak:0; });
+  let worst=Math.min(...dd, -0.01); worst*=1.1;
+  const n=dd.length; const xs=i=>(n<=1?L:L+i/(n-1)*pw);
+  const ys=v=>T+(1-(v-worst)/(0-worst))*ph;
+  let g="";
+  for(let t=0;t<=2;t++){
+    const v=worst+(0-worst)*t/2, y=ys(v).toFixed(1);
+    g+=`<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="${C.grid}"/>`;
+    g+=`<text x="${L-8}" y="${(+y+3.5).toFixed(1)}" font-size="10" fill="${C.axis}" text-anchor="end">${pct(v)}</text>`;
+  }
+  g += xLabels(W,H,L,R,B,labels,6);
+  let area=`M ${xs(0).toFixed(1)},${ys(0).toFixed(1)}`+dd.map((v,i)=>` L ${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join("")
+          +` L ${xs(n-1).toFixed(1)},${ys(0).toFixed(1)} Z`;
+  g += `<path d="${area}" fill="#f85149" fill-opacity="0.28" stroke="#f85149" stroke-width="1.4"/>`;
+  svg.innerHTML=frame(W,H,g);
+}
+function fanChart(svg, steps, bands, mean){
+  const W=900,H=360,L=80,R=14,T=16,B=34, pw=W-L-R, ph=H-T-B;
+  const req=["p5","p25","p50","p75","p95"];
+  if(req.some(k=>!bands[k]||!bands[k].length)){ svg.innerHTML=frame(W,H,`<text x="20" y="${H/2}" font-size="12" fill="${C.muted}">no simulation data</text>`); return; }
+  let all=[]; req.forEach(k=>bands[k].forEach(v=>all.push(v)));
+  let [lo,hi]=minMax(all); const pad=(hi-lo)*0.06||1; lo-=pad; hi+=pad;
+  const n=steps.length; const xs=i=>(n<=1?L:L+i/(n-1)*pw); const ys=v=>T+(1-(v-lo)/(hi-lo))*ph;
+  const band=(low,high)=>{
+    const up=high.map((v,i)=>` L ${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join("");
+    const dn=[]; for(let i=low.length-1;i>=0;i--) dn.push(` L ${xs(i).toFixed(1)},${ys(low[i]).toFixed(1)}`);
+    return `M ${xs(0).toFixed(1)},${ys(high[0]).toFixed(1)}`+up+dn.join("")+" Z";
+  };
+  let g = yGrid(W,H,L,R,T,B,lo,hi,money) + xLabels(W,H,L,R,B,steps.map(String),6);
+  g += `<path d="${band(bands.p5,bands.p95)}" fill="#58a6ff" fill-opacity="0.15"/>`;
+  g += `<path d="${band(bands.p25,bands.p75)}" fill="#58a6ff" fill-opacity="0.22"/>`;
+  g += `<path d="${bands.p50.map((v,i)=>(i?" L ":" M ")+xs(i).toFixed(1)+","+ys(v).toFixed(1)).join("")}" fill="none" stroke="#58a6ff" stroke-width="2"/>`;
+  if(mean && mean.length){
+    g += `<path d="${mean.map((v,i)=>(i?" L ":" M ")+xs(i).toFixed(1)+","+ys(v).toFixed(1)).join("")}" fill="none" stroke="${C.palette[1]}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
+  }
+  g += legendRow([{name:"p95–p5",color:"#58a6ff"},{name:"p75–p25",color:"#3f78b5"},{name:"median",color:"#58a6ff"},{name:"mean",color:C.palette[1]}],W,H);
+  svg.innerHTML=frame(W,H,g);
+}
+function histogram(svg, counts, centers, var95){
+  const W=900,H=280,L=64,R=14,T=16,B=36, pw=W-L-R, ph=H-T-B;
+  if(!counts.length){ svg.innerHTML=frame(W,H,`<text x="20" y="${H/2}" font-size="12" fill="${C.muted}">no distribution</text>`); return; }
+  const lo=centers[0], hi=centers[centers.length-1];
+  const cmax=Math.max(...counts)||1, bw=pw/counts.length;
+  const xs=v=>L+(v-lo)/((hi-lo)||1)*pw;
+  let g=`<line x1="${L}" y1="${T+ph}" x2="${W-R}" y2="${T+ph}" stroke="${C.axis}"/>`;
+  counts.forEach((c,i)=>{
+    const h=c/cmax*ph, x=L+i*bw+0.6;
+    g+=`<rect x="${x.toFixed(1)}" y="${(T+ph-h).toFixed(1)}" width="${Math.max(bw-1.5,0.8).toFixed(1)}" height="${h.toFixed(1)}" fill="#3fb950" fill-opacity="0.85" rx="1"/>`;
+  });
+  [lo,(lo+hi)/2,hi].forEach(v=>{ g+=`<text x="${xs(v).toFixed(1)}" y="${H-B+18}" font-size="10" fill="${C.axis}" text-anchor="middle">${pct(v)}</text>`; });
+  if(var95!==undefined && var95>=lo && var95<=hi){
+    const x=xs(var95).toFixed(1);
+    g+=`<line x1="${x}" y1="${T}" x2="${x}" y2="${T+ph}" stroke="#f85149" stroke-width="1.6" stroke-dasharray="4 3"/>`;
+    g+=`<text x="${x}" y="${T-3}" font-size="10" fill="#f85149" text-anchor="middle">VaR95 ${pct(var95)}</text>`;
+  }
+  svg.innerHTML=frame(W,H,g);
+}
+function heatmap(svg, symbols, matrix){
+  const cell=64, left=110, top=42;
+  const W=left+symbols.length*cell+16, H=top+symbols.length*cell+22;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const color=v=>{
+    v=Math.max(-1,Math.min(1,v));
+    if(v>=0){ const r=Math.round(255+(47-255)*v), g=Math.round(255+(129-255)*v), b=Math.round(255+(247-255)*v); return `rgb(${r},${g},${b})`; }
+    const m=-v; const r=Math.round(255+(248-255)*m), g=Math.round(255+(81-255)*m), b=Math.round(255+(73-255)*m); return `rgb(${r},${g},${b})`;
+  };
+  let g="";
+  symbols.forEach((s,j)=>{ g+=`<text x="${left+j*cell+cell/2}" y="${top-9}" font-size="10" fill="${C.muted}" text-anchor="middle">${esc(s)}</text>`; });
+  matrix.forEach((row,i)=>{
+    g+=`<text x="${left-8}" y="${top+i*cell+cell/2+3}" font-size="10" fill="${C.muted}" text-anchor="end">${esc(symbols[i])}</text>`;
+    row.forEach((v,j)=>{
+      const x=left+j*cell, y=top+i*cell;
+      g+=`<rect x="${x}" y="${y}" width="${cell-3}" height="${cell-3}" rx="3" fill="${color(v)}"/>`;
+      g+=`<text x="${x+cell/2-1.5}" y="${y+cell/2+3}" font-size="9" fill="#0d1117" text-anchor="middle">${v.toFixed(2)}</text>`;
+    });
+  });
+  svg.innerHTML=g;
+}
+
+/* ── login + sessions ──────────────────────────────────────────────── */
+function refreshView(){ show("login", !token); show("app", !!token); }
+async function login(){
+  const res = await fetch(API+"/auth/token", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({username:"admin", password:$("password").value})});
+  if(!res.ok){ $("login-error").textContent="Invalid password"; return; }
+  token=(await res.json()).access_token;
+  localStorage.setItem("gex_token", token);
+  $("password").value=""; refreshView(); loadKeys(); loadInstruments();
+}
+$("login-btn").onclick=login;
+$("password").addEventListener("keydown",e=>{ if(e.key==="Enter") login(); });
+$("logout").onclick=()=>{ localStorage.removeItem("gex_token"); token=null; refreshView(); };
+
+/* ── API keys ──────────────────────────────────────────────────────── */
+$("exchange").addEventListener("change",()=>{ const t=$("exchange").value==="tbank"; show("account-label",t); show("account_id",t); });
+async function loadKeys(){
+  const res=await fetch(API+"/keys",{headers:authHeaders()});
+  const keys=res.ok?await res.json():[];
+  const body=$("keys-body"); body.innerHTML="";
+  if(!keys.length){ body.innerHTML='<tr><td colspan="4" class="muted">No keys yet</td></tr>'; return; }
+  keys.forEach(k=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML='<td><span class="badge">'+esc(k.exchange)+'</span></td><td>'+esc(k.label||"—")+
+      '</td><td class="muted">'+esc(k.api_key_masked)+'</td>'+
+      '<td><button class="danger" data-id="'+k.id+'">Delete</button></td>';
+    body.appendChild(tr);
+  });
+  body.querySelectorAll("button.danger").forEach(b=>b.onclick=async()=>{
+    const r=await fetch(API+"/keys/"+b.dataset.id,{method:"DELETE",headers:authHeaders()});
+    if(r.ok||r.status===204) loadKeys();
+  });
+}
+$("add-btn").onclick=async()=>{
+  const payload={exchange:$("exchange").value,label:$("label").value,api_key:$("api_key").value,
+    api_secret:$("api_secret").value,account_id:$("account_id").value};
+  const res=await fetch(API+"/keys",{method:"POST",headers:authHeaders(),body:JSON.stringify(payload)});
+  if(!res.ok){ $("add-error").textContent="Failed to save key"; return; }
+  $("add-error").textContent="";
+  $("label").value=$("api_key").value=$("api_secret").value=$("account_id").value="";
+  loadKeys();
+};
+
+/* ── instruments ───────────────────────────────────────────────────── */
+async function loadInstruments(){
+  try{ const r=await fetch(API+"/data/instruments"); instruments = r.ok?await r.json():[]; }
+  catch(e){ instruments=[]; }
+  $("instrument-list").innerHTML = instruments
+    .map(i=>`<option value="${esc(i.symbol)}">${esc(i.name)} · ${esc(i.category)}</option>`).join("");
+}
+
+/* ── ticker model ──────────────────────────────────────────────────── */
+let tickers = [];
+const STRATEGY_LABELS = {
+  sma_crossover:"SMA crossover", sma_crossover_ls:"SMA long/short", momentum:"Momentum",
+  mean_reversion:"Mean reversion", buy_and_hold:"Buy & hold", gex_emf:"EMF + ADL",
+};
+function newTicker(symbol, strategy){
+  return {
+    symbol: symbol||"", strategy: strategy||"sma_crossover", enabled:true, weight:1, source:"auto",
+    fast:5, slow:20, period:20,
+    long:{enabled:true, fast:10, slow:20, strength:1.0},
+    short:{enabled:true, fast:10, slow:20, strength:1.0},
+    gex:{tp_percent:2, trailing_percent:1, atr_length:50, length_adl:20, use_take_profit:true, use_trailing:true,
+         use_risk_exits:true, use_atr_stops:true},
+  };
+}
+function paramInputsHTML(t, i){
+  const p=(f,lbl,val,step,min)=>`<div><label>${lbl}</label><input type="number" step="${step||1}" ${min?`min="${min}"`:""} value="${val}" data-i="${i}" data-f="${f}"/></div>`;
+  const c=(f,lbl,val,tip)=>`<div><label title="${tip||""}">${lbl}</label><input type="checkbox" ${val?"checked":""} data-i="${i}" data-f="${f}" title="${tip||""}"/></div>`;
+  switch(t.strategy){
+    case "sma_crossover":    return p("fast","Fast",t.fast)+p("slow","Slow",t.slow);
+    case "sma_crossover_ls": return p("long.fast","L fast",t.long.fast)+p("long.slow","L slow",t.long.slow)
+                                  + p("short.fast","S fast",t.short.fast)+p("short.slow","S slow",t.short.slow);
+    case "momentum":
+    case "mean_reversion":   return p("period","Period",t.period,1,2);
+    case "gex_emf":          return p("gex.tp_percent","TP %",t.gex.tp_percent,0.1)
+                                  + p("gex.trailing_percent","Trail %",t.gex.trailing_percent,0.1)
+                                  + p("gex.atr_length","ATR",t.gex.atr_length,1,1)
+                                  + p("gex.length_adl","ADL",t.gex.length_adl,1,1)
+                                  + c("gex.use_risk_exits","TP/trail exits",t.gex.use_risk_exits,
+                                      "Apply the take-profit / trailing-stop rules above. Off = only the strategy's own indicator exits (the historical behaviour).")
+                                  + c("gex.use_atr_stops","ATR levels",t.gex.use_atr_stops,
+                                      "Levels scale with ATR instead of the TP % / Trail % percentages.");
+    default:                 return `<div class="muted" style="grid-column:span 3">no parameters</div>`;
+  }
+}
+function renderTickers(){
+  const host=$("pf-tickers");
+  if(!tickers.length){
+    host.innerHTML='<div class="muted">No tickers. Use “Auto-select N” or “+ Add ticker”.</div>';
+    $("pf-count-label").textContent=""; return;
+  }
+  host.innerHTML = tickers.map((t,i)=>`
+    <div class="tcard">
+      <div class="thead">
+        <input type="checkbox" ${t.enabled?"checked":""} data-i="${i}" data-f="enabled" title="enabled"/>
+        <input class="sym" list="instrument-list" value="${esc(t.symbol)}" placeholder="SYMBOL"
+               data-i="${i}" data-f="symbol" style="flex:1"/>
+        <input type="number" step="0.1" min="0" value="${t.weight}" data-i="${i}" data-f="weight"
+               title="weight" style="width:70px"/>
+        <button class="danger" data-i="${i}" data-remove="1">×</button>
+      </div>
+      <div class="thead">
+        <select data-i="${i}" data-f="strategy" style="flex:1">
+          ${Object.entries(STRATEGY_LABELS).map(([v,l])=>`<option value="${v}" ${t.strategy===v?"selected":""}>${l}</option>`).join("")}
+        </select>
+        <select data-i="${i}" data-f="source" style="width:110px" title="data source">
+          ${["auto","synthetic","moex","yfinance","bybit","webull"].map(s=>`<option value="${s}" ${t.source===s?"selected":""}>${s}</option>`).join("")}
+        </select>
+      </div>
+      <div class="tparams">${paramInputsHTML(t,i)}</div>
+    </div>`).join("");
+
+  const total = tickers.filter(t=>t.enabled).reduce((a,t)=>a+Number(t.weight||0),0);
+  $("pf-count-label").textContent = `· ${tickers.filter(t=>t.enabled).length} enabled · total weight ${total.toFixed(2)}`;
+}
+function setField(i, path, value){
+  const parts=path.split("."); let o=tickers[i];
+  for(let k=0;k<parts.length-1;k++) o=o[parts[k]];
+  o[parts[parts.length-1]]=value;
+}
+$("pf-tickers").addEventListener("input",(e)=>{
+  const el=e.target; const i=el.dataset.i; if(i===undefined) return;
+  let v = el.type==="checkbox" ? el.checked : el.value;
+  if(el.type==="number") v = v==="" ? 0 : Number(v);
+  setField(Number(i), el.dataset.f, v);
+  if(el.dataset.f==="weight") renderTickers();
+});
+$("pf-tickers").addEventListener("change",(e)=>{
+  const el=e.target; const i=el.dataset.i; if(i===undefined) return;
+  if(el.tagName==="SELECT" && el.dataset.f==="strategy"){ tickers[Number(i)].strategy=el.value; renderTickers(); }
+});
+$("pf-tickers").addEventListener("click",(e)=>{
+  const b=e.target.closest("button[data-remove]"); if(!b) return;
+  tickers.splice(Number(b.dataset.i),1); renderTickers();
+});
+$("pf-add").onclick=()=>{ tickers.push(newTicker("", $("pf-default-strategy").value)); renderTickers(); };
+$("pf-clear").onclick=()=>{ tickers=[]; renderTickers(); };
+$("pf-auto").onclick=async()=>{
+  const cat=$("pf-category").value, n=Number($("pf-count").value)||5;
+  try{
+    const r=await fetch(`${API}/data/universe?category=${cat}&n=${n}`);
+    if(!r.ok) throw new Error((await r.json()).detail||r.status);
+    const d=await r.json();
+    tickers = d.tickers.map(t=>newTicker(t.symbol, $("pf-default-strategy").value));
+    renderTickers();
+  }catch(err){ $("pf-error").textContent="Auto-select failed: "+err.message; }
+};
+
+/* ── request builder ───────────────────────────────────────────────── */
+function paramsFor(t){
+  switch(t.strategy){
+    case "sma_crossover":    return {fast:+t.fast, slow:+t.slow};
+    case "sma_crossover_ls": return {long:{enabled:t.long.enabled,fast:+t.long.fast,slow:+t.long.slow,strength:+t.long.strength},
+                                     short:{enabled:t.short.enabled,fast:+t.short.fast,slow:+t.short.slow,strength:+t.short.strength}};
+    case "momentum":
+    case "mean_reversion":   return {period:+t.period};
+    case "gex_emf":          return {settings:{tp_percent:+t.gex.tp_percent, trailing_percent:+t.gex.trailing_percent,
+                                     atr_length:+t.gex.atr_length, length_adl:+t.gex.length_adl,
+                                     use_take_profit:!!t.gex.use_take_profit, use_trailing:!!t.gex.use_trailing,
+                                     use_risk_exits:!!t.gex.use_risk_exits,
+                                     use_atr_stops:!!t.gex.use_atr_stops}};
+    default:                 return {};
+  }
+}
+function buildPortfolioRequest(){
+  const demo = $("pf-demo").checked;
+  const tf = $("pf-timeframe").value, limit = Number($("pf-limit").value)||1500;
+  const mcOn = $("pf-mc-on").checked;
+  return {
+    tickers: tickers.filter(t=>t.enabled).map(t=>({
+      symbol:(t.symbol||"").trim(), strategy:t.strategy, weight:Number(t.weight)||1,
+      source: demo ? "synthetic" : t.source, timeframe: tf, limit, params: paramsFor(t), enabled:true,
+    })),
+    initial_cash:Number($("pf-cash").value), fee_rate:Number($("pf-fee").value)/100,
+    slippage:Number($("pf-slip").value)/100, position_fraction:Number($("pf-frac").value),
+    monte_carlo: mcOn ? {enabled:true, n_paths:Number($("pf-mc-paths").value),
+                         method:$("pf-mc-method").value, seed:0} : null,
+  };
+}
+
+/* ── metric rendering ──────────────────────────────────────────────── */
+const METRIC_LABELS={ total_return:"Total return", annualized_return:"Annualized", sharpe:"Sharpe",
+  sortino:"Sortino", calmar:"Calmar", max_drawdown:"Max DD", var_95:"VaR 95%", cvar_95:"CVaR 95%",
+  win_rate:"Win rate", profit_factor:"Profit factor", n_trades:"Trades", n_periods:"Bars" };
+const PCT_KEYS=["total_return","annualized_return","max_drawdown","var_95","cvar_95","win_rate"];
+function renderMetrics(host, m){
+  host.innerHTML=Object.entries(METRIC_LABELS).map(([k,lbl])=>{
+    let v=m[k];
+    if(v===null||v===undefined) return `<div class="metric"><div class="k">${lbl}</div><div class="v">—</div></div>`;
+    let cls="";
+    if(PCT_KEYS.includes(k)){ const n=Number(v); cls=sign(n); v=pct(n); }
+    else { cls=sign(Number(v)); v=num(Number(v)); }
+    return `<div class="metric"><div class="k">${lbl}</div><div class="v ${cls}">${v}</div></div>`;
+  }).join("");
+}
+function renderLegend(host, d, req){
+  const fin=d.final_equity, ret=(fin-d.initial_cash)/d.initial_cash;
+  host.innerHTML =
+    `<span><span class="lbl">Tickers</span> <span class="val">${d.n_tickers}</span></span>`+
+    `<span><span class="lbl">Initial</span> <span class="val">${money(d.initial_cash)}</span></span>`+
+    `<span><span class="lbl">Final</span> <span class="val ${sign(ret)}">${money(fin)} (${ret>=0?"+":""}${pct(ret)})</span></span>`+
+    `<span><span class="lbl">Bars</span> <span class="val">${d.metrics.n_periods}</span></span>`;
+}
+
+/* ── run lifecycle + cancellation ──────────────────────────────────── */
+/* One run at a time. `active` holds the AbortController for the in-flight
+   fetch plus the run token the server knows this run by. Stop does two things:
+   it POSTs the token to /backtest/cancel (so the CPU work actually stops), then
+   aborts the fetch (so the UI stops waiting on the response).            */
+let active = null;
+const STOPPED_NOTE = "Run stopped. Partial results are discarded.";
+
+function newRunToken(){
+  const raw = (self.crypto && crypto.randomUUID)
+    ? crypto.randomUUID().replace(/-/g,"")
+    : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+  return String(raw).replace(/[^A-Za-z0-9_-]/g,"").slice(0,64);
+}
+function beginRun(label){
+  const controller = new AbortController();
+  active = { controller, token: newRunToken(), label, stopped: false };
+  $("pf-run").disabled = true;
+  $("pf-report").disabled = true;
+  $("pf-stop").disabled = false;
+  $("pf-hint").textContent = "";
+  setStatus(label, true);
+  return active;
+}
+function endRun(){
+  active = null;
+  $("pf-run").disabled = false;
+  $("pf-report").disabled = false;
+  $("pf-stop").disabled = true;
+  setStatus("");
+}
+async function stopRun(){
+  if(!active) return;
+  const run = active;
+  run.stopped = true;
+  $("pf-stop").disabled = true;
+  setStatus("stopping…", true);
+  try{
+    await fetch(API+"/backtest/cancel/"+encodeURIComponent(run.token),
+                {method:"POST", headers:authHeaders()});
+  }catch(e){ /* the abort below is the real backstop */ }
+  try{ run.controller.abort(); }catch(e){}
+}
+/* A run that was stopped is not a failure — return true if this is that case. */
+function isStop(err){
+  return (active && active.stopped) || (err && err.name === "AbortError");
+}
+
+/* ── run ───────────────────────────────────────────────────────────── */
+function setStatus(msg, busy){ $("pf-status").innerHTML = busy ? `<span class="spinner"></span>${esc(msg)}` : esc(msg); }
+async function runPortfolio(){
+  $("pf-error").textContent=""; $("pf-hint").textContent=""; show("pf-results", false);
+  if(!tickers.filter(t=>t.enabled).length){ $("pf-error").textContent="Add at least one enabled ticker."; return; }
+  const req=buildPortfolioRequest();
+  const run=beginRun("running "+req.tickers.length+" ticker"+(req.tickers.length===1?"":"s")+"…");
+  req.run_token=run.token;
+  try{
+    const res=await fetch(API+"/backtest/portfolio",{method:"POST",headers:authHeaders(),body:JSON.stringify(req),signal:run.controller.signal});
+    if(res.status===499){ $("pf-hint").textContent=STOPPED_NOTE; return; }
+    if(!res.ok){
+      let d=String(res.status);
+      try{ const body=await res.json(); d=body.detail||d; }catch(e){}
+      throw new Error(typeof d==="string" ? d : JSON.stringify(d));
+    }
+    const d=await res.json();
+    renderResults(d);
+    show("pf-results", true);
+    $("pf-results").scrollIntoView({behavior:"smooth", block:"start"});
+  }catch(err){
+    if(isStop(err)){ $("pf-hint").textContent=STOPPED_NOTE; return; }
+    $("pf-error").textContent="Backtest failed: "+err.message;
+  }
+  finally{ endRun(); }
+}
+function renderResults(d){
+  renderMetrics($("pf-metrics"), d.metrics);
+  renderLegend($("pf-legend"), d, buildPortfolioRequest());
+
+  const series=[{name:"Portfolio", values:d.equity_curve, width:2.4}];
+  (d.tickers||[]).forEach((t,k)=>{ series.push({name:t.symbol, values:t.equity_curve, width:1.3, color:C.palette[(k+1)%C.palette.length]}); });
+  lineChart($("pf-chart-equity"), d.times.map(x=>x.slice(0,10)), series, {yKind:"money"});
+  $("pf-equity-sub").textContent = series.length>2
+    ? "portfolio (bold) vs each ticker; hover-less static SVG"
+    : "portfolio equity";
+
+  drawdownChart($("pf-chart-dd"), d.times.map(x=>x.slice(0,10)), d.equity_curve);
+
+  if(d.correlation && d.correlation.symbols.length>1){
+    heatmap($("pf-chart-corr"), d.correlation.symbols, d.correlation.matrix);
+    show("pf-corr-card", true);
+  } else show("pf-corr-card", false);
+
+  $("pf-tickers-body").innerHTML=(d.tickers||[]).map(t=>
+    `<tr><td><b>${esc(t.symbol)}</b></td><td>${esc(STRATEGY_LABELS[t.strategy]||t.strategy)}</td>
+      <td>${(t.weight*100).toFixed(1)}%</td><td>${money(t.capital)}</td><td>${t.n_trades}</td>
+      <td class="${sign(t.metrics.total_return)}">${pct(t.metrics.total_return)}</td>
+      <td>${num(t.metrics.sharpe)}</td><td>${pct(t.metrics.max_drawdown)}</td></tr>`).join("")
+    || '<tr><td colspan="8" class="muted">no tickers</td></tr>';
+  $("pf-errors").textContent=(d.errors||[]).map(e=>`${e.symbol}: ${e.error}`).join("\n");
+
+  const mc=d.monte_carlo;
+  if(mc){
+    show("pf-mc-card", true);
+    $("pf-mc-badge").textContent=`${mc.method} · ${mc.n_paths.toLocaleString()} paths`;
+    const ci=(k)=>mc.metrics_ci[k]?`${num(mc.metrics_ci[k][0])} … ${num(mc.metrics_ci[k][1])}`:"—";
+    $("pf-mc-stats").innerHTML =
+      [["P(profit)", pct(mc.prob_profit), sign(mc.prob_profit-0.5)],
+       ["Median return", pct(mc.final_return_percentiles.p50), sign(mc.final_return_percentiles.p50)],
+       ["p5 return", pct(mc.p5), sign(mc.p5)],
+       ["p95 return", pct(mc.p95), sign(mc.p95)],
+       ["VaR 95%", pct(mc.var_95), "neg"],
+       ["CVaR 95%", pct(mc.cvar_95), "neg"],
+       ["Sharpe (5–95%)", ci("sharpe"), ""],
+       ["MaxDD (5–95%)", `${pct(mc.metrics_ci.max_drawdown?mc.metrics_ci.max_drawdown[0]:0)} … ${pct(mc.metrics_ci.max_drawdown?mc.metrics_ci.max_drawdown[1]:0)}`, ""]]
+      .map(([k,v,cls])=>`<div class="item"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`).join("");
+    fanChart($("pf-chart-fan"), mc.steps, mc.bands, mc.mean_path);
+    histogram($("pf-chart-hist"), mc.histogram.counts, mc.histogram.centers, mc.var_95);
+    $("pf-mc-ci").innerHTML=Object.entries(mc.metrics_ci).map(([k,[lo,hi]])=>
+      `<tr><td>${METRIC_LABELS[k]||k}</td><td>${num(mc.metrics_mean[k])}</td><td>${num(lo)}</td><td>${num(hi)}</td></tr>`).join("");
+  } else show("pf-mc-card", false);
+}
+$("pf-run").onclick=runPortfolio;
+$("pf-stop").onclick=stopRun;
+
+$("pf-report").onclick=async()=>{
+  $("pf-error").textContent=""; $("pf-hint").textContent="";
+  if(!tickers.filter(t=>t.enabled).length){ $("pf-error").textContent="Add at least one enabled ticker."; return; }
+  const req=buildPortfolioRequest();
+  const run=beginRun("building report…");
+  req.run_token=run.token;
+  try{
+    const res=await fetch(API+"/backtest/portfolio/report",{method:"POST",headers:authHeaders(),body:JSON.stringify(req),signal:run.controller.signal});
+    if(res.status===499){ $("pf-hint").textContent=STOPPED_NOTE; return; }
+    if(!res.ok) throw new Error(res.status+"");
+    const html=await res.text();
+    const url=URL.createObjectURL(new Blob([html],{type:"text/html"}));
+    const a=document.createElement("a"); a.href=url; a.download="portfolio-backtest-report.html"; a.click();
+    URL.revokeObjectURL(url);
+    $("pf-hint").textContent="Report downloaded.";
+  }catch(err){
+    if(isStop(err)){ $("pf-hint").textContent=STOPPED_NOTE; return; }
+    $("pf-error").textContent="Report failed: "+err.message;
+  }
+  finally{ endRun(); }
+};
+
+/* ── boot ──────────────────────────────────────────────────────────── */
+// Esc stops a running backtest; a long run also guards against accidental reload.
+document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && active) stopRun(); });
+window.addEventListener("beforeunload", (e)=>{
+  if(!active) return;
+  // Best-effort: fire the cancel so the server stops even though we're leaving.
+  try{ navigator.sendBeacon(API+"/backtest/cancel/"+encodeURIComponent(active.token)); }catch(err){}
+  e.preventDefault(); e.returnValue = "";
+});
+refreshView();
+if(token){ loadKeys(); loadInstruments(); }
+tickers=[newTicker("SBER","sma_crossover"), newTicker("BTC","momentum"), newTicker("NVDA","sma_crossover_ls")];
+tickers[0].source="synthetic"; tickers[1].source="synthetic"; tickers[2].source="synthetic";
+renderTickers();
+</script>
+</body>
+</html>

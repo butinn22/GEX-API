@@ -1,0 +1,26 @@
+groups:
+  - name: trading
+    rules:
+      - alert: TradingBrokerDown
+        expr: trading_broker_status == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Broker {{ $labels.exchange }} is unreachable"
+
+      - alert: HighDataFetchErrors
+        expr: rate(trading_data_fetch_errors_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated market-data fetch error rate"
+
+      - alert: RateLimitPressure
+        expr: rate(trading_rate_limit_hits_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limits are being hit"

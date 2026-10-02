@@ -1,0 +1,6 @@
+route:
+  receiver: "default"
+receivers:
+  - name: "default"
+    # Telegram/Discord webhooks go here (see Alertmanager docs); left empty so
+    # the platform starts without a notification target configured.

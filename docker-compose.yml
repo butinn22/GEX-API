@@ -1,0 +1,87 @@
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: gex
+      POSTGRES_PASSWORD: gex
+      POSTGRES_DB: gex_trading
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/timescale-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gex"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    environment:
+      TRADING_DATABASE_URL: postgresql+asyncpg://gex:gex@db:5432/gex_trading
+      TRADING_REDIS_URL: redis://redis:6379/0
+      TRADING_SECRET_KEY: ${TRADING_SECRET_KEY:-dev-secret-change-me}
+      TRADING_ADMIN_USERNAME: ${TRADING_ADMIN_USERNAME:-admin}
+      TRADING_ADMIN_PASSWORD: ${TRADING_ADMIN_PASSWORD:-admin}
+      BINGX_BASE_URL: ${BINGX_BASE_URL:-https://open-api.bingx.com}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: celery -A trading.tasks worker --loglevel=info
+    environment:
+      TRADING_DATABASE_URL: postgresql+asyncpg://gex:gex@db:5432/gex_trading
+      TRADING_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+  beat:
+    build: .
+    command: celery -A trading.tasks beat --loglevel=info
+    environment:
+      TRADING_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:
+  grafana-data:
