@@ -26,6 +26,11 @@ _CATEGORY = {
     "auto_scanner_tickers_sectors.csv": "sectors",
 }
 
+#: Stablecoin quote suffixes that mark an explicit pair (``ETHUSDT``) as crypto
+#: even when the ticker is not in the CSV universe. Restricted to stablecoins so
+#: a fiat-looking symbol (``EURUSD``) is never misrouted to Bybit.
+_CRYPTO_QUOTES = ("USDT", "USDC", "BUSD")
+
 #: FX / commodity display symbols → yFinance symbols.
 _FX_YF = {
     "DXY": "DX-Y.NYB",
@@ -126,5 +131,18 @@ def resolve_symbol(symbol: str) -> dict:
         return {"exchange": "bybit", "fetch_symbol": fs, "category": category}
     if category == "fx":
         return {"exchange": "yfinance", "fetch_symbol": _FX_YF.get(symbol, symbol), "category": category}
+    if category is None:
+        pair = _crypto_pair(symbol)
+        if pair is not None:
+            return {"exchange": "bybit", "fetch_symbol": pair, "category": "crypto"}
     # us / sectors / unknown → yFinance as-is
     return {"exchange": "yfinance", "fetch_symbol": symbol, "category": category or "us"}
+
+
+def _crypto_pair(symbol: str) -> str | None:
+    """``ETHUSDT`` / ``BTC-USDT`` → ``ETHUSDT`` (Bybit), otherwise ``None``."""
+    up = symbol.upper().replace("-", "").replace("/", "")
+    for quote in _CRYPTO_QUOTES:
+        if up.endswith(quote) and len(up) > len(quote):
+            return up
+    return None

@@ -9,7 +9,13 @@ breaches a threshold).
 from __future__ import annotations
 
 import asyncio
+from typing import Mapping
 
+from trading.application.account_router import (
+    AccountOrderResult,
+    AccountRouter,
+    apply_risk,
+)
 from trading.domain import (
     BrokerError,
     Exchange,
@@ -70,19 +76,22 @@ class ExecutionEngine:
         base_delay: float = 0.05,
         max_delay: float = 2.0,
         kill_switch: KillSwitch | None = None,
+        account_router: AccountRouter | None = None,
     ) -> None:
         self.router = router
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
         self.kill_switch = kill_switch or KillSwitch()
+        self.account_router = account_router
 
-    async def _with_retry(self, exchange: Exchange, action):
+    async def _retry_on(self, broker: BrokerAdapter, action):
+        """Exponential-backoff retry against one already-resolved broker."""
         delay = self.base_delay
         last: BrokerError | None = None
         for attempt in range(self.max_retries):
             try:
-                return await action(self.router.get(exchange))
+                return await action(broker)
             except (OrderRejectedError, InsufficientFundsError):
                 raise  # permanent — never retry
             except BrokerError as exc:
@@ -93,8 +102,44 @@ class ExecutionEngine:
                 delay = min(delay * 2, self.max_delay)
         raise last  # type: ignore[misc]
 
+    async def _with_retry(self, exchange: Exchange, action):
+        return await self._retry_on(self.router.get(exchange), action)
+
     async def place_order(self, exchange: Exchange, intent: OrderIntent) -> Order:
         return await self._with_retry(exchange, lambda b: b.place_order(intent))
+
+    async def place_multi(
+        self,
+        intent: OrderIntent,
+        *,
+        equities: Mapping[int, float] | None = None,
+        price: float | None = None,
+    ) -> list[AccountOrderResult]:
+        """Place ``intent`` on every account whose instrument scope covers it.
+
+        Each account gets the engine's full retry policy and its own risk
+        sizing (:func:`~trading.application.account_router.apply_risk`); a
+        failure on one account never blocks the others.
+        """
+        if self.account_router is None:
+            raise ValueError("no AccountRouter configured for multi-account execution")
+        equities = equities or {}
+        results: list[AccountOrderResult] = []
+        for account, broker in self.account_router.brokers_for(intent.symbol):
+            sized = apply_risk(
+                intent, account.settings,
+                equity=equities.get(account.key_id, 0.0), price=price,
+            )
+            try:
+                order = await self._retry_on(broker, lambda b: b.place_order(sized))
+            except BrokerError as exc:
+                results.append(AccountOrderResult(
+                    account.key_id, account.label,
+                    error=f"{type(exc).__name__}: {exc}",
+                ))
+                continue
+            results.append(AccountOrderResult(account.key_id, account.label, order=order))
+        return results
 
     async def cancel_order(self, exchange: Exchange, order_id: str) -> Order:
         return await self._with_retry(exchange, lambda b: b.cancel_order(order_id))

@@ -42,6 +42,7 @@ from .match_engine import (
     SlippageModel,
 )
 from .metrics import BacktestMetrics, compute_metrics
+from .trade_log import TradeEvent, event_from_fill
 
 __all__ = ["BacktestConfig", "Trade", "BacktestResult", "run_backtest"]
 
@@ -76,6 +77,8 @@ class BacktestResult:
     equity_curve: np.ndarray
     trades: tuple[Trade, ...]
     metrics: BacktestMetrics
+    #: Per-fill ledger (entry/add/exit states) for granular trade reporting.
+    events: tuple[TradeEvent, ...] = ()
 
     @property
     def trade_pnls(self) -> tuple[float, ...]:
@@ -130,6 +133,7 @@ async def run_backtest(
     portfolio = Portfolio(cash=cfg.initial_cash)
     equity = np.empty(len(bars), dtype=float)
     trades: list[Trade] = []
+    events: list[TradeEvent] = []
     pending: list[OrderIntent] = []
 
     match_engine = MatchEngine(
@@ -146,6 +150,9 @@ async def run_backtest(
             pos = portfolio.position_for(intent.symbol)
             portfolio = portfolio.apply_fill(fill)
             closed_qty = _closed_quantity(pos.side, pos.quantity, fill)
+            events.append(
+                event_from_fill(pos, fill, strategy=intent.strategy, reason=intent.reason)
+            )
             if closed_qty > 0:  # only a real close is a trade (opens/adds are not)
                 gross = (fill.price - pos.average_entry_price) * closed_qty * pos.side.sign
                 fee_share = fill.fee * (closed_qty / fill.quantity)
@@ -178,4 +185,6 @@ async def run_backtest(
         [t.realized_pnl for t in trades],
         periods_per_year=cfg.periods_per_year,
     )
-    return BacktestResult(equity_curve=equity, trades=tuple(trades), metrics=metrics)
+    return BacktestResult(
+        equity_curve=equity, trades=tuple(trades), metrics=metrics, events=tuple(events)
+    )

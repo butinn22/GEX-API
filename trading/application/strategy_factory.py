@@ -32,6 +32,7 @@ STRATEGY_NAMES: tuple[str, ...] = (
     "mean_reversion",
     "momentum",
     "gex_emf",
+    "trend_confluence",
 )
 
 
@@ -146,5 +147,16 @@ def build_strategy(name: str, symbol: str, params: Mapping[str, Any] | None = No
         return GexEMFStrategy(
             symbol, settings=settings or None, use_risk_exits=bool(flag)
         )
+
+    if name == "trend_confluence":
+        from trading.application.strategies.trend_confluence import TrendConfluenceStrategy
+
+        # Everything except the ergonomic shortcuts is forwarded as-is; the
+        # strategy validates types itself via TrendConfluenceParams.from_dict.
+        forwarded = {k: v for k, v in p.items() if k not in ("fast", "slow", "period", "long", "short")}
+        try:
+            return TrendConfluenceStrategy(symbol, params=forwarded or None)
+        except (TypeError, ValueError) as exc:
+            raise StrategyError(f"trend_confluence: {exc}") from exc
 
     raise StrategyError(f"unknown strategy '{name}' (known: {', '.join(STRATEGY_NAMES)})")

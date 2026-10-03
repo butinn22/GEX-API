@@ -213,6 +213,24 @@ async def load_bars(spec: TickerSpec, *, refresh: bool = False) -> list[Bar]:
             return cached
     _bar_cache_misses += 1
 
+    # L2: Redis FIFO bar cache (≤ 500 bars/instrument), shared across processes
+    # and event loops; the in-process TTL cache above is only L1. Oversized
+    # windows bypass L2 (it is capped by design).
+    from trading.adapters.cache import (
+        MAX_BARS_PER_INSTRUMENT,
+        cache_key as bar_cache_key,
+        loop_bar_cache,
+    )
+
+    l2 = None
+    l2_key = bar_cache_key(spec.source or "auto", spec.symbol, spec.timeframe)
+    if spec.limit <= MAX_BARS_PER_INSTRUMENT:
+        l2 = await loop_bar_cache()
+        if not refresh:
+            cached_l2 = await l2.get_bars(l2_key, spec.limit)
+            if cached_l2 is not None:
+                return cached_l2
+
     if spec.source == "synthetic" or (
         spec.source in ("", "auto") and spec.symbol.upper() == "SYNTH"
     ):
@@ -235,6 +253,8 @@ async def load_bars(spec: TickerSpec, *, refresh: bool = False) -> list[Bar]:
 
     if settings.data_cache_ttl > 0:
         await _bar_cache.set(cache_key, bars, ttl=settings.data_cache_ttl)
+    if l2 is not None:
+        await l2.put_bars(l2_key, bars)  # write-through (FIFO-evicts oldest)
     return bars
 
 

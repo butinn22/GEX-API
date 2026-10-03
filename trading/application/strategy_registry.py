@@ -73,6 +73,13 @@ def _gex(symbol: str, **p) -> Strategy:
     return GexEMFStrategy(symbol, settings=settings or None)
 
 
+def _trend_confluence(symbol: str, **p) -> Strategy:
+    from trading.application.strategies.trend_confluence import TrendConfluenceStrategy
+
+    params = {k: v for k, v in p.items() if v is not None}
+    return TrendConfluenceStrategy(symbol, params=params or None)
+
+
 STRATEGY_REGISTRY = StrategyRegistry()
 STRATEGY_REGISTRY.register("sma_crossover", _sma, params=["fast", "slow"])
 STRATEGY_REGISTRY.register("buy_and_hold", lambda symbol, **p: BuyAndHold(symbol))
@@ -88,6 +95,14 @@ STRATEGY_REGISTRY.register(
             "length_adl", "verification_threshold",
             "use_risk_exits", "use_atr_stops", "atr_tp_mult", "atr_sl_mult",
             "use_take_profit", "use_trailing"],
+)
+STRATEGY_REGISTRY.register(
+    "trend_confluence", _trend_confluence,
+    params=["ema_fast", "ema_mid", "ema_slow", "zone_atr", "min_confluence",
+            "pullback_lookback", "use_trendlines", "trendline_refresh",
+            "use_options_walls", "gamma_flip_filter", "respect_call_wall",
+            "exit_at_call_wall", "allow_range", "range_size_mult",
+            "allow_long", "allow_short", "atr_trail_mult", "options"],
 )
 
 

@@ -8,6 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from trading.adapters.persistence.key_repository import ApiKeyRepository
 from trading.adapters.persistence.models import ApiKeyRow
+from trading.application.account_router import (
+    AccountRouter,
+    AccountSettings,
+    AccountView,
+    select_accounts,
+)
 from trading.security import decrypt, encrypt
 
 __all__ = ["KeysService", "mask_secret"]
@@ -71,3 +77,57 @@ class KeysService:
                     "extra": json.loads(row.extra_json or "{}"),
                 }
         return None
+
+    # ── Multi-account routing settings (stored in extra_json) ───────
+
+    def _row_credentials(self, row: ApiKeyRow) -> dict[str, Any]:
+        return {
+            "api_key": decrypt(self._secret, row.api_key_encrypted),
+            "api_secret": decrypt(self._secret, row.api_secret_encrypted),
+            "extra": json.loads(row.extra_json or "{}"),
+        }
+
+    async def update_settings(
+        self, session: AsyncSession, key_id: int, patch: dict[str, Any]
+    ) -> ApiKeyRow:
+        """Merge routing/risk settings into a key's ``extra`` (validated)."""
+        repo = ApiKeyRepository(session)
+        row = await repo.get(key_id)
+        if row is None:
+            raise ValueError("key not found")
+        extra = json.loads(row.extra_json or "{}")
+        current = AccountSettings.from_extra(extra)
+        updated = current.updated(patch)
+        # Preserve non-routing extra fields (account_id, sandbox, …).
+        extra.update(updated.as_dict())
+        out = await repo.update_extra(key_id, json.dumps(extra))
+        assert out is not None
+        return out
+
+    async def resolve_accounts_for_symbol(
+        self, session: AsyncSession, symbol: str
+    ) -> list[AccountView]:
+        """All enabled accounts (credentials decrypted) that trade ``symbol``."""
+        return select_accounts(await self.list_account_views(session), symbol)
+
+    async def list_account_views(self, session: AsyncSession) -> list[AccountView]:
+        """Every registered account as a routing view (credentials decrypted)."""
+        rows = await ApiKeyRepository(session).list()
+        return [
+            AccountView(
+                key_id=row.id,
+                exchange=row.exchange,
+                label=row.label,
+                credentials=self._row_credentials(row),
+                settings=AccountSettings.from_extra(json.loads(row.extra_json or "{}")),
+            )
+            for row in rows
+        ]
+
+    async def build_account_router(self, session: AsyncSession) -> "AccountRouter":
+        """An :class:`AccountRouter` over every registered account.
+
+        Attach it to an ``ExecutionEngine`` to execute each intent on every
+        account whose instrument scope covers it.
+        """
+        return AccountRouter(await self.list_account_views(session))

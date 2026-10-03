@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -52,6 +52,8 @@ class BacktestResultRow(Base):
     strategy: Mapped[str] = mapped_column(String(32))
     symbol: Mapped[str] = mapped_column(String(32))
     metrics_json: Mapped[str] = mapped_column(String(4096))
+    #: Granular per-fill trade events (see backtest.trade_log), JSON list.
+    trades_json: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

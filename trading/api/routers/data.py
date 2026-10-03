@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from trading.adapters.fetchers import SyntheticFetcher, default_registry
+from trading.application.data_sources import detect_data_source
 from trading.application.instruments import CATEGORIES, load_instruments, select_universe
 from trading.domain import DataFetchError, Exchange
 
@@ -54,6 +55,12 @@ async def ohlcv(
 @router.get("/sources")
 def sources() -> list[str]:
     return list(_SOURCES) + ["synthetic"]
+
+
+@router.get("/detect/{symbol}")
+def detect(symbol: str) -> dict:
+    """Auto-detect the data source for a ticker (venue + fetch symbol)."""
+    return detect_data_source(symbol)
 
 
 @router.get("/categories")

@@ -45,6 +45,8 @@ from trading.application.backtest.portfolio import (
     run_portfolio_backtest,
 )
 from trading.application.backtest.reporter import MonteCarloReporter, PortfolioReporter
+from trading.application.backtest.optimize import optimize_strategy
+from trading.application.backtest.trade_analysis import analyze_trades, recommend_adjustments
 from trading.application.cancellation import (
     CancelToken,
     RunCancelled,
@@ -57,6 +59,8 @@ from trading.domain import Bar, DataFetchError, StrategyError
 from trading.ports import Strategy
 
 from ..schemas import (
+    AnalyzeResponse,
+    AutoTuneRequest,
     BacktestMetricsOut,
     BacktestRequest,
     BacktestResponse,
@@ -66,6 +70,8 @@ from ..schemas import (
     MonteCarloRequest,
     MonteCarloRunOptions,
     MonteCarloSummaryOut,
+    OptimizeRequest,
+    OptimizeResponse,
     PortfolioBacktestRequest,
     PortfolioBacktestResponse,
     PortfolioMonteCarloRequest,
@@ -281,6 +287,32 @@ def _portfolio_response(
     )
 
 
+async def _persist_result(request: BacktestRequest, result) -> int | None:
+    """Store metrics + the granular trade-event ledger for later export.
+
+    Persistence is best-effort: a database hiccup must not fail a completed
+    backtest, so any error degrades to ``result_id=None``.
+    """
+    try:
+        from trading.adapters.persistence.bulk import TaskResultStore
+        from trading.adapters.persistence.database import _session_factory, init_db
+
+        await init_db()
+        async with _session_factory() as s:
+            row = await TaskResultStore(s).save_backtest(
+                request.strategy, request.symbol,
+                {"total_return": result.metrics.total_return,
+                 "sharpe": result.metrics.sharpe,
+                 "max_drawdown": result.metrics.max_drawdown,
+                 "win_rate": result.metrics.win_rate,
+                 "n_trades": len(result.trades)},
+                trades=[e.as_dict() for e in result.events],
+            )
+            return row.id
+    except Exception:
+        return None
+
+
 # ── single-symbol backtest ─────────────────────────────────────────────
 
 
@@ -302,12 +334,13 @@ async def run(request: BacktestRequest) -> BacktestResponse:
     if len(bars) < 2:
         raise HTTPException(400, "need at least 2 bars")
 
-    params = {
+    params = dict(request.params or {})
+    params.update({
         "fast": request.fast, "slow": request.slow, "period": request.period,
         "long": request.long.model_dump() if request.long else None,
         "short": request.short.model_dump() if request.short else None,
         "settings": request.settings,
-    }
+    })
     try:
         strategy: Strategy = build_strategy(
             request.strategy, request.symbol, {k: v for k, v in params.items() if v is not None}
@@ -324,12 +357,14 @@ async def run(request: BacktestRequest) -> BacktestResponse:
     )
     result = await run_backtest(strategy, bars, cfg)
     idx = _sample_indices(len(bars))
+    result_id = await _persist_result(request, result)
     return BacktestResponse(
         strategy=request.strategy,
         symbol=request.symbol,
         metrics=_metrics_out(result.metrics),
         equity_curve=_downsample(list(result.equity_curve), idx),
         times=[bars[i].timestamp.isoformat() for i in idx],
+        result_id=result_id,
         n_trades=len(result.trades),
     )
 
@@ -458,6 +493,135 @@ async def portfolio_report(request: PortfolioBacktestRequest) -> HTMLResponse:
             )
             html = html.replace("</body>", MonteCarloReporter(mc).to_html() + "</body>")
         return HTMLResponse(html)
+    except RunCancelled as exc:
+        raise _cancelled(exc) from exc
+    finally:
+        run_registry.clear(token.token)
+
+
+# ── trade analysis + adaptive optimization ─────────────────────────────
+
+
+@router.post("/analyze", response_model=AnalyzeResponse)
+async def analyze(request: BacktestRequest) -> AnalyzeResponse:
+    """Backtest one symbol, then break the trade ledger down win/loss.
+
+    The response carries the usual metrics plus a full trade analysis
+    (expectancy, payoff, streaks, per-side stats, PnL histogram) and a list of
+    rule-based parameter recommendations — the diagnostic half of the
+    strategy-improvement loop.
+    """
+    bars = await _bars_for(
+        request.symbol, request.source, request.timeframe, request.limit,
+        refresh=request.refresh_data,
+    )
+    params = dict(request.params or {})
+    params.update({
+        "fast": request.fast, "slow": request.slow, "period": request.period,
+        "long": request.long.model_dump() if request.long else None,
+        "short": request.short.model_dump() if request.short else None,
+        "settings": request.settings,
+    })
+    try:
+        strategy = build_strategy(
+            request.strategy, request.symbol, {k: v for k, v in params.items() if v is not None}
+        )
+    except StrategyError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    cfg = BacktestConfig(
+        initial_cash=request.initial_cash, fee_rate=request.fee_rate,
+        slippage=request.slippage, position_fraction=request.position_fraction,
+        periods_per_year=request.periods_per_year,
+    )
+    result = await run_backtest(strategy, bars, cfg)
+    analysis = analyze_trades(result.trades)
+    flat_params = {k: v for k, v in params.items() if v is not None}
+    return AnalyzeResponse(
+        strategy=request.strategy,
+        symbol=request.symbol,
+        metrics=_metrics_out(result.metrics),
+        n_trades=len(result.trades),
+        analysis=analysis.as_dict(),
+        recommendations=recommend_adjustments(analysis, flat_params),
+    )
+
+
+@router.post("/optimize", response_model=OptimizeResponse)
+async def optimize(request: OptimizeRequest) -> OptimizeResponse:
+    """Grid-search a strategy's parameters with a 70/30 train/validation split.
+
+    Candidates are ranked by validation Sharpe, discounted for train/validation
+    disagreement (overfitting) and thin trade samples. The best candidate is
+    re-run on the full history and returned with its win/loss analysis and
+    recommendations — the adaptive half of the improvement loop.
+
+    The sweep is synchronous CPU work and runs in a thread so the event loop
+    stays free to serve ``POST /backtest/cancel/{token}``.
+    """
+    token = _open_run(request.run_token)
+    try:
+        bars = await _bars_for(
+            request.symbol, request.source, request.timeframe, request.limit,
+            refresh=request.refresh_data,
+        )
+        cfg = BacktestConfig(
+            initial_cash=request.initial_cash, fee_rate=request.fee_rate,
+            slippage=request.slippage, position_fraction=request.position_fraction,
+            periods_per_year=request.periods_per_year,
+        )
+        try:
+            result = await asyncio.to_thread(
+                optimize_strategy,
+                request.strategy, request.symbol, bars,
+                base_params=request.params, grid=request.grid, cfg=cfg, cancel=token,
+            )
+        except StrategyError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        payload = result.as_dict()
+        payload["run_token"] = token.token
+        return OptimizeResponse(**payload)
+    except RunCancelled as exc:
+        raise _cancelled(exc) from exc
+    finally:
+        run_registry.clear(token.token)
+
+
+@router.post("/autotune")
+async def autotune_endpoint(request: AutoTuneRequest) -> dict:
+    """Pre-live tuning: parameter search + volatility-adaptive SL/TP targets.
+
+    Runs the train/validation grid search (like ``/optimize``) and layers the
+    selected risk profile on top: Stop Loss / Take Profit in ATR multiples
+    adapted to the asset's measured volatility; the High (breakout) profile
+    also reports EMA50 trend confirmation.
+    """
+    from trading.application.autotune import RiskProfile, autotune
+
+    token = _open_run(request.run_token)
+    try:
+        bars = await _bars_for(
+            request.symbol, request.source, request.timeframe, request.limit,
+            refresh=request.refresh_data,
+        )
+        cfg = BacktestConfig(
+            initial_cash=request.initial_cash, fee_rate=request.fee_rate,
+            slippage=request.slippage, position_fraction=request.position_fraction,
+            periods_per_year=request.periods_per_year,
+        )
+        try:
+            result = await asyncio.to_thread(
+                autotune,
+                request.symbol, request.strategy, bars,
+                RiskProfile(request.risk_profile),
+                base_params=request.params, grid=request.grid, cfg=cfg, cancel=token,
+            )
+        except (StrategyError, ValueError) as exc:
+            raise HTTPException(400, str(exc)) from exc
+        payload = result.as_dict()
+        payload["run_token"] = token.token
+        return payload
     except RunCancelled as exc:
         raise _cancelled(exc) from exc
     finally:

@@ -23,9 +23,25 @@ class _FeaturesMixin:
     @staticmethod
     def _heikin_ashi(data: DataFrame, pd_module: Any) -> DataFrame:
         ha_close = (data["open"] + data["high"] + data["low"] + data["close"]) / 4
-        ha_open = pd_module.Series(index=data.index, dtype=float)
-        ha_open.iloc[0] = (data["open"].iloc[0] + data["close"].iloc[0]) / 2
-        ha_open.iloc[1:] = (ha_open.shift(1).iloc[1:] + ha_close.shift(1).iloc[1:]) / 2
+        # HA open is an affine recursion on its own previous value:
+        #     ha_open[i] = (ha_open[i-1] + ha_close[i-1]) / 2
+        # It cannot be expressed with a single pandas ``shift``. ``ha_open.shift(1)``
+        # reads the column *before* assignment, which holds the seed at index 0 and NaN
+        # everywhere else, so only index 1 came out correct and every later bar was NaN.
+        # That collapsed the hybrid body to a point (``candle_top - candle_bottom == 0``
+        # on 99.8% of bars) and violated ``avg_candle == (hybrid_open + hybrid_close)/2``.
+        # Step the recursion explicitly over float64 buffers; seed = (open[0]+close[0])/2
+        # (PineScript ``nz`` fallback), matching the reference implementation exactly.
+        _o = data["open"].to_numpy(dtype=float)
+        _c = data["close"].to_numpy(dtype=float)
+        _hac = ha_close.to_numpy(dtype=float)
+        n = _hac.shape[0]
+        _hao = np.empty(n, dtype=float)
+        if n:
+            _hao[0] = (_o[0] + _c[0]) / 2.0
+            for _i in range(1, n):
+                _hao[_i] = (_hao[_i - 1] + _hac[_i - 1]) / 2.0
+        ha_open = pd_module.Series(_hao, index=data.index)
         # Pine: ha_high = max(standard_high, ha_open, ha_close), ha_low = min(standard_low, ha_open, ha_close)
         ha_high_vals = pd.concat([data["high"], ha_open, ha_close], axis=1).max(axis=1)
         ha_low_vals = pd.concat([data["low"], ha_open, ha_close], axis=1).min(axis=1)

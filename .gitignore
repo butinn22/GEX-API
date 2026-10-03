@@ -224,3 +224,14 @@ trading.db
 
 # Local agent/assistant scratch state (not part of the application)
 .workbuddy-ai/
+.workbuddy/
+
+# ── Derived research / backtest artifacts ──────────────────────────────
+# Regenerable: fetched OHLCV caches and grid-search sweep outputs. Re-running
+# the harness rebuilds them, so they stay out of history to keep the repo
+# cloneable. The small human-readable results ARE tracked
+# (quant/results/*.md, *.json, *.csv).
+quant/cache/
+quant/results/**/*.pkl
+research/emf_adl/cache/
+research/emf_adl/out/

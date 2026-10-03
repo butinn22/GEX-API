@@ -47,3 +47,12 @@ class ApiKeyRepository:
         await self._session.delete(row)
         await self._session.commit()
         return True
+
+    async def update_extra(self, key_id: int, extra_json: str) -> ApiKeyRow | None:
+        row = await self.get(key_id)
+        if row is None:
+            return None
+        row.extra_json = extra_json
+        await self._session.commit()
+        await self._session.refresh(row)
+        return row

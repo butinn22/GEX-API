@@ -19,7 +19,7 @@ def _bar(i: int, close: float) -> Bar:
 def test_registry_names_and_params():
     names = set(STRATEGY_REGISTRY.names())
     assert names == {"sma_crossover", "buy_and_hold", "mean_reversion", "momentum",
-                     "sma_crossover_ls", "gex_emf"}
+                     "sma_crossover_ls", "gex_emf", "trend_confluence"}
     assert STRATEGY_REGISTRY.params("sma_crossover") == ["fast", "slow"]
     assert STRATEGY_REGISTRY.params("buy_and_hold") == []
     assert STRATEGY_REGISTRY.params("sma_crossover_ls") == ["long_fast", "long_slow", "short_fast", "short_slow"]

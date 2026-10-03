@@ -1,0 +1,170 @@
+{
+  "selected": {
+    "4h": {
+      "n_break": 30,
+      "k_sl": 3.0,
+      "k_trail": 5.0,
+      "ma_exit": 100
+    },
+    "1d": {
+      "n_break": 40,
+      "k_sl": 2.5,
+      "k_trail": 4.0,
+      "ma_exit": 100
+    }
+  },
+  "holdout": {
+    "4h": {
+      "metrics": {
+        "total_return": 0.07640898377716776,
+        "cagr": 0.06020952853936601,
+        "sharpe": 0.4167122634455977,
+        "sortino": 0.20967034740664228,
+        "calmar": 0.38907086751839953,
+        "max_dd": 0.15475208648593727,
+        "dd_duration_days": 437.5,
+        "dd_window": "2025-07-23",
+        "profit_factor": 1.3113699115315294,
+        "expectancy": 148.0906591179532,
+        "win_rate": 0.367816091954023,
+        "avg_win": 1695.6863022678353,
+        "avg_loss": -752.3286241692508,
+        "payoff": 2.2539170354448164,
+        "n_trades": 87,
+        "exposure": 0.1427017507510618,
+        "turnover_pa": 33.53769432313598,
+        "avg_hold_h": 124.27586206896552,
+        "med_hold_h": 88.0,
+        "n_stop_before_4h": 0,
+        "n_tp_before_4h": 0,
+        "n_exit_after_4h": 87,
+        "min_hold_violations": 0,
+        "notes": [
+          "final open position force-closed at last bar (END_OF_DATA)"
+        ]
+      },
+      "trade_stats": {
+        "n": 87,
+        "total_net": 12883.88734326193,
+        "best_trade": 8654.384413211765,
+        "worst_trade": -2484.7335541213115,
+        "best_trade_share": 0.6717215218229824
+      },
+      "per_ticker_net_pnl": {
+        "BTCUSDT": -1408.0,
+        "ETHUSDT": 8543.0,
+        "XRPUSDT": 1258.0,
+        "LTCUSDT": 1689.0,
+        "ADAUSDT": -971.0,
+        "DOGEUSDT": -1893.0,
+        "SOLUSDT": 5665.0
+      },
+      "classifications": {
+        "STOP_LOSS_BEFORE_4H": 0,
+        "TAKE_PROFIT_BEFORE_4H": 0,
+        "EXIT_AFTER_4H": 87
+      }
+    },
+    "1d": {
+      "metrics": {
+        "total_return": 0.06253759156962713,
+        "cagr": 0.04930956683280496,
+        "sharpe": 0.3806462452464946,
+        "sortino": 0.19068400057590998,
+        "calmar": 0.27759176536235475,
+        "max_dd": 0.17763339185670246,
+        "dd_duration_days": 437.0,
+        "dd_window": "2025-07-23",
+        "profit_factor": 1.467926996704851,
+        "expectancy": 431.4469331949484,
+        "win_rate": 0.45,
+        "avg_win": 3007.746485348342,
+        "avg_loss": -1676.434518566919,
+        "payoff": 1.7941329959725953,
+        "n_trades": 20,
+        "exposure": 0.1437888198757764,
+        "turnover_pa": 5.908847918533315,
+        "avg_hold_h": 534.0,
+        "med_hold_h": 348.0,
+        "n_stop_before_4h": 2,
+        "n_tp_before_4h": 0,
+        "n_exit_after_4h": 18,
+        "min_hold_violations": 0,
+        "notes": [
+          "final open position force-closed at last bar (END_OF_DATA)"
+        ]
+      },
+      "trade_stats": {
+        "n": 20,
+        "total_net": 8628.938663898967,
+        "best_trade": 10482.135497613892,
+        "worst_trade": -3368.143974170268,
+        "best_trade_share": 1.2147653269883787
+      },
+      "per_ticker_net_pnl": {
+        "BTCUSDT": 2190.0,
+        "ETHUSDT": 9847.0,
+        "XRPUSDT": 667.0,
+        "LTCUSDT": 103.0,
+        "ADAUSDT": -5980.0,
+        "DOGEUSDT": -6416.0,
+        "SOLUSDT": 8220.0
+      },
+      "classifications": {
+        "STOP_LOSS_BEFORE_4H": 2,
+        "TAKE_PROFIT_BEFORE_4H": 0,
+        "EXIT_AFTER_4H": 18
+      }
+    }
+  },
+  "stress": {
+    "4h": {
+      "2x_costs_full_period": {
+        "sharpe": 0.4525509202456745,
+        "cagr": 0.07878248969084023,
+        "max_dd": 0.2621892123957227
+      },
+      "base_full_period": {
+        "sharpe": 0.6203736057577194,
+        "cagr": 0.11911304310233461,
+        "max_dd": 0.2188687361750575,
+        "n_trades": 408
+      },
+      "drop_best_ticker": {
+        "dropped": "SOLUSDT",
+        "sharpe": 0.4929466166821272,
+        "total_return": 0.5406846269371353,
+        "max_dd": 0.27639030309904167
+      },
+      "drop_best_trade": {
+        "best_trade": 24972.74717906769,
+        "total_net_minus_best": 55371.20564710097,
+        "n_trades": 408
+      }
+    },
+    "1d": {
+      "2x_costs_full_period": {
+        "sharpe": 0.402293906727392,
+        "cagr": 0.06803659953050101,
+        "max_dd": 0.32642808696361303
+      },
+      "base_full_period": {
+        "sharpe": 0.4457827073250723,
+        "cagr": 0.07885411218238403,
+        "max_dd": 0.32565017606260016,
+        "n_trades": 92
+      },
+      "drop_best_ticker": {
+        "dropped": "SOLUSDT",
+        "sharpe": 0.3298382430983452,
+        "total_return": 0.2884370262975011,
+        "max_dd": 0.3200690272757616
+      },
+      "drop_best_trade": {
+        "best_trade": 21359.944605699664,
+        "total_net_minus_best": 27478.58245728469,
+        "n_trades": 92
+      }
+    }
+  }
+}

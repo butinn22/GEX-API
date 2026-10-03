@@ -11,6 +11,8 @@ __all__ = [
     "TokenResponse",
     "ApiKeyCreate",
     "ApiKeyOut",
+    "ApiKeySettingsUpdate",
+    "AccountRouteOut",
     "OhlcvBar",
     "BacktestRequest",
     "BacktestMetricsOut",
@@ -29,6 +31,10 @@ __all__ = [
     "UniverseTicker",
     "UniverseResponse",
     "CancelOut",
+    "AnalyzeResponse",
+    "OptimizeRequest",
+    "OptimizeResponse",
+    "AutoTuneRequest",
 ]
 
 #: A client-supplied handle for a cancellable run. Restricted so it can be used
@@ -60,12 +66,32 @@ class ApiKeyCreate(BaseModel):
     account_id: str = ""  # TBANK account id (stored in extra)
 
 
+class ApiKeySettingsUpdate(BaseModel):
+    """Per-account routing/risk patch (multi-account 'wallet' settings)."""
+
+    instruments: list[str] | None = None  # empty list = all instruments
+    risk_profile: Literal["low", "medium", "high"] | None = None
+    max_position_pct: float | None = Field(default=None, gt=0, le=1.0)
+    leverage: float | None = Field(default=None, ge=1.0)
+    enabled: bool | None = None
+
+
 class ApiKeyOut(BaseModel):
     id: int
     exchange: str
     label: str
     api_key_masked: str
     created_at: datetime | None = None
+    settings: dict[str, Any] = Field(default_factory=dict)
+
+
+class AccountRouteOut(BaseModel):
+    """One account that would receive orders for a symbol (routing preview)."""
+
+    key_id: int
+    exchange: str
+    label: str
+    settings: dict[str, Any]
 
 
 # ── Backtest ───────────────────────────────────────────────────────────
@@ -92,7 +118,8 @@ class SideSettings(BaseModel):
 
 class BacktestRequest(BaseModel):
     strategy: Literal[
-        "sma_crossover", "buy_and_hold", "mean_reversion", "momentum", "sma_crossover_ls", "gex_emf"
+        "sma_crossover", "buy_and_hold", "mean_reversion", "momentum", "sma_crossover_ls", "gex_emf",
+        "trend_confluence",
     ] = "sma_crossover"
     symbol: str = "SYNTH"
     bars: list[OhlcvBar] | None = None
@@ -107,6 +134,8 @@ class BacktestRequest(BaseModel):
     long: SideSettings | None = None
     short: SideSettings | None = None
     settings: dict | None = None  # GEX strategy (EMAFilterTrendStrategy) settings
+    #: Free-form per-strategy params (trend_confluence knobs, options walls, …).
+    params: dict[str, Any] | None = None
     source: str = "auto"  # "auto" (resolve from symbol) | "synthetic" | moex/yfinance/bybit
     timeframe: str = "1d"
     limit: int = Field(default=5000, ge=60, le=10000)
@@ -135,6 +164,9 @@ class BacktestResponse(BaseModel):
     equity_curve: list[float]
     times: list[str]
     n_trades: int
+    #: Persisted run id (for /export/backtest/{id}/trades.csv|xlsx); None when
+    #: persistence was unavailable for this run.
+    result_id: int | None = None
 
 
 # ── Strategies ─────────────────────────────────────────────────────────
@@ -371,6 +403,75 @@ class CancelOut(BaseModel):
     #: ``False`` means the run had already finished (or never existed) — the
     #: cancel is a no-op, which is not an error for the client.
     known: bool = False
+
+
+# ── Trade analysis / adaptive optimization ─────────────────────────────
+
+
+class AnalyzeResponse(BaseModel):
+    """Backtest + win/loss diagnostics + adaptation suggestions."""
+
+    strategy: str
+    symbol: str
+    metrics: BacktestMetricsOut
+    n_trades: int
+    analysis: dict[str, Any]
+    recommendations: list[dict[str, Any]]
+
+
+class OptimizeRequest(BaseModel):
+    """Adaptive parameter search for one symbol (train/validation split)."""
+
+    strategy: str = "trend_confluence"
+    symbol: str = "SYNTH"
+    params: dict[str, Any] = Field(default_factory=dict)
+    grid: dict[str, list[Any]] | None = Field(
+        default=None,
+        description="parameter → candidates; defaults to the trend_confluence sweep",
+    )
+    source: str = "auto"
+    timeframe: str = "1d"
+    limit: int = Field(default=1000, ge=200, le=3000)
+    initial_cash: float = Field(default=100_000.0, gt=0)
+    fee_rate: float = Field(default=0.001, ge=0)
+    slippage: float = Field(default=0.0005, ge=0)
+    position_fraction: float = Field(default=0.95, gt=0, le=1.0)
+    periods_per_year: int = Field(default=252, gt=0)
+    refresh_data: bool = False
+    run_token: str | None = Field(default=None, pattern=RUN_TOKEN_PATTERN)
+
+
+class OptimizeResponse(BaseModel):
+    symbol: str
+    strategy: str
+    n_candidates: int
+    baseline: dict[str, Any]
+    best_params: dict[str, Any]
+    best: dict[str, Any]
+    leaderboard: list[dict[str, Any]]
+    trade_analysis: dict[str, Any] | None
+    recommendations: list[dict[str, Any]]
+    run_token: str = ""
+
+
+class AutoTuneRequest(BaseModel):
+    """Pre-live tuning: parameter search + volatility-adaptive SL/TP targets."""
+
+    strategy: str = "trend_confluence"
+    symbol: str = "SYNTH"
+    risk_profile: Literal["low", "medium", "high"] = "medium"
+    params: dict[str, Any] = Field(default_factory=dict)
+    grid: dict[str, list[Any]] | None = None
+    source: str = "auto"
+    timeframe: str = "1d"
+    limit: int = Field(default=1000, ge=200, le=3000)
+    initial_cash: float = Field(default=100_000.0, gt=0)
+    fee_rate: float = Field(default=0.001, ge=0)
+    slippage: float = Field(default=0.0005, ge=0)
+    position_fraction: float = Field(default=0.95, gt=0, le=1.0)
+    periods_per_year: int = Field(default=252, gt=0)
+    refresh_data: bool = False
+    run_token: str | None = Field(default=None, pattern=RUN_TOKEN_PATTERN)
 
 
 # ── Universe selection ─────────────────────────────────────────────────

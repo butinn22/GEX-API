@@ -17,8 +17,13 @@ from fastapi.staticfiles import StaticFiles
 from trading.adapters.fetchers import aclose_loop_registry
 from trading.adapters.persistence.database import dispose, init_db
 from trading.api import auth
+from trading.api.local_client_ws import (
+    router as local_client_router,
+    start_dispatcher,
+    stop_dispatcher,
+)
 from trading.api.middleware import RateLimitMiddleware
-from trading.api.routers import backtest, data, keys, portfolio, strategies
+from trading.api.routers import backtest, data, export, keys, portfolio, strategies
 from trading.api.websockets import router as ws_router
 from trading.config import settings
 from trading.domain import RateLimitExceededError, TradingError
@@ -32,7 +37,9 @@ STATIC_DIR = Path(__file__).parent / "static"
 async def lifespan(_: FastAPI):
     configure_logging()
     await init_db()
+    await start_dispatcher()  # fan signal_hub out to subscribed local clients
     yield
+    await stop_dispatcher()
     # Release the fetchers' HTTP connection pools; without this the loop-scoped
     # registry keeps live sockets open until the process exits.
     await aclose_loop_registry()
@@ -62,7 +69,9 @@ app.include_router(backtest.router, prefix=_API)
 app.include_router(strategies.router, prefix=_API)
 app.include_router(portfolio.router, prefix=_API)
 app.include_router(data.router, prefix=_API)
+app.include_router(export.router, prefix=_API)
 app.include_router(ws_router)
+app.include_router(local_client_router)
 
 
 @app.get("/health")

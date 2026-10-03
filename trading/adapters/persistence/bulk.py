@@ -24,9 +24,13 @@ class TaskResultStore:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def save_backtest(self, strategy: str, symbol: str, metrics: dict) -> BacktestResultRow:
+    async def save_backtest(
+        self, strategy: str, symbol: str, metrics: dict,
+        trades: list[dict] | None = None,
+    ) -> BacktestResultRow:
         row = BacktestResultRow(
-            strategy=strategy, symbol=symbol, metrics_json=json.dumps(metrics)
+            strategy=strategy, symbol=symbol, metrics_json=json.dumps(metrics),
+            trades_json=json.dumps(trades or []),
         )
         self._session.add(row)
         await self._session.commit()

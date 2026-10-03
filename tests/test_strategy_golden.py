@@ -28,6 +28,22 @@
 
     python tests/test_strategy_golden.py                # сверить
     python tests/test_strategy_golden.py --write-golden # перезаписать эталон (осознанно!)
+
+История эталона
+---------------
+1. Снят с **исходного** кода до выноса методов из god-класса (итерации 37-40).
+   Подпись фикстуры: `db634487360648c4`.
+2. **Переснят 2026-10-03** после исправления рекурсии Heikin-Ashi в
+   `_FeaturesMixin._heikin_ashi` — `ha_open.iloc[1:] = (ha_open.shift(1) ...)` читал
+   колонку *до* присваивания, поэтому `ha_open` был NaN начиная с третьего бара, тело
+   hybrid-свечи вырождалось в точку (`candle_top - candle_bottom == 0` на 99.8% баров),
+   и нарушалось тождество `avg_candle == (hybrid_open + hybrid_close) / 2`.
+   После починки фикстура совпадает с эталоном `strategy-code-architect` до 3e-14.
+   Подпись фикстуры: `fce5f528a56a496b`. Старая копия сохранена для диффа в
+   `research/emf_adl/out/golden_pre_ha_fix.json`.
+
+   **Следствие для этой проверки:** расхождение с подписью `db634487360648c4` ожидаемо и
+   не является регрессией. Расхождение с `fce5f528a56a496b` — является.
 """
 from __future__ import annotations
 
