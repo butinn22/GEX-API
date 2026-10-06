@@ -94,7 +94,7 @@ async def b3_small_grid(c: httpx.AsyncClient, logbuf: io.StringIO) -> None:
         r.status_code == 200
         and data.get("n_candidates") == 4
         and data.get("best_params", {}).get("trendline_refresh") == 1
-        and "candidates" in data
+        and "leaderboard" in data and "best" in data
     )
     report("B3 small grid -> 200, refresh=1 preserved", ok,
            f"status={r.status_code} n_candidates={data.get('n_candidates')} "
@@ -216,7 +216,8 @@ async def main() -> None:
     logging.getLogger("trading.api.routers.backtest").addHandler(handler)
     logging.getLogger("trading.api.routers.backtest").setLevel(logging.INFO)
 
-    async with await client() as c:
+    c = await client()
+    try:
         await b1_empty_grid(c)
         await b2_runaway_grid(c)
         await b3_small_grid(c, logbuf)
@@ -224,6 +225,8 @@ async def main() -> None:
         await e2_default_grid(c, logbuf)
         await e3_concurrent_isolated(c)
         await c1_cancel(c)
+    finally:
+        await c.aclose()
 
     print("\n==== SUMMARY ====")
     print(f"PASS: {len(PASS)}  FAIL: {len(FAIL)}")
