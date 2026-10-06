@@ -48,6 +48,13 @@ __all__ = [
     "SignalKeyCreate",
     "SignalKeyOut",
     "SignalKeyGenerateReport",
+    # ── basket export / deploy (complete basket transfer) ──
+    "BasketTickerIn",
+    "BasketExportRequest",
+    "BasketTickerOut",
+    "BasketExportResponse",
+    "BasketDeployRequest",
+    "BasketDeployResponse",
 ]
 
 #: A client-supplied handle for a cancellable run. Restricted so it can be used
@@ -262,6 +269,10 @@ class TickerConfig(BaseModel):
 
     symbol: str
     strategy: str = "sma_crossover"
+    #: Load this ticker's strategy + params from a saved strategy version
+    #: (Strategy Hub). The stored params are the baseline; explicit ``params``
+    #: keys still override (the existing override convention).
+    preset_id: int | None = None
     enabled: bool = True
     weight: float = Field(default=1.0, ge=0, description="relative allocation weight")
     capital: float | None = Field(default=None, gt=0, description="absolute capital (overrides weight)")
@@ -286,6 +297,29 @@ class TickerConfig(BaseModel):
         if self.period is not None:
             p.setdefault("period", self.period)
         return p
+
+    def explicit_overrides(self) -> dict[str, Any]:
+        """Only the explicitly-sent ergonomic fields (never the defaults).
+
+        With a preset as the params baseline, defaulted fields must not leak
+        over the stored values — only keys the client actually sent may
+        override (same convention as the single-symbol ``preset_id`` path).
+        """
+        out: dict[str, Any] = {}
+        sent = self.model_fields_set
+        if "fast" in sent:
+            out["fast"] = self.fast
+        if "slow" in sent:
+            out["slow"] = self.slow
+        if "period" in sent:
+            out["period"] = self.period
+        if self.long is not None:
+            out["long"] = self.long.model_dump()
+        if self.short is not None:
+            out["short"] = self.short.model_dump()
+        if self.settings is not None:
+            out["settings"] = self.settings
+        return out
 
 
 class MonteCarloRunOptions(BaseModel):
@@ -346,6 +380,19 @@ class TickerResultOut(BaseModel):
     metrics: BacktestMetricsOut
     equity_curve: list[float]
     n_trades: int
+    # ── result transparency (per-ticker assignment audit) ──
+    #: user-facing strategy name of the assigned preset ("" = none)
+    strategy_name: str = ""
+    #: the saved strategy version the ticker ran with (None = not preset-driven)
+    preset_id: int | None = None
+    preset_version: int | None = None
+    #: the complete params the engine actually ran with (not a client echo)
+    params: dict[str, Any] = Field(default_factory=dict)
+    #: preset = assigned saved strategy | adhoc = explicit params | default = strategy defaults
+    assignment: Literal["preset", "adhoc", "default"] = "default"
+    #: True only for preset-driven tickers whose version carries real-run
+    #: provenance (optimizer_run_id / backtest_ref); never fabricated.
+    optimized: bool = False
 
 
 class CorrelationOut(BaseModel):
@@ -732,7 +779,114 @@ class SignalKeyGenerateReport(BaseModel):
     errors: list[dict[str, Any]] = Field(default_factory=list)
 
 
+# ── Basket export / deploy (complete basket transfer) ──────────────────
+
+
+class BasketTickerIn(TickerConfig):
+    """One ticker of an outgoing basket.
+
+    Same shape as :class:`TickerConfig` but ``strategy`` is optional: a
+    ticker bound to a saved strategy version (``preset_id``) takes the
+    strategy and params from the preset store instead.
+    """
+
+    strategy: str = ""  # optional — preset_id may carry it
+
+
+class BasketExportRequest(BaseModel):
+    """A complete basket to validate and export (or deploy to live signals)."""
+
+    tickers: list[BasketTickerIn] = Field(min_length=1)
+    initial_cash: float = Field(default=100_000.0, gt=0)
+    fee_rate: float = Field(default=0.001, ge=0)
+    slippage: float = Field(default=0.0005, ge=0)
+    position_fraction: float = Field(default=0.95, gt=0, le=1.0)
+    periods_per_year: int = Field(default=252, gt=0)
+
+
+class BasketTickerOut(BaseModel):
+    """One validated ticker of an exported basket.
+
+    ``params`` is the complete, server-resolved effective set (from the
+    preset store for preset-driven tickers) — never a client echo — and is
+    guaranteed to survive a round-trip back into ``/backtest/portfolio``.
+    """
+
+    symbol: str
+    strategy: str
+    strategy_name: str = ""
+    preset_id: int | None = None
+    preset_version: int | None = None
+    #: audit-only provenance (ignored when the payload is fed back)
+    preset_source: str | None = None
+    backtest_ref: str | None = None
+    params: dict[str, Any] = Field(default_factory=dict)
+    #: preset (saved strategy) | adhoc (explicit params, not optimized)
+    assignment: Literal["preset", "adhoc"] = "adhoc"
+    optimized: bool = False
+    weight: float = 1.0
+    capital: float | None = None
+    source: str = "auto"
+    timeframe: str = "1d"
+    limit: int = 5000
+    enabled: bool = True
+    warnings: list[str] = Field(default_factory=list)
+
+
+class BasketExportResponse(BaseModel):
+    """Parameter-lossless export payload (round-trip safe).
+
+    ``costs.*`` map onto the top-level fields of ``PortfolioBacktestRequest``
+    and each ticker, with its provenance fields stripped, is a valid
+    ``TickerConfig`` — see :meth:`to_backtest_request`.
+    """
+
+    schema_version: str = "1"
+    exported_at: datetime
+    costs: dict[str, Any] = Field(default_factory=dict)
+    tickers: list[BasketTickerOut]
+
+    def to_backtest_request(self) -> dict[str, Any]:
+        """The ``POST /backtest/portfolio`` body that replays this basket.
+
+        Provenance fields (``strategy_name / preset_* / backtest_ref /
+        assignment / optimized / warnings``) are dropped — they are audit-only
+        and never re-read.
+        """
+        replay_keys = (
+            "symbol", "strategy", "params", "weight", "capital",
+            "source", "timeframe", "limit", "enabled",
+        )
+        return {
+            **self.costs,
+            "tickers": [
+                {k: v for k, v in t.model_dump().items() if k in replay_keys}
+                for t in self.tickers
+            ],
+        }
+
+
+class BasketDeployRequest(BaseModel):
+    """Deploy a (previously exportable) basket to the live signal pipeline."""
+
+    basket: BasketExportRequest
+    exchange: Literal["bingx", "tbank"]
+    label: str = ""
+
+
+class BasketDeployResponse(BaseModel):
+    """The created signal key plus any broker-routing warnings."""
+
+    id: int
+    key: str
+    exchange: str
+    label: str
+    warnings: list[str] = Field(default_factory=list)
+    dashboard: str = ""
+
+
 # Resolve forward references (models defined after their first use).
-for _model in (PortfolioBacktestResponse, PortfolioMonteCarloRequest):
+for _model in (PortfolioBacktestResponse, PortfolioMonteCarloRequest,
+               BasketExportResponse):
     _model.model_rebuild()
 del _model

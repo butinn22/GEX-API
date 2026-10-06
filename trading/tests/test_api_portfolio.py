@@ -8,7 +8,10 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import delete
 
+from trading.adapters.persistence import database as db
+from trading.adapters.persistence.models import StrategyPresetRow
 from trading.main import app
 
 
@@ -17,6 +20,15 @@ async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
+
+
+@pytest_asyncio.fixture
+async def session():
+    await db.init_db()
+    async with db._session_factory() as s:
+        await s.execute(delete(StrategyPresetRow))
+        await s.commit()
+        yield s
 
 
 def _basket(with_mc: bool = False) -> dict:
@@ -318,3 +330,114 @@ async def test_refresh_data_flag_forces_a_refetch(client):
     )
     assert r.status_code == 200
     assert bar_cache_stats()["misses"] == before + 3  # three tickers re-fetched
+
+
+# ── per-ticker preset assignment + result transparency (T01) ──────────
+
+
+async def test_portfolio_preset_assignment_runs_preset_params(client, session):
+    """A ticker with preset_id runs the saved strategy + stored params verbatim."""
+    from trading.application.presets import PresetService
+
+    saved = await PresetService(session).save(
+        symbol="AAA", strategy="sma_crossover", params={"fast": 5, "slow": 15}
+    )
+    payload = {
+        "tickers": [
+            {"symbol": "AAA", "preset_id": saved.id, "source": "synthetic", "limit": 400},
+            {"symbol": "BBB", "strategy": "momentum", "period": 10,
+             "source": "synthetic", "limit": 400},
+        ],
+        "initial_cash": 100_000,
+    }
+    r = await client.post("/api/v1/backtest/portfolio", json=payload)
+    assert r.status_code == 200, r.text
+    by = {t["symbol"]: t for t in r.json()["tickers"]}
+
+    aaa = by["AAA"]
+    assert aaa["strategy"] == "sma_crossover"
+    assert aaa["assignment"] == "preset"
+    assert aaa["preset_id"] == saved.id
+    assert aaa["preset_version"] == saved.version
+    assert aaa["strategy_name"] == ""
+    # manual preset without provenance → explicitly not optimized
+    assert aaa["optimized"] is False
+    # transparency reports the params the engine actually ran with
+    assert aaa["params"]["fast"] == 5
+    assert aaa["params"]["slow"] == 15
+
+    bbb = by["BBB"]
+    assert bbb["assignment"] == "adhoc"  # explicit adhoc params, no preset
+    assert bbb["preset_id"] is None
+    assert bbb["optimized"] is False
+    assert bbb["params"]["period"] == 10
+
+
+async def test_portfolio_preset_assignment_explicit_params_override(client, session):
+    """Explicit request params override the preset on a per-key basis."""
+    from trading.application.presets import PresetService
+
+    saved = await PresetService(session).save(
+        symbol="AAA", strategy="sma_crossover", params={"fast": 5, "slow": 15}
+    )
+    payload = {
+        "tickers": [
+            {"symbol": "AAA", "preset_id": saved.id, "params": {"slow": 30},
+             "source": "synthetic", "limit": 400},
+        ],
+        "initial_cash": 50_000,
+    }
+    r = await client.post("/api/v1/backtest/portfolio", json=payload)
+    assert r.status_code == 200, r.text
+    aaa = r.json()["tickers"][0]
+    assert aaa["assignment"] == "preset"
+    assert aaa["params"]["fast"] == 5   # preset value kept
+    assert aaa["params"]["slow"] == 30  # explicit override applied
+
+
+async def test_portfolio_unassigned_ticker_is_marked_default(client):
+    """A ticker without a preset and without explicit params is explicitly un-optimized."""
+    payload = {
+        "tickers": [{"symbol": "CCC", "strategy": "momentum",
+                     "source": "synthetic", "limit": 300}],
+        "initial_cash": 50_000,
+    }
+    r = await client.post("/api/v1/backtest/portfolio", json=payload)
+    assert r.status_code == 200, r.text
+    t = r.json()["tickers"][0]
+    assert t["assignment"] == "default"
+    assert t["optimized"] is False
+    assert t["preset_id"] is None
+    assert t["preset_version"] is None
+
+
+async def test_portfolio_preset_not_found_is_400_with_ticker_context(client):
+    payload = {
+        "tickers": [{"symbol": "AAA", "preset_id": 424242,
+                     "source": "synthetic", "limit": 300}],
+        "initial_cash": 50_000,
+    }
+    r = await client.post("/api/v1/backtest/portfolio", json=payload)
+    assert r.status_code == 400
+    detail = r.json()["detail"]
+    assert "AAA" in detail and "424242" in detail
+
+
+async def test_portfolio_optimized_flag_follows_preset_provenance(client, session):
+    """optimized=True only for presets with real-run provenance."""
+    from trading.application.presets import PresetService
+
+    saved = await PresetService(session).save(
+        symbol="AAA", strategy="sma_crossover", params={"fast": 5, "slow": 15},
+        source="backtest", backtest_ref="backtest:9",
+    )
+    payload = {
+        "tickers": [{"symbol": "AAA", "preset_id": saved.id,
+                     "source": "synthetic", "limit": 400}],
+        "initial_cash": 50_000,
+    }
+    r = await client.post("/api/v1/backtest/portfolio", json=payload)
+    assert r.status_code == 200, r.text
+    t = r.json()["tickers"][0]
+    assert t["assignment"] == "preset"
+    assert t["optimized"] is True

@@ -169,8 +169,84 @@ def _spec_from_config(t: TickerConfig) -> TickerSpec:
     )
 
 
-def _specs_from_request(req: PortfolioBacktestRequest) -> list[TickerSpec]:
-    specs = [_spec_from_config(t) for t in req.tickers]
+def _default_assignment(t: TickerConfig) -> dict:
+    """Transparency info for a ticker without a preset (never optimized)."""
+    explicit = bool(t.params) or ({"fast", "slow", "period"} & t.model_fields_set) \
+        or t.long is not None or t.short is not None or t.settings is not None
+    return {
+        "strategy_name": "",
+        "preset_id": None,
+        "preset_version": None,
+        "params": t.folded_params(),
+        "assignment": "adhoc" if explicit else "default",
+        "optimized": False,
+    }
+
+
+async def _spec_from_preset_config(t: TickerConfig) -> tuple[TickerSpec, dict]:
+    """Resolve a preset-bound ticker into a spec + transparency info.
+
+    The stored preset row is the source of truth: its strategy + params are
+    the baseline (explicit request params still override per key — the
+    existing convention). The returned info reports exactly the params the
+    engine will run with, plus the preset's provenance for the
+    ``assignment`` / ``optimized`` markers.
+    """
+    try:
+        row = await _load_preset(t.preset_id)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            # A bad assignment is a request error, not a missing resource:
+            # name the ticker and the id so the UI can mark the offending row.
+            raise HTTPException(
+                400, f"ticker '{t.symbol}': preset {t.preset_id} not found"
+            ) from exc
+        raise
+    params = PresetService.params_of(row)
+    overrides = dict(t.params or {})
+    overrides.update(t.explicit_overrides())
+    params.update({k: v for k, v in overrides.items() if v is not None})
+    spec = TickerSpec(
+        symbol=t.symbol,
+        strategy=row.strategy,
+        params=params,
+        weight=t.weight,
+        capital=t.capital,
+        source=t.source,
+        timeframe=t.timeframe,
+        limit=t.limit,
+        enabled=t.enabled,
+    )
+    info = {
+        "strategy_name": row.strategy_name or "",
+        "preset_id": row.id,
+        "preset_version": row.version,
+        "params": dict(params),
+        "assignment": "preset",
+        "optimized": bool(row.optimizer_run_id or row.backtest_ref),
+    }
+    return spec, info
+
+
+async def _specs_from_request(
+    req: PortfolioBacktestRequest,
+) -> tuple[list[TickerSpec], dict[str, dict]]:
+    """Build the engine specs plus the per-symbol assignment map.
+
+    The assignment map drives the response transparency fields
+    (``TickerResultOut.strategy_name/preset_*/params/assignment/optimized``);
+    auto-selected tickers are reported as ``default``.
+    """
+    specs: list[TickerSpec] = []
+    assignments: dict[str, dict] = {}
+    for t in req.tickers:
+        if t.preset_id:
+            spec, info = await _spec_from_preset_config(t)
+            specs.append(spec)
+            assignments[t.symbol] = info
+        else:
+            specs.append(_spec_from_config(t))
+            assignments.setdefault(t.symbol, _default_assignment(t))
     if req.n_tickers > 0:
         try:
             picked = select_universe(req.category, req.n_tickers)
@@ -189,7 +265,18 @@ def _specs_from_request(req: PortfolioBacktestRequest) -> list[TickerSpec]:
                     limit=req.default_limit,
                 )
             )
-    return specs
+            assignments.setdefault(
+                inst["symbol"],
+                {
+                    "strategy_name": "",
+                    "preset_id": None,
+                    "preset_version": None,
+                    "params": dict(req.default_params),
+                    "assignment": "default",
+                    "optimized": False,
+                },
+            )
+    return specs, assignments
 
 
 def _mc_config(opts: MonteCarloRunOptions, *, initial_equity: float, ppy: int) -> MonteCarloConfig:
@@ -256,8 +343,34 @@ def _portfolio_response(
     result: PortfolioBacktestResult,
     mc: MonteCarloResult | None,
     run_token: str = "",
+    assignments: dict[str, dict] | None = None,
 ) -> PortfolioBacktestResponse:
     idx = _sample_indices(len(result.times))
+    assign = assignments or {}
+
+    def _ticker_out(k: int, t) -> TickerResultOut:
+        info = assign.get(t.symbol, {})
+        return TickerResultOut(
+            symbol=t.symbol,
+            strategy=t.strategy,
+            source=t.source,
+            timeframe=t.timeframe,
+            weight=t.weight,
+            capital=t.capital,
+            metrics=_metrics_out(t.metrics),
+            equity_curve=[
+                float(result.aligned_equity[k][i])
+                for i in idx
+            ] if k < len(result.aligned_equity) else _downsample(list(t.equity_curve), idx),
+            n_trades=len(t.result.trades),
+            strategy_name=info.get("strategy_name", ""),
+            preset_id=info.get("preset_id"),
+            preset_version=info.get("preset_version"),
+            params=info.get("params", {}),
+            assignment=info.get("assignment", "default"),
+            optimized=info.get("optimized", False),
+        )
+
     return PortfolioBacktestResponse(
         n_tickers=result.n_tickers,
         initial_cash=result.initial_cash,
@@ -267,21 +380,7 @@ def _portfolio_response(
         times=[result.times[i].isoformat() for i in idx],
         run_token=run_token,
         tickers=[
-            TickerResultOut(
-                symbol=t.symbol,
-                strategy=t.strategy,
-                source=t.source,
-                timeframe=t.timeframe,
-                weight=t.weight,
-                capital=t.capital,
-                metrics=_metrics_out(t.metrics),
-                equity_curve=[
-                    float(result.aligned_equity[k][i])
-                    for i in idx
-                ] if k < len(result.aligned_equity) else _downsample(list(t.equity_curve), idx),
-                n_trades=len(t.result.trades),
-            )
-            for k, t in enumerate(result.tickers)
+            _ticker_out(k, t) for k, t in enumerate(result.tickers)
         ],
         correlation=(
             CorrelationOut(symbols=list(result.correlation.symbols),
@@ -484,7 +583,7 @@ async def portfolio(request: PortfolioBacktestRequest) -> PortfolioBacktestRespo
     """Backtest a basket; each ticker runs its own strategy and settings."""
     token = _open_run(request.run_token)
     try:
-        specs = _specs_from_request(request)
+        specs, assignments = await _specs_from_request(request)
         cfg = PortfolioBacktestConfig(
             initial_cash=request.initial_cash, fee_rate=request.fee_rate, slippage=request.slippage,
             position_fraction=request.position_fraction, periods_per_year=request.periods_per_year,
@@ -502,7 +601,7 @@ async def portfolio(request: PortfolioBacktestRequest) -> PortfolioBacktestRespo
                            ppy=request.periods_per_year),
                 cancel=token,
             )
-        return _portfolio_response(result, mc, token.token)
+        return _portfolio_response(result, mc, token.token, assignments)
     except RunCancelled as exc:
         raise _cancelled(exc) from exc
     finally:
@@ -513,7 +612,7 @@ async def portfolio(request: PortfolioBacktestRequest) -> PortfolioBacktestRespo
 async def portfolio_monte_carlo(request: PortfolioMonteCarloRequest) -> MonteCarloSummaryOut:
     token = _open_run(request.run_token or request.portfolio.run_token)
     try:
-        specs = _specs_from_request(request.portfolio)
+        specs, _assignments = await _specs_from_request(request.portfolio)
         cfg = PortfolioBacktestConfig(
             initial_cash=request.portfolio.initial_cash, fee_rate=request.portfolio.fee_rate,
             slippage=request.portfolio.slippage, position_fraction=request.portfolio.position_fraction,
@@ -543,7 +642,7 @@ async def portfolio_report(request: PortfolioBacktestRequest) -> HTMLResponse:
     """Self-contained HTML report (equity, drawdown, correlation, per-ticker)."""
     token = _open_run(request.run_token)
     try:
-        specs = _specs_from_request(request)
+        specs, _assignments = await _specs_from_request(request)
         cfg = PortfolioBacktestConfig(
             initial_cash=request.initial_cash, fee_rate=request.fee_rate, slippage=request.slippage,
             position_fraction=request.position_fraction, periods_per_year=request.periods_per_year,

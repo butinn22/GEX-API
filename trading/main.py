@@ -25,6 +25,7 @@ from trading.api.local_client_ws import (
 from trading.api.middleware import RateLimitMiddleware
 from trading.api.routers import (
     backtest,
+    baskets,
     dashboard,
     data,
     export,
@@ -88,6 +89,7 @@ app.include_router(data.router, prefix=_API)
 app.include_router(export.router, prefix=_API)
 app.include_router(presets.router, prefix=_API)
 app.include_router(signal_keys.router, prefix=_API)
+app.include_router(baskets.router, prefix=_API)
 app.include_router(signals.router, prefix=_API)
 app.include_router(ws_router)
 app.include_router(local_client_router)

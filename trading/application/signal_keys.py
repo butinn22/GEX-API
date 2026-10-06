@@ -62,6 +62,17 @@ def _new_key() -> str:
     return "sk_" + secrets.token_urlsafe(32)  # 46 chars, 256 bits of entropy
 
 
+def _payload_parts(payload: Any) -> tuple[list[Any], dict[str, Any]]:
+    """Extract ``(tickers, costs)`` from an export payload (object or dict)."""
+    if isinstance(payload, Mapping):
+        tickers = list(payload.get("tickers") or [])
+        costs = dict(payload.get("costs") or {})
+    else:
+        tickers = list(getattr(payload, "tickers", None) or [])
+        costs = dict(getattr(payload, "costs", None) or {})
+    return tickers, costs
+
+
 @dataclass
 class KeySummary:
     """Cached performance snapshot for the dashboard (rebuilt on refresh)."""
@@ -225,6 +236,108 @@ class SignalKeyService:
         await self._session.refresh(row)
         return row, warnings
 
+    async def create_from_basket(
+        self,
+        *,
+        exchange: str,
+        label: str = "",
+        payload: Any,
+    ) -> tuple[SignalKeyRow, list[str]]:
+        """Create a key from an exported basket payload (the Transfer flow).
+
+        Unlike :meth:`create` — which follows the preset store so that
+        promote/rollback propagate — the per-ticker ``params`` here are
+        **pinned verbatim**: the live pipeline must replay exactly the
+        parameters the basket was backtested/exported with, even after the
+        underlying presets are re-optimized. Per-ticker ``strategy`` /
+        ``source`` / ``timeframe`` / ``limit`` are stored alongside so
+        :meth:`generate` can run each leg as configured.
+
+        ``payload`` accepts a :class:`~trading.api.schemas.BasketExportResponse`
+        or its dict form. Returns ``(row, warnings)`` like :meth:`create`.
+        """
+        if exchange not in VALID_EXCHANGES:
+            raise SignalKeyError(
+                f"exchange must be one of {VALID_EXCHANGES}, got {exchange!r} — "
+                "select the API/broker provider before creating a key"
+            )
+        tickers_in, costs = _payload_parts(payload)
+
+        warnings: list[str] = []
+        ticker_configs: list[dict[str, Any]] = []
+        strategies: list[str] = []
+        for t in tickers_in:
+            if isinstance(t, Mapping):
+                sym = str(t.get("symbol", "")).strip().upper()
+                strategy = str(t.get("strategy", "")).strip()
+                params = dict(t.get("params") or {})
+                preset_id = t.get("preset_id")
+                source = str(t.get("source") or "auto")
+                timeframe = str(t.get("timeframe") or "1d")
+                limit = int(t.get("limit") or 1000)
+                enabled = bool(t.get("enabled", True))
+            else:
+                sym = str(t.symbol).strip().upper()
+                strategy = str(t.strategy or "").strip()
+                params = dict(t.params or {})
+                preset_id = t.preset_id
+                source = str(t.source or "auto")
+                timeframe = str(t.timeframe or "1d")
+                limit = int(t.limit or 1000)
+                enabled = bool(t.enabled)
+            if not sym or not strategy:
+                raise SignalKeyError(
+                    f"ticker {sym or '?'}: strategy and params are required"
+                )
+            ticker_configs.append({
+                "symbol": sym,
+                "strategy": strategy,
+                "params": params,  # pinned — never re-resolved from the store
+                "preset_id": preset_id,
+                "source": source,
+                "timeframe": timeframe,
+                "limit": limit,
+                "enabled": enabled,
+            })
+            strategies.append(strategy)
+            if not enabled:
+                continue
+            category = resolve_symbol(sym).get("category")
+            if category not in _BROKER_CATEGORIES.get(exchange, set()):
+                warnings.append(
+                    f"{sym}: category '{category}' has no order route on "
+                    f"{exchange} — signals will be generated but cannot be "
+                    f"executed there"
+                )
+        if not ticker_configs:
+            raise SignalKeyError("at least one ticker is required")
+
+        head = ticker_configs[0]  # legacy top-level fallbacks for old readers
+        config = {
+            "strategy": strategies[0],
+            "strategy_version": "1.0.0",
+            "timeframe": head["timeframe"],
+            "source": head["source"],
+            "limit": head["limit"],
+            "initial_cash": float(costs.get("initial_cash", 100_000.0)),
+            "fee_rate": float(costs.get("fee_rate", 0.001)),
+            "slippage": float(costs.get("slippage", 0.0005)),
+            "position_fraction": float(costs.get("position_fraction", 0.95)),
+            "periods_per_year": int(costs.get("periods_per_year", 252)),
+            "tickers": ticker_configs,
+        }
+        row = SignalKeyRow(
+            key=_new_key(),
+            exchange=exchange,
+            label=label or f"{strategies[0]}:{','.join(t['symbol'] for t in ticker_configs[:3])}",
+            config_json=json.dumps(config, default=str),
+            active=True,
+        )
+        self._session.add(row)
+        await self._session.commit()
+        await self._session.refresh(row)
+        return row, warnings
+
     async def list(self) -> list[SignalKeyRow]:
         result = await self._session.execute(select(SignalKeyRow).order_by(SignalKeyRow.id))
         return list(result.scalars())
@@ -293,6 +406,11 @@ class SignalKeyService:
         preset_ids: dict[str, int | None] = {}
         for t in config.get("tickers", []):
             sym = str(t.get("symbol", "")).upper()
+            # Per-ticker strategy with a legacy fallback: basket-deployed keys
+            # pin one strategy per ticker, while old configs (and the Deploy
+            # tab flow) carry a single key-level strategy — absent per-ticker
+            # strategy falls back to it, so old keys need zero migration.
+            strategy_t = str(t.get("strategy") or strategy)
             params = t.get("params")
             if not isinstance(params, Mapping):
                 params = None
@@ -305,26 +423,29 @@ class SignalKeyService:
                 # defaults apply (same as before the Strategy Hub).
                 try:
                     deployable = await presets.get_deployable(
-                        sym, strategy, preset_id=t.get("preset_id")
+                        sym, strategy_t, preset_id=t.get("preset_id")
                     )
                     params = deployable["params"]
                     preset_ids[sym] = deployable["preset_id"]
                 except ValueError:
                     logger.warning(
                         "no deployable preset for %s/%s — using strategy defaults",
-                        sym, strategy,
+                        sym, strategy_t,
                     )
                     params = {}
                     preset_ids[sym] = t.get("preset_id")
             else:
                 preset_ids[sym] = t.get("preset_id")
+            # source/timeframe/limit likewise allow per-ticker overrides
+            # (basket keys); legacy configs fall back to the key-level values.
             specs.append(TickerSpec(
                 symbol=sym,
-                strategy=strategy,
+                strategy=strategy_t,
                 params=dict(params),
-                source=config.get("source", "auto"),
-                timeframe=config.get("timeframe", "1d"),
-                limit=int(config.get("limit", 1000)),
+                source=str(t.get("source") or config.get("source", "auto")),
+                timeframe=str(t.get("timeframe") or config.get("timeframe", "1d")),
+                limit=int(t.get("limit") or config.get("limit", 1000)),
+                enabled=bool(t.get("enabled", True)),
             ))
         if not specs:
             raise SignalKeyError("signal key has no tickers configured")
