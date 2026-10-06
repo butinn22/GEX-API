@@ -982,10 +982,18 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
                    style="word-break:break-all">—</div>
               <h3 class="eyebrow">Parameters</h3>
               <div id="pine-best-params" class="mono tiny" style="word-break:break-all"></div>
+              <h3 class="eyebrow" style="margin-top:12px">Save as its own strategy</h3>
+              <div style="display:flex;gap:10px;align-items:flex-end">
+                <div class="field" style="flex:1;min-width:180px">
+                  <label for="pine-best-name">New strategy name</label>
+                  <input id="pine-best-name" placeholder="e.g. NVDA 1d optimized"
+                         title="Each name keeps its own version history — saving the same name again adds the next version" /></div>
+              </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
                 <button class="btn btn-primary btn-sm" id="pine-apply-best">Apply to settings</button>
-                <button class="btn btn-ghost btn-sm" id="pine-save-best">Save best as new version</button>
+                <button class="btn btn-ghost btn-sm" id="pine-save-best">Create optimizing version</button>
               </div>
+              <div id="pine-best-error" class="note err" hidden></div>
             </div>
           </div>
 
@@ -1468,6 +1476,18 @@ async function mock(path, opts) {
     };
   }
   if (path.startsWith("/strategies")) return Object.keys(STRATEGY_LABELS).map((n) => ({ name: n, params: [] }));
+  if (path.startsWith("/presets") && (opts.method || "GET") === "POST") {
+    return {
+      id: Date.now(), symbol: (body.symbol || "").toUpperCase(),
+      strategy: body.strategy, strategy_version: body.strategy_version,
+      strategy_name: body.strategy_name || "", version: 1,
+      params: body.params || {}, timeframe: body.timeframe || "",
+      metrics: body.metrics || {}, status: "backtest_only",
+      backtest_ref: body.backtest_ref, source: body.source,
+      optimizer_run_id: body.optimizer_run_id, is_default: true,
+      notes: body.notes || "",
+    };
+  }
   if (path.startsWith("/presets")) return [];
   if (path.startsWith("/keys/routing")) return [];
   if (path.startsWith("/keys")) return [];
@@ -3456,6 +3476,15 @@ function pineRenderResults(d, planned) {
     ([k, v]) => k + "=" + v).join(" · ");
   window.__pineBest = flatBest;
 
+  // Suggest a name for the version the user is about to create; a name they
+  // already typed wins (they may re-run and keep their own).
+  const nameEl = $("pine-best-name");
+  if (nameEl && !nameEl.value.trim()) {
+    const sym = ($("pine-symbol").value || "").trim().toUpperCase() || "SYNTH";
+    const tf = ($("pine-tf").value || "").trim();
+    nameEl.value = [sym, tf, "optimized"].filter(Boolean).join(" ");
+  }
+
   // F8: why this candidate won — the composite's legs (profit / win / dd)
   const bd = (d.best && d.best.score_breakdown) || {};
   $("pine-best-breakdown").hidden = false;
@@ -3530,10 +3559,20 @@ $("pine-save-best").onclick = async () => {
   if (!metrics || !runToken) {
     return toast("Run the optimizer first — the version needs its metrics snapshot", "warn");
   }
+  // The name IS the strategy the new version belongs to: an unused name starts
+  // its own version history at v1, a known one appends v2, v3, …
+  const nameEl = $("pine-best-name");
+  const strategyName = (nameEl.value || "").trim();
+  if (!strategyName) {
+    nameEl.focus();
+    toast("Name the new strategy before saving", "warn");
+    return pineErr("pine-best-error",
+      new Error("a strategy name is required — e.g. " + symbol + " optimized"));
+  }
   try {
     const row = await json("/presets", { method: "POST", body: {
       symbol, strategy: PINE_STRATEGY, strategy_version: "1.0.0",
-      strategy_name: $("pine-name").value || PINE.currentName || "",
+      strategy_name: strategyName,
       params: pineNested(Object.assign(pineValues(), window.__pineBest || {})),
       source: "optimizer", is_default: true,
       optimizer_run_id: runToken,
@@ -3543,11 +3582,13 @@ $("pine-save-best").onclick = async () => {
         " · score " + num((last.best.score_breakdown || {}).score, 3),
     }});
     PINE.currentId = row.id;
-    PINE.currentName = row.strategy_name || "";
+    PINE.currentName = row.strategy_name || strategyName;
+    $("pine-name").value = PINE.currentName;   // keep the editor in sync (see pineApplyVersion)
+    $("pine-best-error").hidden = true;
     await pineRefreshStore();
-    toast("Saved " + (row.strategy_name || "unnamed") + " v" + row.version +
+    toast("Saved \"" + (row.strategy_name || strategyName) + "\" v" + row.version +
           " with its metrics snapshot", "ok");
-  } catch (err) { pineErr("pine-preset-error", err); }
+  } catch (err) { pineErr("pine-best-error", err); }
 };
 $("pine-run").onclick = pineOptimize;
 
