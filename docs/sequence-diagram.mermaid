@@ -1,0 +1,62 @@
+sequenceDiagram
+    participant UI as Lab (index.html)
+    participant R as POST /backtest/optimize
+    participant O as optimize_strategy()
+    participant P as POST /presets (PresetService.save_version)
+    participant DB as strategy_presets
+
+    UI->>R: {symbol, strategy, grid, objective, save_preset:false}
+    R->>O: bars, base_params, grid
+    O-->>R: OptimizeResult(best_params, best.metrics, score_breakdown)
+    R-->>UI: 200 (best + breakdown)
+    UI->>UI: analyst reviews breakdown, clicks "Save best as new version"
+    UI->>P: {symbol, strategy, strategy_name, params: best_params, source:"optimizer", optimizer_run_id, metrics: best.metrics, timeframe}
+    P->>P: full_params(strategy, symbol, best_params)  // expand to resolved set
+    P->>DB: next_version(group) = max(version)+1
+    P->>DB: INSERT row (status=backtest_only, is_default=true, metrics_json, backtest_ref="optimizer:<run>")
+    P->>DB: UPDATE previous default → is_default=false
+    P-->>UI: 201 PresetOut v2 (version=N)
+
+sequenceDiagram
+    participant UI as Lab (index.html)
+    participant R as POST /presets/{id}/promote
+    participant S as PresetService.promote
+    participant F as strategy_factory.build_strategy
+    participant DB as strategy_presets
+    participant E as signal_engine.reload_ticker
+
+    UI->>R: promote version vN
+    R->>S: promote(id)
+    S->>DB: load row (symbol, strategy, params_json, metrics_json, backtest_ref)
+    S->>S: gate 1 params present
+    S->>F: build_strategy(strategy, symbol, params)  // gate 2
+    S->>S: gate 3 metrics_json + backtest_ref/optimizer_run_id
+    alt gate fails
+        S-->>R: raise PresetValidationError(reasons)
+        R-->>UI: 422 {code:"validation_failed", reasons:[{code,message}]}
+    else gate passes
+        S->>DB: UPDATE live_enabled rows (symbol, strategy) → backtest_only
+        S->>DB: UPDATE row → status=live_enabled, is_default=true (group)
+        S-->>R: row
+        R->>E: reload_ticker(symbol)   // best-effort, only if engine runs same strategy
+        E->>DB: get_deployable(symbol, strategy) → live params
+        E->>E: build_strategy → start() → first_poll=true (warm-up replay)
+        R-->>UI: 200 PresetOut (live_enabled)
+        UI->>UI: re-fetch list (server-driven badges)
+    end
+
+sequenceDiagram
+    participant UI as Backtest tab (index.html)
+    participant R as POST /backtest
+    participant S as PresetService.get / params_of
+    participant F as build_strategy
+    participant B as run_backtest
+
+    UI->>R: {preset_id: 42, source, timeframe, limit}
+    R->>S: get(42) → params_of(row)
+    S-->>R: params (stored, verbatim)
+    R->>R: merge explicit request.params (override-only)
+    R->>F: build_strategy(row.strategy, row.symbol, params)
+    R->>B: run_backtest(strategy, bars, cfg)
+    B-->>R: metrics, equity, trades
+    R-->>UI: 200 BacktestResponse (+ preset_id: 42)

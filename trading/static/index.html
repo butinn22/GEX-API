@@ -443,6 +443,9 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
       <button role="tab" data-tab="backtest" aria-selected="true">Backtest</button>
       <button role="tab" data-tab="accounts" aria-selected="false">Accounts</button>
       <button role="tab" data-tab="tools" aria-selected="false">Tuning &amp; export</button>
+      <button role="tab" data-tab="pine" aria-selected="false">Strategy lab</button>
+      <button role="tab" data-tab="signals" aria-selected="false">Live signals</button>
+      <button role="tab" data-tab="deploy" aria-selected="false">Optimize &amp; deploy</button>
     </nav>
   </div>
 </header>
@@ -533,6 +536,24 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
                 <button class="btn btn-ghost btn-sm" id="btn-add">+ Add ticker</button>
                 <button class="btn btn-ghost btn-sm" id="btn-clear">Clear all</button>
               </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Saved strategies</h2>
+              <span class="spacer"></span>
+              <span class="sub">load a version into the per-ticker tools</span>
+            </div>
+            <div class="section-body">
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                <div class="field" style="flex:1"><label for="bt-preset">Load from saved strategy</label>
+                  <select id="bt-preset"></select></div>
+                <button class="btn btn-ghost btn-sm" id="bt-preset-apply" style="margin-bottom:1px">Apply to basket</button>
+              </div>
+              <p class="muted tiny" style="margin:8px 0 0">Applies the version's
+                strategy + parameters to its basket ticker — Analyze and Optimize
+                then run with the saved settings verbatim (no re-entry).</p>
             </div>
           </div>
 
@@ -831,6 +852,277 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
         </div>
       </div>
     </div>
+
+    <div id="tab-pine" role="tabpanel" hidden>
+      <div class="layout" style="grid-template-columns:minmax(400px,520px) minmax(0,1fr)">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-head"><h2>Saved strategies</h2><span class="spacer"></span>
+              <span class="sub" id="pine-hub-sub"></span></div>
+            <div class="section-body">
+              <p class="muted tiny" style="margin:0">Every save creates a new
+                version. Promote a validated version to serve it live; roll back
+                to restore a prior one.</p>
+              <div id="pine-hub" style="margin-top:10px"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Pine strategy settings</h2><span class="spacer"></span>
+              <span class="sub" id="pine-sub"></span></div>
+            <div class="section-body">
+              <div style="display:flex;gap:10px;align-items:flex-end">
+                <div class="field" style="flex:1"><label for="pine-symbol">Symbol</label>
+                  <input id="pine-symbol" class="mono" list="instrument-list" placeholder="NVDA" /></div>
+                <button class="btn btn-ghost btn-sm" id="pine-use-basket" style="margin-bottom:1px">Use basket symbol</button>
+              </div>
+              <div style="display:flex;gap:10px">
+                <div class="field" style="flex:1"><label for="pine-name">Strategy name</label>
+                  <input id="pine-name" placeholder="unnamed" title="Named strategies keep their own version history" /></div>
+                <div class="field" style="flex:1"><label for="pine-notes">Preset notes</label>
+                  <input id="pine-notes" placeholder="e.g. 1d BTC — tight trail" /></div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" id="pine-save">Save as new version</button>
+                <button class="btn btn-ghost btn-sm" id="pine-update">Save edit as version</button>
+                <button class="btn btn-ghost btn-sm" id="pine-default">Set default</button>
+                <button class="btn btn-danger btn-sm" id="pine-delete">Delete</button>
+                <button class="btn btn-ghost btn-sm" id="pine-reset">Reset to defaults</button>
+              </div>
+              <div id="pine-preset-error" class="note err" hidden></div>
+              <div class="hr"></div>
+              <div id="pine-params"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-head"><h2>Parameter optimizer</h2><span class="spacer"></span>
+              <span class="sub" id="pine-opt-sub"></span></div>
+            <div class="section-body">
+              <p class="muted tiny" style="margin:0">Sweeps the parameters you tick below on a
+                70/30 train-validation split, ranks every combination, and reports which
+                parameters actually move the result.</p>
+              <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">
+                <div class="field" style="flex:1;min-width:150px">
+                  <label for="pine-objective">Objective</label>
+                  <select id="pine-objective">
+                    <option value="profit_win" selected>Profit × win rate</option>
+                    <option value="total_return">Total return</option>
+                    <option value="win_rate">Win rate</option>
+                    <option value="profit_factor">Profit factor</option>
+                    <option value="sharpe">Sharpe</option>
+                    <option value="sortino">Sortino</option>
+                    <option value="calmar">Calmar</option>
+                    <option value="max_drawdown">Max drawdown (minimize)</option>
+                  </select></div>
+                <div class="field" style="width:110px"><label for="pine-tf">Timeframe</label>
+                  <select id="pine-tf"><option value="1d" selected>1d</option><option value="1h">1h</option></select></div>
+                <div class="field" style="width:110px"><label for="pine-limit">Bars</label>
+                  <input id="pine-limit" type="number" min="200" max="3000" step="100" value="1000" /></div>
+              </div>
+              <h3 class="eyebrow" style="margin-top:12px">Parameters to sweep</h3>
+              <div id="pine-sweep" style="display:flex;flex-direction:column;gap:6px"></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+                <button class="btn btn-primary" id="pine-run">Run optimization</button>
+                <button class="btn btn-ghost btn-sm" id="pine-stop" hidden>Stop sweep</button>
+                <button class="btn btn-ghost btn-sm" id="pine-all-reco">Apply recommended values</button>
+              </div>
+              <div id="pine-run-status" class="status-line"></div>
+              <div id="pine-opt-error" class="note err" hidden></div>
+            </div>
+          </div>
+
+          <div class="card" id="pine-best-card" hidden>
+            <div class="card-head"><h2>Best configuration</h2><span class="spacer"></span>
+              <span class="sub" id="pine-best-sub"></span></div>
+            <div class="section-body">
+              <div class="kv" id="pine-best-kv"></div>
+              <h3 class="eyebrow">Score breakdown</h3>
+              <div id="pine-best-breakdown" class="tiny mono muted"
+                   style="word-break:break-all">—</div>
+              <h3 class="eyebrow">Parameters</h3>
+              <div id="pine-best-params" class="mono tiny" style="word-break:break-all"></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                <button class="btn btn-primary btn-sm" id="pine-apply-best">Apply to settings</button>
+                <button class="btn btn-ghost btn-sm" id="pine-save-best">Save best as new version</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="pine-impact-card" hidden>
+            <div class="card-head"><h2>Parameter impact</h2><span class="spacer"></span>
+              <span class="sub">share of the total score movement</span></div>
+            <div class="section-body">
+              <table class="data"><thead><tr>
+                <th>Parameter</th><th>Recommended</th><th>Impact</th><th>Values (best → worst)</th>
+              </tr></thead><tbody id="pine-impact"></tbody></table>
+            </div>
+          </div>
+
+          <div class="card" id="pine-board-card" hidden>
+            <div class="card-head"><h2>Ranking</h2><span class="spacer"></span>
+              <span class="sub">validation split · click a row to load it</span></div>
+            <div class="section-body" style="overflow-x:auto">
+              <table class="data"><thead><tr>
+                <th>#</th><th>Score</th><th>Return</th><th>Win rate</th><th>Trades</th><th>Parameters</th>
+              </tr></thead><tbody id="pine-board"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Live signals ═══ -->
+    <div id="tab-signals" role="tabpanel" hidden>
+      <div class="layout" style="grid-template-columns:minmax(340px,420px) minmax(0,1fr)">
+        <div class="card">
+          <div class="card-head"><h2>Signal engine</h2><span class="spacer"></span>
+            <span class="badge" id="sig-engine-badge">stopped</span></div>
+          <div class="section-body">
+            <p class="muted tiny" style="margin:0">Poll real market data per ticker and let the
+              confluence-breakout strategy emit a complete trade plan (entry, stop, risk) on every
+              closed bar. Every signal is stored and exported.</p>
+            <div class="field"><label for="sig-symbols">Tickers</label>
+              <input id="sig-symbols" class="mono" list="instrument-list"
+                     placeholder="BTC, ETH, SBER" /></div>
+            <div class="field"><label for="sig-strategy">Strategy</label>
+              <select id="sig-strategy">
+                <option value="confluence_breakout" selected>confluence_breakout</option>
+                <option value="trend_confluence_unified">trend_confluence_unified</option>
+                <option value="trend_confluence_pine">trend_confluence_pine</option>
+                <option value="sma_crossover">sma_crossover</option>
+              </select></div>
+            <div class="field"><label for="sig-preset">Validated preset</label>
+              <select id="sig-preset">
+                <option value="alligator_4h" selected>Alligator 4H — maxDD 2.7%, PF 1.38</option>
+                <option value="donchian_1d">Donchian 1D — PF 1.88–2.08</option>
+                <option value="">None (strategy defaults)</option>
+              </select></div>
+            <div class="grid-2">
+              <div class="field"><label for="sig-timeframe">Bar</label>
+                <select id="sig-timeframe">
+                  <option>1h</option><option selected>4h</option><option>8h</option>
+                  <option>12h</option><option>1d</option>
+                </select></div>
+              <div class="field"><label for="sig-poll">Poll (s)</label>
+                <input id="sig-poll" type="number" min="5" step="5" value="60" /></div>
+            </div>
+            <div class="field"><label for="sig-bars">History bars</label>
+              <input id="sig-bars" type="number" min="250" step="50" value="500" /></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" id="sig-start">Start engine</button>
+              <button class="btn btn-ghost" id="sig-stop" disabled>Stop</button>
+              <button class="btn btn-ghost" id="sig-refresh">Refresh</button>
+            </div>
+            <div id="sig-error" class="note err" hidden></div>
+            <div class="hr"></div>
+            <div class="eyebrow">Exports — full per-signal and per-position data</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+              <button class="btn btn-ghost btn-sm" data-sig-export="/signals/export/signals.csv" data-filename="signals.csv">Signals CSV</button>
+              <button class="btn btn-ghost btn-sm" data-sig-export="/signals/export/signals.xlsx" data-filename="signals.xlsx">Signals Excel</button>
+              <button class="btn btn-ghost btn-sm" data-sig-export="/signals/export/positions.csv" data-filename="positions.csv">Positions CSV</button>
+              <button class="btn btn-ghost btn-sm" data-sig-export="/signals/export/positions.xlsx" data-filename="positions.xlsx">Positions Excel</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Live feed</h2><span class="spacer"></span>
+            <span class="sub" id="sig-ws-state">connecting…</span></div>
+          <div class="section-body">
+            <div class="kv" id="sig-stats" style="margin-bottom:12px"></div>
+            <div class="eyebrow" style="margin-bottom:6px">Open positions</div>
+            <table class="data"><thead><tr>
+              <th>Symbol</th><th>Side</th><th>Entry</th><th>Stop</th><th>Qty</th>
+              <th>Bars</th><th>MFE (R)</th>
+            </tr></thead><tbody id="sig-open"><tr><td colspan="7" class="muted tiny">No open positions.</td></tr></tbody></table>
+            <div class="eyebrow" style="margin:14px 0 6px">Recent signals</div>
+            <table class="data"><thead><tr>
+              <th>Time</th><th>Symbol</th><th>Side</th><th>State</th><th>Entry</th>
+              <th>Stop</th><th>TF</th><th>Reason</th>
+            </tr></thead><tbody id="sig-feed"><tr><td colspan="8" class="muted tiny">No signals yet.</td></tr></tbody></table>
+            <div class="eyebrow" style="margin:14px 0 6px">Engine tickers</div>
+            <table class="data"><thead><tr>
+              <th>Symbol</th><th>Venue</th><th>Last bar</th><th>Signals</th><th>State</th><th>Error</th>
+            </tr></thead><tbody id="sig-tickers"><tr><td colspan="6" class="muted tiny">Engine stopped.</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-deploy" role="tabpanel" hidden>
+      <div class="layout" style="grid-template-columns:minmax(340px,440px) minmax(0,1fr)">
+        <div class="card">
+          <div class="card-head"><h2>Optimize the unified strategy</h2></div>
+          <div class="section-body">
+            <p class="muted tiny" style="margin:0">Trend Confluence core × EMF+ADL × Momentum.
+              Grid search per ticker (70/30 train-validation); winners are saved as the
+              ticker's default preset and flow into new API keys.</p>
+            <div class="field"><label for="dp-symbols">Tickers</label>
+              <input id="dp-symbols" class="mono" list="instrument-list"
+                     placeholder="NVDA, BTC, SBER" /></div>
+            <button class="btn btn-ghost btn-sm" id="dp-fill" style="margin-bottom:10px">Use backtest tickers</button>
+            <div class="field"><label for="dp-objective">Objective</label>
+              <select id="dp-objective">
+                <option value="profit_win" selected>Profit × win rate (default)</option>
+                <option value="total_return">Total return</option>
+                <option value="win_rate">Win rate</option>
+                <option value="profit_factor">Profit factor</option>
+                <option value="sharpe">Validation Sharpe</option>
+                <option value="sortino">Sortino</option>
+                <option value="calmar">Calmar</option>
+                <option value="max_drawdown">Max drawdown (minimize)</option>
+              </select></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" id="dp-opt-one">Optimize Selected Ticker</button>
+              <button class="btn btn-primary" id="dp-opt-all">Optimize All Tickers</button>
+              <button class="btn btn-danger" id="dp-opt-stop" disabled>Stop</button>
+            </div>
+            <div id="dp-status" class="status-line"></div>
+            <div id="dp-error" class="note err" hidden></div>
+            <div id="dp-global" hidden>
+              <div class="hr"></div>
+              <div class="kv" id="dp-global-kv"></div>
+              <h3 class="eyebrow" style="margin-top:10px">Per-ticker results</h3>
+              <table class="data" style="margin-top:8px"><thead><tr>
+                <th>Ticker</th><th>Return</th><th>Sharpe</th><th>Trades</th><th>State</th>
+              </tr></thead><tbody id="dp-global-rows"></tbody></table>
+            </div>
+            <div class="hr"></div>
+            <h3 class="eyebrow">Saved presets</h3>
+            <table class="data" style="margin-top:8px"><thead><tr>
+              <th>Ticker</th><th>Strategy</th><th>Source</th><th>Default</th><th>Updated</th>
+            </tr></thead><tbody id="dp-presets"></tbody></table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Deploy — choose API / broker, create key</h2></div>
+          <div class="section-body">
+            <p class="muted tiny" style="margin:0">After optimization, choose the API/broker
+              provider, then create a unique key referencing the full configuration
+              (optimized presets per ticker). Open the live dashboard at
+              <span class="mono">/API_KEY/&lt;key&gt;</span> to monitor performance,
+              download trades and watch the charts.</p>
+            <div class="field"><label for="dp-broker">API / broker provider</label>
+              <select id="dp-broker">
+                <option value="bingx" selected>BingX — crypto futures</option>
+                <option value="tbank">TBANK — Russian equities</option>
+              </select></div>
+            <button class="btn btn-primary" id="dp-create-key">Create API Key</button>
+            <div id="dp-key-error" class="note err" hidden></div>
+            <div class="hr"></div>
+            <h3 class="eyebrow">Signal keys</h3>
+            <table class="data" style="margin-top:8px"><thead><tr>
+              <th>Key</th><th>Broker</th><th>Tickers</th><th>Status</th><th>Last used</th><th></th>
+            </tr></thead><tbody id="dp-keys"></tbody></table>
+            <p class="muted tiny" id="dp-key-warn"></p>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -839,6 +1131,7 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
     <button class="btn btn-primary" id="btn-run">Run backtest</button>
     <button class="btn btn-danger" id="btn-stop" disabled>Stop</button>
     <button class="btn btn-ghost" id="btn-report">HTML report</button>
+    <button class="btn btn-ghost" id="btn-to-api" title="Carry the current basket over to the API key creation form">Send tickers to API setup</button>
     <span class="status-line" id="status" role="status" aria-live="polite"></span>
   </div>
 </div>
@@ -866,6 +1159,8 @@ const VENUES = {
 };
 const STRATEGY_LABELS = {
   trend_confluence: "Trend confluence",
+  trend_confluence_unified: "Trend confluence × EMF/ADL × Momentum",
+  trend_confluence_pine: "TC × EMF/ADL × Mom + Pine TP/Trail %",
   sma_crossover: "SMA crossover",
   sma_crossover_ls: "SMA long / short",
   momentum: "Momentum",
@@ -933,17 +1228,34 @@ function apiError(status, detail) {
 async function json(path, opts = {}) {
   if (S.demo) return mock(path, opts);
   let res;
+  // Optional client-side ceiling. Without it a stalled server or half-open
+  // connection leaves the caller (spinner, disabled button) hanging forever —
+  // the "Run optimization stuck" failure mode. Callers may still pass their
+  // own abort signal; both abort the same fetch.
+  const ctrl = new AbortController();
+  const timer = opts.timeoutMs
+    ? setTimeout(() => ctrl.abort(new Error("client timeout")), opts.timeoutMs) : null;
+  const onOuterAbort = () => ctrl.abort(opts.signal ? opts.signal.reason : undefined);
+  if (opts.signal) {
+    if (opts.signal.aborted) onOuterAbort();
+    else opts.signal.addEventListener("abort", onOuterAbort, { once: true });
+  }
   try {
     res = await fetch(API + path, {
       method: opts.method || "GET",
       headers: headers(opts.body ? { "Content-Type": "application/json" } : {}),
       body: opts.body ? JSON.stringify(opts.body) : undefined,
-      signal: opts.signal,
+      signal: ctrl.signal,
     });
   } catch (err) {
-    if (err && err.name === "AbortError") throw err;
+    if (opts.signal && opts.signal.aborted) throw err;  // caller-initiated stop
+    if (err && err.name === "AbortError")
+      throw apiError(504, "server did not answer in time — try again or use fewer combinations");
     enterDemo("Backend unreachable — showing demo data");
     return mock(path, opts);
+  } finally {
+    if (timer) clearTimeout(timer);
+    if (opts.signal) opts.signal.removeEventListener("abort", onOuterAbort);
   }
   if (res.status === 499) { const e = new Error("cancelled"); e.cancelled = true; throw e; }
   if (!res.ok) {
@@ -1096,7 +1408,18 @@ async function mock(path, opts) {
     const sym = decodeURIComponent(path.split("/data/detect/")[1]).toUpperCase();
     return detectLocal(sym);
   }
+  if (path.includes("/strategies/") && path.endsWith("/schema")) {
+    const local = pineLocalSchema();
+    return {
+      name: path.split("/strategies/")[1].replace("/schema", ""),
+      groups: PINE_GROUPS.map((g) => g[0]),
+      params: local,
+      defaults: Object.fromEntries(local.map((p) => [p.key, p.default])),
+      sweep: Object.fromEntries(local.filter((p) => p.sweep.length).map((p) => [p.key, p.sweep])),
+    };
+  }
   if (path.startsWith("/strategies")) return Object.keys(STRATEGY_LABELS).map((n) => ({ name: n, params: [] }));
+  if (path.startsWith("/presets")) return [];
   if (path.startsWith("/keys/routing")) return [];
   if (path.startsWith("/keys")) return [];
   if (path.startsWith("/backtest/portfolio")) return demoPortfolio();
@@ -1768,13 +2091,55 @@ function buildRequest() {
 }
 function singleRequest(t) {
   const synth = $("opt-demo").checked;
-  return { strategy: t.strategy, symbol: (t.symbol || "").trim(),
+  const req = { strategy: t.strategy, symbol: (t.symbol || "").trim(),
     source: synth ? "synthetic" : (t.override || "auto"),
     timeframe: $("opt-timeframe").value, limit: Number($("opt-limit").value) || 1500,
     initial_cash: Number($("opt-cash").value), fee_rate: Number($("opt-fee").value) / 100,
     slippage: Number($("opt-slip").value) / 100, position_fraction: Number($("opt-frac").value),
     params: paramsFor(t), refresh_data: $("opt-refresh").checked };
+  // a saved strategy version loaded from the store → run with its params verbatim
+  if (t.presetId) req.preset_id = t.presetId;
+  return req;
 }
+
+/* ── saved-strategy selector (Strategy Hub F4) ─────────────────────────
+   Loads the latest version of every saved strategy into the per-ticker
+   tools: applying one binds its basket ticker to the stored strategy +
+   version, so Analyze / Optimize run exactly with what was saved. */
+const btPresetState = { loaded: false, rows: [] };
+async function btLoadPresets() {
+  try {
+    const rows = await json("/presets/latest");
+    btPresetState.rows = Array.isArray(rows) ? rows : [];
+  } catch (err) { btPresetState.rows = []; }
+  const host = $("bt-preset");
+  if (!host) return;
+  host.innerHTML = btPresetState.rows.length
+    ? btPresetState.rows.map((r) =>
+        "<option value='" + r.id + "'>" + esc(r.symbol) + " · " +
+        esc(r.strategy_name || "unnamed") + " · v" + (r.version || 1) +
+        (r.status === "live_enabled" ? " · live" : "") + "</option>").join("")
+    : "<option value=''>— no saved strategies yet —</option>";
+}
+$("bt-preset-apply").onclick = () => {
+  const id = Number($("bt-preset").value || 0);
+  const row = btPresetState.rows.find((r) => r.id === id);
+  if (!row) return toast("Pick a saved strategy first", "warn");
+  let t = activeTickers().find((x) =>
+    (x.symbol || "").trim().toUpperCase() === row.symbol);
+  if (!t) {
+    S.tickers.push({ symbol: row.symbol, strategy: row.strategy, weight: 1,
+                     enabled: true, override: "", detect: null });
+    t = S.tickers[S.tickers.length - 1];
+  } else {
+    t.strategy = row.strategy;
+  }
+  t.presetId = row.id;
+  renderRoutes();
+  markStale();
+  toast(row.symbol + " → " + (row.strategy_name || "unnamed") +
+        " v" + (row.version || 1) + " (Analyze / Optimize use the saved params)", "ok");
+};
 function updatePreview() {
   const el = $("api-preview"); if (!el) return;
   try { el.textContent = JSON.stringify(buildRequest(), null, 2); } catch (e) { el.textContent = ""; }
@@ -2180,6 +2545,140 @@ async function download(path, filename, errBox) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   LIVE SIGNALS — engine control, WS feed, ledger and exports
+   ═══════════════════════════════════════════════════════════════════════ */
+const SIG = { ws: null, feed: [], booted: false, poll: null };
+
+function sigError(msg) {
+  const e = $("sig-error");
+  e.hidden = !msg; e.textContent = msg || "";
+}
+function sigWsUrl() {
+  return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/signals";
+}
+function sigNumbers(d, keys) {
+  const out = [];
+  keys.forEach((k) => {
+    const v = d[k];
+    out.push('<div class="item"><div class="k">' + k.replace(/_/g, " ") + '</div><div class="v">' +
+      (v === null || v === undefined || v === "" ? "—" : (typeof v === "number" ? v.toLocaleString() : v)) + "</div></div>");
+  });
+  return out.join("");
+}
+async function sigLoad() {
+  try {
+    const st = await json("/signals/engine");
+    const badge = $("sig-engine-badge");
+    badge.textContent = st.running ? "running" : "stopped";
+    badge.className = "badge" + (st.running ? " ok" : "");
+    $("sig-start").disabled = st.running;
+    $("sig-stop").disabled = !st.running;
+    if (st.config && st.config.symbols && st.config.symbols.length) {
+      $("sig-symbols").value = st.config.symbols.join(", ");
+    }
+    const rows = (st.tickers || []).map((t) => "<tr><td class='mono'>" + t.symbol + "</td><td>" +
+      (t.source || "—") + "</td><td class='mono tiny'>" +
+      (t.last_bar ? t.last_bar.replace("T", " ").slice(5, 16) : "—") + "</td><td>" + t.signals +
+      "</td><td>" + (t.position_open ? "in position" : "flat") + "</td><td class='tiny'>" +
+      (t.last_error || "") + "</td></tr>").join("");
+    $("sig-tickers").innerHTML = rows ||
+      "<tr><td colspan='6' class='muted tiny'>Engine stopped.</td></tr>";
+
+    const stats = await json("/signals/stats");
+    $("sig-stats").innerHTML = sigNumbers(stats, ["open", "closed", "wins", "losses",
+      "win_rate", "total_pnl", "total_pnl_r"]);
+
+    const pos = await json("/signals/positions?status=open&limit=100");
+    $("sig-open").innerHTML = pos.length ? pos.map((p) => "<tr><td class='mono'>" + p.symbol +
+      "</td><td>" + p.side + "</td><td class='mono'>" + fmtPrice(p.entry_price) + "</td><td class='mono'>" +
+      fmtPrice(p.stop_price) + "</td><td class='mono'>" + fmtQty(p.quantity) + "</td><td>" +
+      (p.bars_held || 0) + "</td><td>" + (p.mfe_r === null ? "—" : p.mfe_r.toFixed(2)) +
+      "</td></tr>").join("") : "<tr><td colspan='7' class='muted tiny'>No open positions.</td></tr>";
+
+    if (!SIG.feed.length) {
+      const sigs = await json("/signals?limit=25");
+      SIG.feed = sigs.map((s) => [s.timestamp, s.symbol, s.side, s.state, s.entry_price,
+        s.stop_loss, s.timeframe, s.reason]);
+      sigRenderFeed();
+    }
+    sigError("");
+  } catch (e) { sigError("Load failed: " + e.message); }
+}
+function fmtPrice(v) { return v === null || v === undefined ? "—" : (Math.abs(v) >= 1000 ? v.toFixed(1) : v.toFixed(4)); }
+function fmtQty(v) { return v === null || v === undefined ? "—" : (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(4)); }
+function sigRenderFeed() {
+  $("sig-feed").innerHTML = SIG.feed.length ? SIG.feed.map((r) => "<tr><td class='mono tiny'>" +
+    String(r[0]).replace("T", " ").slice(5, 19) + "</td><td class='mono'>" + r[1] + "</td><td>" +
+    r[2] + "</td><td>" + r[3] + "</td><td class='mono'>" + fmtPrice(r[4]) + "</td><td class='mono'>" +
+    fmtPrice(r[5]) + "</td><td>" + (r[6] || "—") + "</td><td class='tiny'>" + (r[7] || "") +
+    "</td></tr>").join("") : "<tr><td colspan='8' class='muted tiny'>No signals yet.</td></tr>";
+}
+function sigWsOpen() {
+  if (SIG.ws) return;
+  let ws;
+  try { ws = new WebSocket(sigWsUrl()); } catch (e) { return; }
+  SIG.ws = ws;
+  ws.onopen = () => { $("sig-ws-state").textContent = "live"; };
+  ws.onclose = () => {
+    SIG.ws = null;
+    $("sig-ws-state").textContent = "reconnecting…";
+    setTimeout(sigWsOpen, 3000);
+  };
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  ws.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.type !== "signal") return;
+    SIG.feed.unshift([m.timestamp || new Date().toISOString(), m.symbol, m.side, m.state,
+      m.entry_price, m.stop_loss, m.timeframe, m.reason]);
+    if (SIG.feed.length > 60) SIG.feed.length = 60;
+    sigRenderFeed();
+    if (m.event) sigLoad();          // refresh ledger + stats on every position event
+  };
+}
+function signalsTabInit() {
+  if (SIG.booted) { sigLoad(); return; }
+  SIG.booted = true;
+  $("sig-start").onclick = async () => {
+    sigError("");
+    const symbols = $("sig-symbols").value.split(",").map((s) => s.trim()).filter(Boolean);
+    if (!symbols.length) { sigError("Add at least one ticker."); return; }
+    $("sig-start").disabled = true;
+    try {
+      const st = await json("/signals/engine/start", { method: "POST", body: {
+        symbols: symbols,
+        strategy: $("sig-strategy").value,
+        preset: $("sig-preset").value || null,
+        timeframe: $("sig-timeframe").value,
+        poll_seconds: Number($("sig-poll").value || 60),
+        bars: Number($("sig-bars").value || 500),
+      } });
+      const b = $("sig-engine-badge");
+      b.textContent = "running"; b.className = "badge ok";
+      $("sig-stop").disabled = false;
+      sigLoad();
+    } catch (e) { sigError("Start failed: " + e.message); $("sig-start").disabled = false; }
+  };
+  $("sig-stop").onclick = async () => {
+    try {
+      await json("/signals/engine/stop", { method: "POST", body: {} });
+      const b = $("sig-engine-badge");
+      b.textContent = "stopped"; b.className = "badge";
+      $("sig-start").disabled = false; $("sig-stop").disabled = true;
+      sigLoad();
+    } catch (e) { sigError("Stop failed: " + e.message); }
+  };
+  $("sig-refresh").onclick = () => sigLoad();
+  document.querySelectorAll("[data-sig-export]").forEach((b) => {
+    b.addEventListener("click", () => download(b.dataset.sigExport, b.dataset.filename, $("sig-error")));
+  });
+  sigLoad();
+  sigWsOpen();
+  // A short interval keeps the live ledger (bars/signals/errors) fresh
+  // while the engine is running; the tab is the only place that polls.
+  SIG.poll = setInterval(() => { if (!document.hidden) sigLoad(); }, 8000);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    THEME + TABS + BOOT
    ═══════════════════════════════════════════════════════════════════════ */
 function paintThemeBtn() {
@@ -2199,10 +2698,791 @@ $("theme-btn").onclick = () => {
 function selectTab(name) {
   S.tab = name;
   $$("#tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
-  ["backtest", "accounts", "tools"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
+  ["backtest", "accounts", "tools", "pine", "signals", "deploy"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
   $("actionbar").hidden = name !== "backtest";
+  if (name === "backtest" && !btPresetState.loaded) { btPresetState.loaded = true; btLoadPresets(); }
   if (name === "accounts") loadKeys();
+  if (name === "pine") pineTabInit();
+  if (name === "signals") signalsTabInit();
+  if (name === "deploy") deployTabInit();
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STRATEGY LAB — settings, presets and optimization for
+   "TC × EMF/ADL × Momentum + Pine TP/Trail %".
+
+   The schema comes from GET /strategies/{name}/schema; the const below is the
+   offline copy the console falls back to when the API is unreachable (it is
+   generated from trading/application/strategy_params.py).
+   ═══════════════════════════════════════════════════════════════════════ */
+const PINE_UI_SCHEMA = [
+  ["ema_fast", "EMA fast", "int", "TC", 20, 2, 100, 1, "", "10,20,33"],
+  ["ema_mid", "EMA mid", "int", "TC", 50, 5, 200, 1, "", ""],
+  ["ema_slow", "EMA slow", "int", "TC", 200, 20, 400, 1, "", ""],
+  ["zone_atr", "Zone width (ATR)", "float", "TC", 0.5, 0.1, 2.0, 0.1, "", "0.3,0.5,0.8"],
+  ["min_confluence", "Min confluence", "int", "TC", 2, 1, 5, 1, "", "2,3"],
+  ["pullback_lookback", "Pullback lookback", "int", "TC", 10, 2, 40, 1, "", ""],
+  ["use_trendlines", "Use trendlines", "bool", "TC", true, null, null, null, "", ""],
+  ["trendline_refresh", "Trendline refresh", "int", "TC", 5, 1, 40, 1, "", ""],
+  ["atr_trail_mult", "ATR trail mult", "float", "TC", 2.5, 1.0, 6.0, 0.5, "", "2.0,3.0"],
+  ["stop_atr", "Hard stop (ATR)", "float", "TC", 2.0, 0.0, 6.0, 0.5, "", "1.5,2.5"],
+  ["risk_pct", "Risk per trade", "float", "TC", 0.01, 0.0, 0.05, 0.005, "", ""],
+  ["reentry_cooldown", "Re-entry cooldown", "int", "TC", 3, 0, 20, 1, "", ""],
+  ["need_rejection", "Confirmation candle", "bool", "TC", false, null, null, null, "", "true,false"],
+  ["emf.length_bars", "Trend bar count", "int", "EMF", 15, 3, 60, 1, "", "10,15,25"],
+  ["emf.movement_threshold", "Movement threshold %", "float", "EMF", 0.314, 0.05, 2.0, 0.001, "", ""],
+  ["emf.bull_trend_threshold", "Bull threshold", "float", "EMF", 0.3, -1.0, 1.0, 0.05, "", ""],
+  ["emf.bear_trend_threshold", "Bear threshold", "float", "EMF", -0.3, -1.0, 1.0, 0.05, "", ""],
+  ["emf.flat_filter_enabled", "Flat filter", "bool", "EMF", true, null, null, null, "", ""],
+  ["emf.flat_threshold_d", "Flat zone threshold", "float", "EMF", 1.2, 0.5, 3.0, 0.1, "", ""],
+  ["emf.smooth_len", "Trend smoothing", "int", "EMF", 3, 1, 20, 1, "", ""],
+  ["emf.swing_period", "Swing period", "int", "EMF", 50, 2, 200, 1, "", ""],
+  ["emf.base_apt", "Adaptive price tracking", "float", "EMF", 20.0, 1.0, 300.0, 1.0, "", ""],
+  ["emf.use_adaptive_apt", "Adapt APT by ATR", "bool", "EMF", false, null, null, null, "", ""],
+  ["emf.volatility_bias", "Volatility bias", "float", "EMF", 10.0, 0.1, 50.0, 0.1, "", ""],
+  ["emf.atr_length", "ATR length (EMF)", "int", "EMF", 50, 5, 200, 1, "", ""],
+  ["emf.cooldown_bars", "Add cooldown (EMF)", "int", "EMF", 10, 1, 60, 1, "", ""],
+  ["emf.rsi_length", "RSI length", "int", "ADL", 14, 2, 50, 1, "", "9,14,21"],
+  ["emf.ob_level", "RSI overbought", "int", "ADL", 75, 50, 95, 1, "", ""],
+  ["emf.os_level", "RSI oversold", "int", "ADL", 30, 5, 50, 1, "", ""],
+  ["emf.om_level", "RSI middle", "int", "ADL", 50, 20, 80, 1, "", ""],
+  ["emf.length_adl", "Two-pole length", "int", "ADL", 20, 2, 100, 1, "", "10,20,30"],
+  ["emf.damping", "Two-pole damping", "float", "ADL", 0.9, 0.1, 1.0, 0.01, "", "0.7,0.9"],
+  ["emf.rising_falling", "Rising/falling bars", "int", "ADL", 5, 1, 30, 1, "", ""],
+  ["emf.length_bb", "BB length (ADL)", "int", "ADL", 33, 5, 200, 1, "", ""],
+  ["emf.mult_bb", "BB multiplier", "float", "ADL", 2.618, 0.1, 10.0, 0.001, "", ""],
+  ["emf.percent_bb", "BB percent", "float", "ADL", 61.8, 1.0, 100.0, 0.1, "", ""],
+  ["emf.signal_length", "MACD signal length", "int", "ADL", 9, 2, 30, 1, "", "5,9,14"],
+  ["use_momentum", "Use momentum", "bool", "MOM", true, null, null, null, "", ""],
+  ["momentum_period", "Momentum period", "int", "MOM", 10, 2, 60, 1, "", "5,10,20"],
+  ["momentum_mode", "Momentum mode", "enum", "MOM", "bonus", null, null, null, "gate,bonus,off", "gate,bonus"],
+  ["momentum_bonus", "Momentum bonus", "float", "MOM", 0.15, 0.0, 1.0, 0.05, "", ""],
+  ["use_emf", "Use EMF/ADL entries", "bool", "EMF", true, null, null, null, "", ""],
+  ["emf_mode", "EMF mode", "enum", "EMF", "bonus", null, null, null, "require,bonus,off", "require,bonus"],
+  ["emf_bonus", "EMF bonus", "float", "EMF", 0.25, 0.0, 1.0, 0.05, "", ""],
+  ["use_emf_exits", "EMF exits", "bool", "EMF", true, null, null, null, "", ""],
+  ["tp_enabled", "Take profit", "bool", "PINE", true, null, null, null, "", "true,false"],
+  ["tp_percent", "TP %", "float", "PINE", 2.0, 0.1, 20.0, 0.1, "", "1.0,2.0,3.5"],
+  ["tp_close_pct", "TP close %", "float", "PINE", 50.0, 5.0, 100.0, 5.0, "", "25.0,50.0,100.0"],
+  ["tp_cooldown_bars", "TP cooldown bars", "int", "PINE", 3, 0, 20, 1, "", "0,3,6"],
+  ["trailing_enabled", "Trailing stop", "bool", "PINE", true, null, null, null, "", "true,false"],
+  ["trailing_percent", "Trailing %", "float", "PINE", 1.0, 0.1, 10.0, 0.1, "", "0.5,1.0,2.0"],
+  ["allow_adds", "Allow adds", "bool", "PINE", false, null, null, null, "", ""],
+  ["add_cooldown_bars", "Add cooldown bars", "int", "PINE", 10, 1, 60, 1, "", ""],
+  ["add_size_mult", "Add size multiplier", "float", "PINE", 0.25, 0.05, 1.0, 0.05, "", ""],
+];
+
+const PINE_STRATEGY = "trend_confluence_pine";
+const PINE_GROUPS = [
+  ["TC", "Trend confluence core"],
+  ["EMF", "EMF — bar-trend analysis + adaptive VWAP"],
+  ["ADL", "ADL — accumulation line, bands, MACD"],
+  ["MOM", "Momentum overlay"],
+  ["PINE", "Pine take-profit / trailing stop"],
+];
+const PINE = { schema: [], fields: [], presets: [], currentId: null, currentName: "",
+               last: null, ready: false, hub: [], historyOpen: {}, versionCache: {},
+               optToken: null, optAbort: null, optTimer: null };
+
+const pineNum = (s) => {
+  const t = String(s).trim();
+  if (t === "True" || t === "true") return true;
+  if (t === "False" || t === "false") return false;
+  const n = Number(t);
+  return isFinite(n) ? n : t;
+};
+const pineLocalSchema = () => PINE_UI_SCHEMA.map((r) => ({
+  key: r[0], label: r[1], kind: r[2], group: r[3], default: r[4],
+  min: r[5], max: r[6], step: r[7],
+  options: r[8] ? String(r[8]).split(",") : [],
+  sweep: r[9] ? String(r[9]).split(",").map(pineNum) : [],
+}));
+function pineNested(flat) {
+  const out = {};
+  Object.entries(flat || {}).forEach(([k, v]) => {
+    if (k.includes(".")) {
+      const [outer, inner] = k.split(".", 2);
+      out[outer] = out[outer] || {};
+      out[outer][inner] = v;
+    } else { out[k] = v; }
+  });
+  return out;
+}
+function pineFlatten(obj, prefix = "") {
+  const out = {};
+  Object.entries(obj || {}).forEach(([k, v]) => {
+    const key = prefix ? prefix + "." + k : k;
+    if (v && typeof v === "object" && !Array.isArray(v)) Object.assign(out, pineFlatten(v, key));
+    else out[key] = v;
+  });
+  return out;
+}
+
+async function pineLoadSchema() {
+  if (PINE.schema.length) return PINE.schema;
+  let schema = pineLocalSchema();
+  try {
+    const d = await json("/strategies/" + PINE_STRATEGY + "/schema");
+    if (d && d.params && d.params.length) schema = d.params;
+  } catch (err) { /* offline → local copy */ }
+  PINE.schema = schema;
+  return schema;
+}
+
+function pineRenderParams() {
+  const host = $("pine-params");
+  let html = "";
+  PINE_GROUPS.forEach(([g, title]) => {
+    const items = PINE.schema.filter((p) => p.group === g);
+    if (!items.length) return;
+    html += "<h3 class='eyebrow'>" + esc(title) + "</h3>";
+    items.forEach((p) => {
+      const id = "pine-f-" + p.key.replace(/\./g, "-");
+      let ctrl = "";
+      if (p.kind === "bool") {
+        ctrl = "<select id='" + id + "'><option value='true'>on</option>" +
+               "<option value='false'>off</option></select>";
+      } else if (p.kind === "enum") {
+        ctrl = "<select id='" + id + "'>" + (p.options || []).map((o) =>
+          "<option value='" + esc(o) + "'>" + esc(o) + "</option>").join("") + "</select>";
+      } else {
+        ctrl = "<input id='" + id + "' type='number' step='" + (p.step == null ? 1 : p.step) + "'" +
+               (p.min == null ? "" : " min='" + p.min + "'") +
+               (p.max == null ? "" : " max='" + p.max + "'") + " />";
+      }
+      html += "<div class='field' style='margin-bottom:8px'><label for='" + id + "'>" +
+              esc(p.label) + (p.help ? " <span class='muted tiny' title='" + esc(p.help) +
+              "'>(?)</span>" : "") + "</label>" + ctrl + "</div>";
+    });
+  });
+  host.innerHTML = html;
+  PINE.fields = PINE.schema.map((p) => ({
+    key: p.key, kind: p.kind,
+    el: $("pine-f-" + p.key.replace(/\./g, "-")),
+  }));
+}
+
+function pineRenderSweep() {
+  const host = $("pine-sweep");
+  host.innerHTML = PINE.schema.filter((p) => (p.sweep || []).length).map((p) => {
+    const id = "pine-s-" + p.key.replace(/\./g, "-");
+    return "<div style='display:flex;gap:8px;align-items:center'>" +
+      "<label class='tiny' style='flex:1;display:flex;gap:6px;align-items:center'>" +
+      "<input type='checkbox' id='" + id + "' data-key='" + esc(p.key) + "' />" +
+      esc(p.label) + "</label>" +
+      "<input class='mono tiny' style='width:150px' data-vals='" + esc(p.key) +
+      "' value='" + esc((p.sweep || []).join(",")) + "' />" +
+      "<span class='muted tiny'>" + esc(p.group) + "</span></div>";
+  }).join("");
+}
+
+function pineValues() {
+  const out = {};
+  PINE.fields.forEach((f) => {
+    if (!f.el) return;
+    const raw = f.el.value;
+    out[f.key] = f.kind === "bool" ? raw === "true" : (f.kind === "enum" ? raw : Number(raw));
+  });
+  return out;
+}
+
+function pineSetValues(flat) {
+  PINE.fields.forEach((f) => {
+    if (!f.el || !(f.key in flat)) return;
+    const v = flat[f.key];
+    f.el.value = f.kind === "bool" ? String(!!v) : String(v);
+  });
+}
+
+function pineDefaults() {
+  const out = {};
+  PINE.schema.forEach((p) => { out[p.key] = p.default; });
+  return out;
+}
+
+/* ── saved strategies (Strategy Hub): latest version per named strategy ── */
+async function pineLoadHub() {
+  const symbol = ($("pine-symbol").value || "").trim().toUpperCase();
+  let rows = [];
+  if (symbol) {
+    try {
+      rows = await json("/presets/latest?strategy=" + PINE_STRATEGY +
+                        "&symbol=" + encodeURIComponent(symbol));
+    } catch (err) { rows = []; }
+  }
+  PINE.hub = Array.isArray(rows) ? rows : [];
+  pineRenderHub();
+}
+
+function pineMetricsLine(m) {
+  m = m || {};
+  if (!m.total_return && !m.n_trades) return "<span class='muted tiny'>no metrics snapshot</span>";
+  return "<span class='" + cls(m.total_return) + "'>" + pcts(m.total_return) + "</span>" +
+    " · wr " + pct(m.win_rate) + " · dd " + pct(m.max_drawdown) +
+    " · " + (m.n_trades || 0) + " trades";
+}
+
+function pineRenderHub() {
+  const host = $("pine-hub");
+  $("pine-hub-sub").textContent = ($("pine-symbol").value || "").trim().toUpperCase() || "—";
+  if (!PINE.hub.length) {
+    host.innerHTML = "<div class='muted tiny'>No saved strategies for this symbol yet — " +
+      "tune the parameters below and press “Save as new version”.</div>";
+    return;
+  }
+  host.innerHTML = PINE.hub.map((r) => {
+    const name = r.strategy_name || "unnamed";
+    const live = r.status === "live_enabled";
+    const hist = PINE.historyOpen[r.id];
+    return "<div class='route' style='margin-bottom:10px;--venue:var(--accent)'>" +
+      "<div class='route-top' style='grid-template-columns:1fr auto'>" +
+      "<div><b style='font-size:13px'>" + esc(name) + "</b> " +
+      "<span class='badge mono'>v" + (r.version || 1) + "</span> " +
+      "<span class='badge " + (live ? "ok" : "") + "'>" + (live ? "● live_enabled" : "○ backtest_only") + "</span>" +
+      (r.is_default ? " <span class='badge'>default</span>" : "") + "</div>" +
+      "<div style='display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end'>" +
+      "<button class='btn btn-primary btn-sm' data-promote='" + r.id + "'" + (live ? " disabled" : "") + ">Promote</button>" +
+      "<button class='btn btn-ghost btn-sm' data-rollback='" + r.id + "'" + (r.is_default ? " disabled" : "") + ">Rollback</button>" +
+      (live ? "<button class='btn btn-ghost btn-sm' data-demote='" + r.id + "'>Demote</button>" : "") +
+      "<button class='btn btn-ghost btn-sm' data-open='" + r.id + "'>Open in Lab</button>" +
+      "<button class='btn btn-ghost btn-sm' data-history='" + r.id + "'>" + (hist ? "Hide history" : "History") + "</button>" +
+      "</div></div>" +
+      "<div class='tiny' style='margin-top:4px'>" + pineMetricsLine(r.metrics) +
+      " <span class='muted'>· " + esc(r.source || "") +
+      (r.timeframe ? " · " + esc(r.timeframe) : "") + "</span></div>" +
+      "<div class='pine-history' data-hist='" + r.id + "' style='" + (hist ? "" : "display:none") + "'>" +
+      (hist ? hist : "") + "</div></div>";
+  }).join("");
+}
+
+async function pineRefreshStore() {
+  await pineLoadHub();   // server-driven badges after every mutation
+}
+
+function pineGateToast(err) {
+  // structured 422 → readable toast (go-live gate reasons)
+  let reasons = [];
+  try {
+    const d = typeof err.detail === "string" ? JSON.parse(err.detail) : err.detail;
+    if (d && d.code === "validation_failed") reasons = d.reasons || [];
+  } catch (e) { /* not a gate failure */ }
+  if (reasons.length) {
+    toast("Go-live gate failed: " + reasons.map((r) => r.code + " — " + r.message).join("; "), "warn");
+  } else {
+    toast(err.message || String(err), "warn");
+  }
+}
+
+async function pineToggleHistory(id) {
+  if (PINE.historyOpen[id]) {
+    delete PINE.historyOpen[id];
+    pineRenderHub();
+    return;
+  }
+  const row = PINE.hub.find((r) => r.id === id);
+  if (!row) return;
+  try {
+    const versions = await json("/presets/versions?symbol=" + encodeURIComponent(row.symbol) +
+      "&strategy=" + PINE_STRATEGY + "&name=" + encodeURIComponent(row.strategy_name || ""));
+    PINE.versionCache = PINE.versionCache || {};
+    PINE.versionCache[id] = versions || [];
+    PINE.historyOpen[id] =
+      "<table class='data' style='margin-top:8px'><thead><tr>" +
+      "<th>Version</th><th>Saved</th><th>Source</th><th>Status</th><th>Metrics</th><th></th>" +
+      "</tr></thead><tbody>" +
+      (versions || []).map((v) =>
+        "<tr><td class='txt mono'>v" + (v.version || 1) + "</td>" +
+        "<td class='txt tiny'>" + esc(String(v.updated_at || v.created_at || "").slice(0, 16).replace("T", " ")) + "</td>" +
+        "<td><span class='badge'>" + esc(v.source || "") + "</span></td>" +
+        "<td><span class='badge " + (v.status === "live_enabled" ? "ok" : "") + "'>" +
+        (v.status === "live_enabled" ? "live" : "backtest") + "</span>" +
+        (v.is_default ? " <span class='badge'>default</span>" : "") + "</td>" +
+        "<td class='tiny'>" + pineMetricsLine(v.metrics) + "</td>" +
+        "<td><button class='btn btn-ghost btn-sm' data-open='" + v.id + "'>Open</button></td></tr>"
+      ).join("") + "</tbody></table>";
+    pineRenderHub();
+  } catch (err) { toast(err.message || "history unavailable", "warn"); }
+}
+
+function pineOpenVersion(id) {
+  // latest rows first, then any cached history rows
+  const targets = (PINE.hub || []).concat(
+    Object.values(PINE.versionCache || {}).reduce((a, vs) => a.concat(vs || []), []));
+  const hit = targets.find((r) => r.id === id);
+  if (hit) {
+    pineApplyVersion(hit);
+    return;
+  }
+  toast("Version not found — refresh the list", "warn");
+}
+
+function pineApplyVersion(v) {
+  PINE.currentId = v.id;
+  PINE.currentName = v.strategy_name || "";
+  $("pine-symbol").value = v.symbol;
+  $("pine-name").value = v.strategy_name || "";
+  $("pine-notes").value = v.notes || "";
+  const flat = Object.assign(pineDefaults(), pineFlatten(v.params || {}));
+  pineSetValues(flat);
+  toast("Loaded " + (v.strategy_name || "unnamed") + " v" + (v.version || 1) +
+        " into the editor", "ok");
+}
+
+function pineErr(id, err) {
+  const el = $(id); el.hidden = false;
+  el.textContent = (err && (err.message || err.detail)) || String(err);
+  setTimeout(() => { el.hidden = true; }, 9000);
+}
+
+async function pineTabInit() {
+  if (PINE.ready) return;
+  await pineLoadSchema();
+  pineRenderParams();
+  pineRenderSweep();
+  pineSetValues(pineDefaults());
+  PINE.ready = true;
+  $("pine-sub").textContent = PINE.schema.length + " tunable parameters";
+  const t = activeTickers()[0];
+  if (t && !$("pine-symbol").value) $("pine-symbol").value = t.symbol;
+  await pineRefreshStore();
+  $("pine-symbol").addEventListener("change", () => { pineRefreshStore(); });
+  $("pine-hub").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.promote) {
+      json("/presets/" + b.dataset.promote + "/promote", { method: "POST" })
+        .then((r) => { toast((r.strategy_name || "unnamed") + " v" + r.version + " promoted to live", "ok"); pineRefreshStore(); })
+        .catch((err) => pineGateToast(err));
+    } else if (b.dataset.rollback) {
+      if (!confirm("Roll back to this version? The go-live gate re-runs first.")) return;
+      json("/presets/" + b.dataset.rollback + "/rollback", { method: "POST" })
+        .then((r) => { toast("Rolled back to v" + r.version + " — now live", "ok"); pineRefreshStore(); })
+        .catch((err) => pineGateToast(err));
+    } else if (b.dataset.demote) {
+      json("/presets/" + b.dataset.demote + "/demote", { method: "POST" })
+        .then(() => { toast("Version demoted to backtest_only", "ok"); pineRefreshStore(); })
+        .catch((err) => pineGateToast(err));
+    } else if (b.dataset.open) {
+      pineOpenVersion(Number(b.dataset.open));
+    } else if (b.dataset.history) {
+      pineToggleHistory(Number(b.dataset.history));
+    }
+  });
+}
+
+$("pine-use-basket").onclick = () => {
+  const t = activeTickers()[0];
+  if (!t) return toast("Enable at least one ticker in the basket first", "warn");
+  $("pine-symbol").value = t.symbol;
+  pineRefreshStore();
+};
+$("pine-reset").onclick = () => { pineSetValues(pineDefaults()); toast("Reset to defaults", "ok"); };
+
+$("pine-save").onclick = async () => {
+  const symbol = ($("pine-symbol").value || "").trim().toUpperCase();
+  if (!symbol) return toast("Pick a symbol first", "warn");
+  try {
+    const row = await json("/presets", { method: "POST", body: {
+      symbol, strategy: PINE_STRATEGY, strategy_version: "1.0.0",
+      strategy_name: $("pine-name").value || "",
+      params: pineNested(pineValues()), source: "manual",
+      is_default: true, notes: $("pine-notes").value || "",
+      timeframe: $("pine-tf").value || "",
+    }});
+    PINE.currentId = row.id;
+    PINE.currentName = row.strategy_name || "";
+    await pineRefreshStore();
+    toast("Saved " + (row.strategy_name || "unnamed") + " v" + row.version + " for " + symbol, "ok");
+  } catch (err) { pineErr("pine-preset-error", err); }
+};
+
+$("pine-update").onclick = async () => {
+  const id = PINE.currentId;
+  if (!id) return toast("Open a saved version in the Lab first (History → Open)", "warn");
+  try {
+    // PATCH creates the group's next version — history is never rewritten
+    const row = await json("/presets/" + id, { method: "PATCH", body: {
+      params: pineNested(pineValues()), notes: $("pine-notes").value || "",
+    }});
+    PINE.currentId = row.id;
+    await pineRefreshStore();
+    toast("Saved as " + (row.strategy_name || "unnamed") + " v" + row.version + " (edit kept as history)", "ok");
+  } catch (err) { pineErr("pine-preset-error", err); }
+};
+
+$("pine-default").onclick = async () => {
+  const id = PINE.currentId;
+  if (!id) return toast("Open a saved version first", "warn");
+  try {
+    await json("/presets/" + id, { method: "PATCH", body: { set_default: true } });
+    await pineRefreshStore();
+    toast("Version promoted to the group's default", "ok");
+  } catch (err) { pineErr("pine-preset-error", err); }
+};
+
+$("pine-delete").onclick = async () => {
+  const id = PINE.currentId;
+  if (!id) return toast("Open a saved version first", "warn");
+  if (!confirm("Delete this version permanently?")) return;
+  try {
+    await json("/presets/" + id, { method: "DELETE" });
+    PINE.currentId = null;
+    await pineRefreshStore();
+    toast("Version deleted", "ok");
+  } catch (err) { pineErr("pine-preset-error", err); }
+};
+
+async function pineOptimize() {
+  const symbol = ($("pine-symbol").value || "").trim().toUpperCase() || "SYNTH";
+  const grid = {};
+  $$("#pine-sweep input[type=checkbox]").forEach((cb) => {
+    if (!cb.checked) return;
+    const vals = $$("#pine-sweep input[data-vals]").find(
+      (i) => i.dataset.vals === cb.dataset.key);
+    const list = (vals ? vals.value : "").split(",").map((s) => pineNum(s)).filter(
+      (v) => v !== "" && v !== null && v !== undefined);
+    if (list.length > 1) grid[cb.dataset.key] = list;
+  });
+  if (!Object.keys(grid).length) {
+    return toast("Tick at least one parameter (with 2+ candidate values)", "warn");
+  }
+  const combos = Object.values(grid).reduce((a, v) => a * v.length, 1);
+  // A sweep costs ~1-2 s per combination (two backtests each); large grids are
+  // legitimately slow, so keep the request cancellable and the wait visible
+  // instead of letting the panel look frozen.
+  const token = uid();
+  const ctrl = new AbortController();
+  PINE.optToken = token;
+  PINE.optAbort = ctrl;
+  const t0 = Date.now();
+  $("pine-run").disabled = true;
+  $("pine-stop").hidden = false;
+  $("pine-run-status").textContent = "sweeping " + combos + " combinations…";
+  $("pine-opt-error").hidden = true;
+  clearInterval(PINE.optTimer);
+  PINE.optTimer = setInterval(() => {
+    const secs = Math.round((Date.now() - t0) / 1000);
+    $("pine-run-status").textContent = "sweeping " + combos +
+      " combinations… " + secs + "s elapsed (Stop sweep to cancel)";
+  }, 1000);
+  try {
+    // timeoutMs: a hard client-side ceiling so a silently stalled server can
+    // never leave the panel "sweeping…" forever (composes with Stop's abort).
+    const d = await json("/backtest/optimize", {
+      method: "POST", signal: ctrl.signal, timeoutMs: 600000, body: {
+      strategy: PINE_STRATEGY, symbol, params: pineNested(pineValues()),
+      grid, objective: $("pine-objective").value,
+      timeframe: $("pine-tf").value, limit: Number($("pine-limit").value) || 1000,
+      save_preset: false, run_token: token,
+    }});
+    PINE.last = d;
+    pineRenderResults(d, combos);
+    $("pine-run-status").textContent = d.n_candidates + " candidates · " +
+      combos + " planned · objective " + $("pine-objective").value +
+      " · " + Math.round((Date.now() - t0) / 1000) + "s";
+    toast("Optimization done — best " + pcts((d.best.metrics || {}).total_return), "ok");
+  } catch (err) {
+    if (err && (err.cancelled || err.name === "AbortError")) {
+      $("pine-run-status").textContent = "sweep cancelled";
+    } else {
+      pineErr("pine-opt-error", err);
+      $("pine-run-status").textContent = "";
+    }
+  } finally {
+    // Every path — success, error, cancel — must restore the controls.
+    clearInterval(PINE.optTimer);
+    PINE.optTimer = null; PINE.optToken = null; PINE.optAbort = null;
+    $("pine-stop").hidden = true;
+    $("pine-run").disabled = false;
+  }
+}
+
+function pineRenderResults(d, planned) {
+  const m = (d.best && d.best.metrics) || {};
+  $("pine-best-card").hidden = false;
+  $("pine-best-sub").textContent = "objective " + (d.best && d.best.objective || "");
+  $("pine-best-kv").innerHTML =
+    "<span>return</span><span class='v " + cls(m.total_return) + "'>" + pcts(m.total_return) + "</span>" +
+    "<span>win rate</span><span class='v'>" + pct(m.win_rate) + "</span>" +
+    "<span>trades</span><span class='v'>" + (m.n_trades || 0) + "</span>" +
+    "<span>sharpe</span><span class='v'>" + num(m.sharpe, 2) + "</span>" +
+    "<span>max drawdown</span><span class='v neg'>" + pct(m.max_drawdown) + "</span>";
+  const flatBest = pineFlatten(d.best_params || {});
+  $("pine-best-params").textContent = Object.entries(flatBest).map(
+    ([k, v]) => k + "=" + v).join(" · ");
+  window.__pineBest = flatBest;
+
+  // F8: why this candidate won — the composite's legs (profit / win / dd)
+  const bd = (d.best && d.best.score_breakdown) || {};
+  $("pine-best-breakdown").hidden = false;
+  if (bd.reason) {
+    $("pine-best-breakdown").innerHTML = "disqualified: <b>" + esc(bd.reason) + "</b>";
+  } else if (bd.score !== undefined) {
+    $("pine-best-breakdown").innerHTML =
+      "score <b>" + num(bd.score, 4) + "</b> = return " + pcts(bd.validation_return) +
+      " × win mult " + num(bd.win_multiplier, 2) +
+      " × dd mult " + num(bd.dd_multiplier, 2) +
+      " (dd " + pct(bd.max_drawdown) + ")" +
+      " × trend " + num(bd.trend_multiplier, 2) +
+      " × sample " + num(bd.sample_multiplier, 2) +
+      (bd.objective ? " · objective " + esc(bd.objective) : "");
+  } else {
+    $("pine-best-breakdown").textContent = "—";
+  }
+
+  const impact = d.impact || [];
+  $("pine-impact-card").hidden = !impact.length;
+  $("pine-impact").innerHTML = impact.map((r) => {
+    const share = Math.round((r.impact_share || 0) * 100);
+    const vals = (r.values || []).map((v) =>
+      esc(String(v.value)) + " → " + (v.top_mean_score == null ? "—" : num(v.top_mean_score, 3)) +
+      " <span class='muted'>(" + Math.round((v.valid_share || 0) * 100) + "% valid)</span>");
+    return "<tr><td class='txt mono'>" + esc(r.param) + "</td><td class='txt'>" +
+      "<b>" + esc(String(r.recommended)) + "</b> <span class='muted tiny'>" +
+      esc(r.direction || "") + "</span></td>" +
+      "<td style='min-width:120px'><div style='display:flex;align-items:center;gap:6px'>" +
+      "<div style='height:8px;background:var(--accent);border-radius:4px;width:" +
+      Math.max(3, share) + "%'></div><span class='tiny muted'>" + share + "%</span></div></td>" +
+      "<td class='txt tiny'>" + vals.join(" · ") + "</td></tr>";
+  }).join("");
+
+  const board = d.leaderboard || [];
+  $("pine-board-card").hidden = !board.length;
+  $("pine-board").innerHTML = board.map((c, i) =>
+    "<tr data-i='" + i + "' style='cursor:pointer'><td>" + (i + 1) + "</td><td>" +
+    num(c.score, 3) + "</td><td class='" + cls(c.validation_return) + "'>" +
+    pcts(c.validation_return) + "</td><td>" + pct(c.validation_win_rate) + "</td><td>" +
+    (c.validation_trades || 0) + "</td><td class='txt mono tiny'>" +
+    esc(Object.entries(c.params || {}).map(([k, v]) => k + "=" + v).join(" · ")) +
+    "</td></tr>").join("");
+}
+
+$("pine-board").addEventListener("click", (e) => {
+  const row = e.target.closest("tr[data-i]"); if (!row) return;
+  const c = (PINE.last.leaderboard || [])[Number(row.dataset.i)];
+  if (!c) return;
+  pineSetValues(Object.assign(pineDefaults(), pineFlatten(c.params || {})));
+  toast("Loaded ranking row #" + (Number(row.dataset.i) + 1), "ok");
+});
+
+$("pine-apply-best").onclick = () => {
+  if (!window.__pineBest) return;
+  pineSetValues(Object.assign(pineDefaults(), window.__pineBest));
+  toast("Best parameters applied to the settings form", "ok");
+};
+$("pine-all-reco").onclick = () => {
+  const impact = (PINE.last && PINE.last.impact) || [];
+  if (!impact.length) return toast("Run the optimizer first", "warn");
+  const out = pineDefaults();
+  impact.forEach((r) => { if (r.recommended !== null && r.recommended !== undefined) out[r.param] = r.recommended; });
+  pineSetValues(out);
+  toast("Recommended values applied (" + impact.length + " parameters)", "ok");
+};
+$("pine-save-best").onclick = async () => {
+  const symbol = ($("pine-symbol").value || "").trim().toUpperCase() || "SYNTH";
+  const last = PINE.last || {};
+  const metrics = (last.best && last.best.metrics) || null;
+  const runToken = last.run_token || "";
+  if (!metrics || !runToken) {
+    return toast("Run the optimizer first — the version needs its metrics snapshot", "warn");
+  }
+  try {
+    const row = await json("/presets", { method: "POST", body: {
+      symbol, strategy: PINE_STRATEGY, strategy_version: "1.0.0",
+      strategy_name: $("pine-name").value || PINE.currentName || "",
+      params: pineNested(Object.assign(pineValues(), window.__pineBest || {})),
+      source: "optimizer", is_default: true,
+      optimizer_run_id: runToken,
+      backtest_ref: "optimizer:" + runToken,
+      metrics, timeframe: $("pine-tf").value || "",
+      notes: "optimizer best · " + $("pine-objective").value +
+        " · score " + num((last.best.score_breakdown || {}).score, 3),
+    }});
+    PINE.currentId = row.id;
+    PINE.currentName = row.strategy_name || "";
+    await pineRefreshStore();
+    toast("Saved " + (row.strategy_name || "unnamed") + " v" + row.version +
+          " with its metrics snapshot", "ok");
+  } catch (err) { pineErr("pine-preset-error", err); }
+};
+$("pine-run").onclick = pineOptimize;
+
+/* Stop sweep: ask the backend to cancel the run (the sweep checks its token
+   between combinations) and unwind the pending fetch immediately. */
+$("pine-stop").onclick = async () => {
+  if (PINE.optToken) {
+    try { await json("/backtest/cancel/" + encodeURIComponent(PINE.optToken), { method: "POST" }); }
+    catch (err) { /* the abort below still unwinds the pending request */ }
+  }
+  if (PINE.optAbort) PINE.optAbort.abort();
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OPTIMIZE & DEPLOY — unified strategy workflow
+   1. optimize (one ticker / all tickers) → presets saved
+   2. choose API/broker → create signal key
+   3. open the live dashboard at /API_KEY/<key>
+   ═══════════════════════════════════════════════════════════════════════ */
+const UNIFIED = "trend_confluence_unified";
+const dpState = { runId: null, poll: null, loaded: false };
+
+function dpSymbols() {
+  return $("dp-symbols").value.split(",").map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
+}
+function dpErr(id, err) {
+  const el = $(id); el.hidden = false; el.textContent = err.message || String(err);
+  setTimeout(() => { el.hidden = true; }, 9000);
+}
+
+async function dpOptimizeOne() {
+  const symbols = dpSymbols();
+  if (!symbols.length) return toast("Enter at least one ticker first", "warn");
+  $("dp-error").hidden = true; $("dp-status").textContent = "optimizing " + symbols[0] + "…";
+  $("dp-opt-one").disabled = true;
+  try {
+    const d = await json("/backtest/optimize", { method: "POST", body: {
+      strategy: UNIFIED, symbol: symbols[0], objective: $("dp-objective").value,
+      save_preset: true, timeframe: "1d", limit: 1000,
+    }});
+    const m = d.best && d.best.metrics || {};
+    $("dp-status").textContent =
+      symbols[0] + " done — " + d.n_candidates + " candidates · return " +
+      pct(m.total_return) + " · sharpe " + num(m.sharpe, 2) + " · " +
+      (m.n_trades || 0) + " trades";
+    toast("Optimized " + symbols[0] + " — preset saved", "ok");
+    loadDeployPresets();
+  } catch (err) { dpErr("dp-error", err); $("dp-status").textContent = ""; }
+  $("dp-opt-one").disabled = false;
+}
+
+async function dpOptimizeAll() {
+  const symbols = dpSymbols();
+  if (!symbols.length) return toast("Enter at least one ticker first", "warn");
+  $("dp-error").hidden = true; $("dp-global").hidden = false;
+  $("dp-opt-all").disabled = true; $("dp-opt-stop").disabled = false;
+  $("dp-status").textContent = "starting global optimization…";
+  try {
+    const d = await json("/backtest/optimize/global", { method: "POST", body: {
+      strategy: UNIFIED, symbols, objective: $("dp-objective").value,
+      save_preset: true, timeframe: "1d", limit: 1000,
+    }});
+    dpState.runId = d.run_id;
+    dpState.poll = setInterval(dpPollGlobal, 2000);
+  } catch (err) {
+    dpErr("dp-error", err);
+    $("dp-opt-all").disabled = false; $("dp-opt-stop").disabled = true;
+  }
+}
+
+async function dpPollGlobal() {
+  let d;
+  try { d = await json("/backtest/optimize/global/" + dpState.runId); }
+  catch (err) { dpStopPolling(); return; }
+  $("dp-status").textContent =
+    "global: " + d.completed + "/" + d.total + " done" +
+    (d.failed ? " · " + d.failed + " failed" : "") +
+    (d.current_symbol ? " · running " + d.current_symbol : "") +
+    (d.eta_seconds != null ? " · eta " + Math.round(d.eta_seconds) + "s" : "");
+  $("dp-global-kv").innerHTML =
+    "<span>state</span><span class='v'>" + esc(d.state) + "</span>" +
+    "<span>completed</span><span class='v'>" + d.completed + " / " + d.total + "</span>" +
+    "<span>failed</span><span class='v'>" + d.failed + "</span>";
+  const rows = d.results.map((r) => {
+    const m = (r.best && r.best.metrics) || {};
+    return "<tr><td class='txt'>" + esc(r.symbol) + "</td><td>" + pct(m.total_return) +
+      "</td><td>" + num(m.sharpe, 2) + "</td><td>" + (m.n_trades || 0) +
+      "</td><td class='txt pos'>saved</td></tr>";
+  }).join("") + d.errors.map((e) =>
+    "<tr><td class='txt'>" + esc(e.symbol) + "</td><td colspan='3' class='txt neg'>" +
+    esc(e.error) + "</td><td class='txt neg'>failed</td></tr>").join("");
+  $("dp-global-rows").innerHTML = rows || "<tr><td colspan='5' class='muted'>running…</td></tr>";
+  if (d.state !== "running") {
+    dpStopPolling();
+    toast("Global optimization " + d.state + " — " + d.completed + " saved, " + d.failed + " failed",
+          d.failed ? "warn" : "ok");
+    loadDeployPresets();
+  }
+}
+
+function dpStopPolling() {
+  if (dpState.poll) { clearInterval(dpState.poll); dpState.poll = null; }
+  $("dp-opt-all").disabled = false; $("dp-opt-stop").disabled = true;
+}
+
+async function dpStopGlobal() {
+  if (!dpState.runId) return;
+  try { await json("/backtest/optimize/global/" + dpState.runId + "/cancel", { method: "POST" }); }
+  catch (err) { /* surfaced by the poller */ }
+}
+
+async function dpCreateKey() {
+  const symbols = dpSymbols();
+  if (!symbols.length) return toast("Enter at least one ticker first", "warn");
+  $("dp-key-error").hidden = true;
+  try {
+    const d = await json("/signal-keys", { method: "POST", body: {
+      exchange: $("dp-broker").value, label: "unified · " + symbols.slice(0, 3).join(","),
+      strategy: UNIFIED, tickers: symbols, timeframe: "1d", limit: 1000,
+    }});
+    toast("Signal key created — dashboard at /API_KEY/" + d.key.slice(0, 12) + "…", "ok");
+    loadSignalKeys();
+  } catch (err) { dpErr("dp-key-error", err); }
+}
+
+async function loadSignalKeys() {
+  let keys = [];
+  try { keys = await json("/signal-keys"); } catch (err) { return; }
+  $("dp-keys").innerHTML = keys.map((k) => {
+    const tickers = (k.config && k.config.tickers || []).map((t) => t.symbol).join(", ");
+    const status = k.revoked_at ? "<span class='neg'>revoked</span>"
+      : k.active ? "<span class='pos'>active</span>" : "<span class='neg'>disabled</span>";
+    return "<tr><td class='txt mono'>" + esc(k.key) + "</td><td class='txt'>" + esc(k.exchange) +
+      "</td><td class='txt'>" + esc(tickers) + "</td><td class='txt'>" + status + "</td><td class='txt'>" +
+      (k.last_used_at ? new Date(k.last_used_at).toLocaleString() : "—") + "</td>" +
+      "<td><div style='display:flex;gap:6px'>" +
+      (k.active && !k.revoked_at
+        ? "<button class='btn btn-ghost btn-sm' data-open-dash='" + esc(k.key) + "'>Open Live Dashboard</button>" +
+          "<button class='btn btn-danger btn-sm' data-revoke-key='" + k.id + "'>Revoke</button>"
+        : "") + "</div></td></tr>";
+  }).join("") || "<tr><td colspan='6' class='muted'>no signal keys yet</td></tr>";
+}
+
+async function loadDeployPresets() {
+  let rows = [];
+  try { rows = await json("/presets"); } catch (err) { return; }
+  $("dp-presets").innerHTML = rows.map((p) =>
+    "<tr><td class='txt'>" + esc(p.symbol) + "</td><td class='txt'>" + esc(p.strategy) +
+    "</td><td class='txt'>" + esc(p.source) + "</td><td class='txt'>" +
+    (p.is_default ? "default" : "—") + "</td><td class='txt'>" +
+    (p.updated_at ? new Date(p.updated_at).toLocaleString() : "—") + "</td></tr>"
+  ).join("") || "<tr><td colspan='5' class='muted'>no presets yet — optimize a ticker or generate one from a backtest</td></tr>";
+}
+
+function deployTabInit() {
+  if (!dpState.loaded) dpState.loaded = true;
+  loadDeployPresets(); loadSignalKeys();
+}
+
+$("dp-fill").onclick = () => {
+  $("dp-symbols").value = activeTickers().map((t) => t.symbol).join(", ");
+};
+$("dp-opt-one").onclick = dpOptimizeOne;
+$("dp-opt-all").onclick = dpOptimizeAll;
+$("dp-opt-stop").onclick = dpStopGlobal;
+$("dp-create-key").onclick = dpCreateKey;
+$("dp-keys").addEventListener("click", async (e) => {
+  const open = e.target.closest("[data-open-dash]");
+  if (open) { window.open("/API_KEY/" + open.dataset.openDash, "_blank"); return; }
+  const rev = e.target.closest("[data-revoke-key]");
+  if (rev) {
+    try {
+      await json("/signal-keys/" + rev.dataset.revokeKey, { method: "DELETE" });
+      toast("Key revoked", "ok"); loadSignalKeys();
+    } catch (err) { toast("Revoke failed: " + err.message, "err"); }
+  }
+});
+
 $("tabs").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-tab]"); if (b) selectTab(b.dataset.tab);
 });
@@ -2285,6 +3565,23 @@ function categorySource(cat) {
   return cat === "ru" ? "moex" : cat === "crypto" ? "bybit" : "yfinance";
 }
 $("btn-run").onclick = runBacktest;
+/* Carry the whole backtest basket over to the real API key creation window
+   (Deploy tab): symbols fill the key form, and a unanimous venue picks the
+   matching broker (Bybit→BingX, MOEX→TBANK) so the key is ready to create. */
+function sendToApiSetup() {
+  const tickers = activeTickers();
+  if (!tickers.length) return toast("Enable at least one ticker first", "warn");
+  selectTab("deploy");
+  $("dp-symbols").value = tickers.map((t) => t.symbol).join(", ");
+  const venues = new Set(tickers.map((t) => String(t.source || "auto").toLowerCase()));
+  const broker = venues.size === 1
+    ? { bybit: "bingx", moex: "tbank" }[[...venues][0]] : null;
+  if (broker) $("dp-broker").value = broker;
+  deployTabInit();
+  toast("Carried " + tickers.length + " ticker(s) + venue routing to the API key setup", "ok");
+  $("dp-create-key").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+$("btn-to-api").onclick = sendToApiSetup;
 $("btn-stop").onclick = stopRun;
 $("btn-report").onclick = downloadReport;
 $("btn-report-2").onclick = () => { selectTab("backtest"); downloadReport(); };

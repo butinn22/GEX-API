@@ -1,0 +1,136 @@
+{
+  "windows": [
+    {
+      "test_start": "2023-01-01",
+      "test_end": "2023-07-01",
+      "params": {
+        "entry_mode": "breakout",
+        "n_break": 30,
+        "k_sl_atr": 2.5,
+        "k_trail": 4.0,
+        "exit_level": "teeth"
+      },
+      "cagr": 0.01844195542678806,
+      "sharpe": 0.8199979712788403,
+      "sortino": 0.6223549244686979,
+      "max_dd": 0.020506914886882846,
+      "pf": 1.4485679009961747,
+      "win_rate": 0.2553191489361702,
+      "n_trades": 47
+    },
+    {
+      "test_start": "2023-07-01",
+      "test_end": "2024-01-01",
+      "params": {
+        "entry_mode": "breakout",
+        "n_break": 30,
+        "k_sl_atr": 2.5,
+        "k_trail": 4.0,
+        "exit_level": "teeth"
+      },
+      "cagr": 0.028175099370868262,
+      "sharpe": 1.3907869360317067,
+      "sortino": 0.9734816915348794,
+      "max_dd": 0.007289811063998716,
+      "pf": 2.3758527432613117,
+      "win_rate": 0.375,
+      "n_trades": 40
+    },
+    {
+      "test_start": "2024-01-01",
+      "test_end": "2024-07-01",
+      "params": {
+        "entry_mode": "breakout",
+        "n_break": 55,
+        "k_sl_atr": 2.5,
+        "k_trail": 4.0,
+        "exit_level": "teeth"
+      },
+      "cagr": 0.004999070031040942,
+      "sharpe": 0.3364336018139595,
+      "sortino": 0.17113328743163178,
+      "max_dd": 0.013260305565898238,
+      "pf": 1.1389356951316127,
+      "win_rate": 0.2558139534883721,
+      "n_trades": 43
+    },
+    {
+      "test_start": "2024-07-01",
+      "test_end": "2025-01-01",
+      "params": {
+        "entry_mode": "breakout",
+        "n_break": 30,
+        "k_sl_atr": 2.5,
+        "k_trail": 5.0,
+        "exit_level": "jaw"
+      },
+      "cagr": 0.06422893367921567,
+      "sharpe": 2.7137795786724968,
+      "sortino": 1.9783588930625173,
+      "max_dd": 0.007686327719732861,
+      "pf": 3.809511521667981,
+      "win_rate": 0.43478260869565216,
+      "n_trades": 46
+    },
+    {
+      "test_start": "2025-01-01",
+      "test_end": "2025-07-01",
+      "params": {
+        "entry_mode": "breakout",
+        "n_break": 30,
+        "k_sl_atr": 2.5,
+        "k_trail": 5.0,
+        "exit_level": "jaw"
+      },
+      "cagr": -0.02474560472516929,
+      "sharpe": -1.6130067793241973,
+      "sortino": -0.8177674294029388,
+      "max_dd": 0.015774704840025747,
+      "pf": 0.37869960860129803,
+      "win_rate": 0.24528301886792453,
+      "n_trades": 53
+    },
+    {
+      "test_start": "2025-07-01",
+      "test_end": "2026-01-01",
+      "params": {
+        "entry_mode": "breakout",
+        "n_break": 30,
+        "k_sl_atr": 3.0,
+        "k_trail": 5.0,
+        "exit_level": "teeth"
+      },
+      "cagr": 0.018360023802550973,
+      "sharpe": 1.3747213494336126,
+      "sortino": 0.7447918531897658,
+      "max_dd": 0.006693033594113734,
+      "pf": 2.25183423994294,
+      "win_rate": 0.38235294117647056,
+      "n_trades": 34
+    },
+    {
+      "test_start": "2026-01-01",
+      "test_end": "2026-07-01",
+      "params": {
+        "entry_mode": "breakout",
+        "n_break": 30,
+        "k_sl_atr": 3.0,
+        "k_trail": 5.0,
+        "exit_level": "teeth"
+      },
+      "cagr": -0.017080915527390106,
+      "sharpe": -1.6362823688040238,
+      "sortino": -0.7783078422111311,
+      "max_dd": 0.011498218093042085,
+      "pf": 0.21849654937660393,
+      "win_rate": 0.2702702702702703,
+      "n_trades": 37
+    }
+  ],
+  "param_picks": [
+    "{\"entry_mode\": \"breakout\", \"n_break\": 30, \"k_sl_atr\": 2.5, \"k_trail\": 4.0, \"exit_level\": \"teeth\"}",
+    "{\"entry_mode\": \"breakout\", \"n_break\": 30, \"k_sl_atr\": 2.5, \"k_trail\": 5.0, \"exit_level\": \"jaw\"}",
+    "{\"entry_mode\": \"breakout\", \"n_break\": 30, \"k_sl_atr\": 3.0, \"k_trail\": 5.0, \"exit_level\": \"teeth\"}",
+    "{\"entry_mode\": \"breakout\", \"n_break\": 55, \"k_sl_atr\": 2.5, \"k_trail\": 4.0, \"exit_level\": \"teeth\"}"
+  ]
+}

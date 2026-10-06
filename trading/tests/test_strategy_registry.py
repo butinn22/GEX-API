@@ -7,6 +7,10 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from trading.application.strategies import BuyAndHold, MeanReversion, SmaCrossover
+from trading.application.strategies.confluence_breakout import (
+    ConfluenceBreakoutParams,
+    ConfluenceBreakoutStrategy,
+)
 from trading.application.strategy_registry import STRATEGY_REGISTRY, StrategyRunner
 from trading.domain import Bar
 
@@ -19,11 +23,24 @@ def _bar(i: int, close: float) -> Bar:
 def test_registry_names_and_params():
     names = set(STRATEGY_REGISTRY.names())
     assert names == {"sma_crossover", "buy_and_hold", "mean_reversion", "momentum",
-                     "sma_crossover_ls", "gex_emf", "trend_confluence"}
+                     "sma_crossover_ls", "gex_emf", "trend_confluence",
+                     "trend_confluence_unified", "trend_confluence_pine",
+                     "confluence_breakout"}
     assert STRATEGY_REGISTRY.params("sma_crossover") == ["fast", "slow"]
     assert STRATEGY_REGISTRY.params("buy_and_hold") == []
     assert STRATEGY_REGISTRY.params("sma_crossover_ls") == ["long_fast", "long_slow", "short_fast", "short_slow"]
     assert "gex_emf" in STRATEGY_REGISTRY.names()
+    assert "trend_confluence_unified" in STRATEGY_REGISTRY.names()
+    assert "confluence_breakout" in STRATEGY_REGISTRY.names()
+    assert STRATEGY_REGISTRY.params("confluence_breakout") == list(
+        ConfluenceBreakoutParams.FIELD_NAMES
+    )
+
+
+def test_registry_builds_confluence_breakout_with_preset():
+    s = STRATEGY_REGISTRY.build("confluence_breakout", "X", preset="donchian_1d")
+    assert isinstance(s, ConfluenceBreakoutStrategy)
+    assert s.preset == "donchian_1d" and s.timeframe == "1d"
 
 
 def test_registry_build():

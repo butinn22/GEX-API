@@ -24,6 +24,7 @@ A ticker that fails to load (bad symbol, exchange down) is isolated into
 from __future__ import annotations
 
 import asyncio
+import logging
 import zlib
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -40,6 +41,8 @@ from trading.ports import Strategy
 
 from .engine import BacktestConfig, BacktestResult, run_backtest
 from .metrics import BacktestMetrics, compute_metrics, returns_from_equity
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from trading.application.cancellation import CancelToken
@@ -227,9 +230,12 @@ async def load_bars(spec: TickerSpec, *, refresh: bool = False) -> list[Bar]:
     if spec.limit <= MAX_BARS_PER_INSTRUMENT:
         l2 = await loop_bar_cache()
         if not refresh:
-            cached_l2 = await l2.get_bars(l2_key, spec.limit)
-            if cached_l2 is not None:
-                return cached_l2
+            try:
+                cached_l2 = await l2.get_bars(l2_key, spec.limit)
+                if cached_l2 is not None:
+                    return cached_l2
+            except Exception as exc:  # a stalled broker must not hang the run
+                log.warning("L2 bar cache read failed (%s); fetching instead", exc)
 
     if spec.source == "synthetic" or (
         spec.source in ("", "auto") and spec.symbol.upper() == "SYNTH"
@@ -254,7 +260,10 @@ async def load_bars(spec: TickerSpec, *, refresh: bool = False) -> list[Bar]:
     if settings.data_cache_ttl > 0:
         await _bar_cache.set(cache_key, bars, ttl=settings.data_cache_ttl)
     if l2 is not None:
-        await l2.put_bars(l2_key, bars)  # write-through (FIFO-evicts oldest)
+        try:
+            await l2.put_bars(l2_key, bars)  # write-through (FIFO-evicts oldest)
+        except Exception as exc:  # cache write failure must not fail the fetch
+            log.warning("L2 bar cache write failed (%s); serving uncached", exc)
     return bars
 
 

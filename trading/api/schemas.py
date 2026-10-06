@@ -35,6 +35,19 @@ __all__ = [
     "OptimizeRequest",
     "OptimizeResponse",
     "AutoTuneRequest",
+    # ── presets (per-ticker unified-strategy configurations) ──
+    "PresetCreate",
+    "PresetUpdate",
+    "PresetOut",
+    "PresetFromBacktestRequest",
+    "PresetValidateOut",
+    # ── global optimization ──
+    "GlobalOptimizeRequest",
+    "GlobalOptimizeStatus",
+    # ── signal API keys ──
+    "SignalKeyCreate",
+    "SignalKeyOut",
+    "SignalKeyGenerateReport",
 ]
 
 #: A client-supplied handle for a cancellable run. Restricted so it can be used
@@ -119,7 +132,7 @@ class SideSettings(BaseModel):
 class BacktestRequest(BaseModel):
     strategy: Literal[
         "sma_crossover", "buy_and_hold", "mean_reversion", "momentum", "sma_crossover_ls", "gex_emf",
-        "trend_confluence",
+        "trend_confluence", "trend_confluence_unified",
     ] = "sma_crossover"
     symbol: str = "SYNTH"
     bars: list[OhlcvBar] | None = None
@@ -140,6 +153,10 @@ class BacktestRequest(BaseModel):
     timeframe: str = "1d"
     limit: int = Field(default=5000, ge=60, le=10000)
     refresh_data: bool = False  # bypass the OHLCV cache for this run
+    #: Load the run's strategy + params from a saved strategy version
+    #: (Strategy Hub). The stored params are used verbatim; explicit ``params``
+    #: keys still override (the existing override convention).
+    preset_id: int | None = None
 
 
 class BacktestMetricsOut(BaseModel):
@@ -167,6 +184,8 @@ class BacktestResponse(BaseModel):
     #: Persisted run id (for /export/backtest/{id}/trades.csv|xlsx); None when
     #: persistence was unavailable for this run.
     result_id: int | None = None
+    #: The saved strategy version the run loaded (None for a free-form run).
+    preset_id: int | None = None
 
 
 # ── Strategies ─────────────────────────────────────────────────────────
@@ -425,10 +444,25 @@ class OptimizeRequest(BaseModel):
     strategy: str = "trend_confluence"
     symbol: str = "SYNTH"
     params: dict[str, Any] = Field(default_factory=dict)
+    #: Base params from a saved strategy version (Strategy Hub) — the stored
+    #: params are the sweep's starting point, verbatim.
+    preset_id: int | None = None
+    #: Group name for ``save_preset`` — defaults to the preset's own name (or
+    #: the unnamed legacy group).
+    strategy_name: str = Field(default="", max_length=64)
     grid: dict[str, list[Any]] | None = Field(
         default=None,
-        description="parameter → candidates; defaults to the trend_confluence sweep",
+        description="parameter → candidates; defaults to the strategy's sweep",
     )
+    #: Ranking objective applied to the validation split.
+    #: ``profit_win`` = profitability first (validation return gates the pick),
+    #: win rate second (scales the score); the default.
+    objective: Literal[
+        "profit_win", "sharpe", "sortino", "calmar", "total_return",
+        "profit_factor", "win_rate", "max_drawdown",
+    ] = "profit_win"
+    #: Persist the winner as the ticker's default preset (source=optimizer).
+    save_preset: bool = False
     source: str = "auto"
     timeframe: str = "1d"
     limit: int = Field(default=1000, ge=200, le=3000)
@@ -451,7 +485,20 @@ class OptimizeResponse(BaseModel):
     leaderboard: list[dict[str, Any]]
     trade_analysis: dict[str, Any] | None
     recommendations: list[dict[str, Any]]
+    #: Per-parameter impact ranking (see
+    #: :func:`trading.application.backtest.optimize.parameter_impact`).
+    impact: list[dict[str, Any]] = Field(default_factory=list)
     run_token: str = ""
+
+
+class StrategyParamSchema(BaseModel):
+    """Editable-parameter schema for one strategy (console form + sweep)."""
+
+    name: str
+    groups: list[str]
+    params: list[dict[str, Any]]
+    defaults: dict[str, Any]
+    sweep: dict[str, list[Any]]
 
 
 class AutoTuneRequest(BaseModel):
@@ -508,6 +555,181 @@ def _fold_params(
     if settings is not None:
         p["settings"] = settings
     return p
+
+
+# ── Presets (per-ticker unified-strategy configurations) ────────────────
+
+
+class PresetCreate(BaseModel):
+    """Save a parameter preset version for one ticker (source: manual default).
+
+    Every create is the group's **next version** — rows are never overwritten.
+    ``metrics`` (headline snapshot of a real run) requires provenance
+    (``optimizer_run_id`` or ``backtest_ref``); metrics are never fabricated.
+    """
+
+    symbol: str = Field(min_length=1, max_length=32)
+    strategy: str = "trend_confluence_unified"
+    strategy_version: str = "1.0.0"
+    #: user-facing strategy name; "" = the legacy/unnamed group
+    strategy_name: str = Field(default="", max_length=64)
+    params: dict[str, Any] = Field(default_factory=dict)
+    source: Literal["manual", "backtest", "optimizer"] = "manual"
+    optimizer_run_id: str | None = Field(default=None, max_length=64)
+    #: bar interval the version was validated on (audit/UX)
+    timeframe: str = Field(default="", max_length=16)
+    #: {total_return, sharpe, max_drawdown, win_rate, n_trades} from a real run
+    metrics: dict[str, Any] | None = None
+    #: "optimizer:<run_token>" | "backtest:<backtest_results.id>"
+    backtest_ref: str | None = Field(default=None, max_length=64)
+    is_default: bool = True
+    notes: str = ""
+
+
+class PresetUpdate(BaseModel):
+    """Edit a preset's parameters (and optionally its notes).
+
+    A ``params`` edit creates the group's **next version** (source=manual)
+    instead of mutating the row — history is never rewritten.
+    """
+
+    params: dict[str, Any] | None = None
+    notes: str | None = None
+    set_default: bool = False
+
+
+class PresetOut(BaseModel):
+    """One saved strategy version (Strategy Hub ``PresetOut`` v2)."""
+
+    id: int
+    symbol: str
+    strategy: str
+    strategy_version: str
+    #: user-facing strategy name; "" = the legacy/unnamed group
+    strategy_name: str = ""
+    #: monotonic per (symbol, strategy, strategy_name)
+    version: int = 1
+    params: dict[str, Any] = Field(default_factory=dict)
+    #: bar interval the version was validated on
+    timeframe: str = ""
+    #: headline snapshot written only from real backtest/optimize results
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    #: backtest_only | live_enabled
+    status: str = "backtest_only"
+    backtest_ref: str | None = None
+    source: str
+    optimizer_run_id: str | None = None
+    is_default: bool
+    notes: str = ""
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class PresetValidateOut(BaseModel):
+    """Go-live gate verdict for one version (see F6)."""
+
+    ok: bool
+    reasons: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class PresetFromBacktestRequest(BaseModel):
+    """Generate the default preset via a real backtest run (source of truth)."""
+
+    strategy: str = "trend_confluence_unified"
+    params: dict[str, Any] = Field(default_factory=dict)
+    source: str = "auto"
+    timeframe: str = "1d"
+    limit: int = Field(default=1000, ge=60, le=10000)
+    notes: str = ""
+
+
+# ── Global optimization ────────────────────────────────────────────────
+
+
+class GlobalOptimizeRequest(BaseModel):
+    """Optimize every ticker (explicit list or a universe category)."""
+
+    strategy: str = "trend_confluence_unified"
+    symbols: list[str] = Field(default_factory=list)
+    category: Literal["us", "crypto", "fx", "ru", "sectors", "all"] = "all"
+    n_tickers: int = Field(default=0, ge=0, le=200,
+                           description="0 = all symbols given, or all in category")
+    params: dict[str, Any] = Field(default_factory=dict)
+    grid: dict[str, list[Any]] | None = None
+    objective: str = "profit_win"
+    source: str = "auto"
+    timeframe: str = "1d"
+    limit: int = Field(default=1000, ge=200, le=3000)
+    initial_cash: float = Field(default=100_000.0, gt=0)
+    fee_rate: float = Field(default=0.001, ge=0)
+    slippage: float = Field(default=0.0005, ge=0)
+    position_fraction: float = Field(default=0.95, gt=0, le=1.0)
+    periods_per_year: int = Field(default=252, gt=0)
+    refresh_data: bool = False
+    save_preset: bool = True
+    run_token: str | None = Field(default=None, pattern=RUN_TOKEN_PATTERN)
+
+
+class GlobalOptimizeStatus(BaseModel):
+    """Progress/result of a global (all-tickers) optimization run."""
+
+    run_id: str
+    state: Literal["running", "done", "failed", "cancelled"]
+    total: int = 0
+    completed: int = 0
+    failed: int = 0
+    current_symbol: str = ""
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    eta_seconds: float | None = None
+    results: list[dict[str, Any]] = Field(default_factory=list)
+    errors: list[dict[str, Any]] = Field(default_factory=list)
+
+
+# ── Signal API keys ─────────────────────────────────────────────────────
+
+
+class SignalKeyCreate(BaseModel):
+    """Create a signal key for one broker referencing the full config."""
+
+    exchange: Literal["bingx", "tbank"]
+    label: str = ""
+    strategy: str = "trend_confluence_unified"
+    strategy_version: str = "1.0.0"
+    tickers: list[str] = Field(min_length=1)
+    #: per-ticker params; missing tickers fall back to their default preset
+    params_by_ticker: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    timeframe: str = "1d"
+    source: str = "auto"
+    limit: int = Field(default=1000, ge=60, le=10000)
+    initial_cash: float = Field(default=100_000.0, gt=0)
+    fee_rate: float = Field(default=0.001, ge=0)
+    slippage: float = Field(default=0.0005, ge=0)
+    position_fraction: float = Field(default=0.95, gt=0, le=1.0)
+
+
+class SignalKeyOut(BaseModel):
+    id: int
+    key: str
+    exchange: str
+    label: str
+    active: bool
+    created_at: datetime | None = None
+    last_used_at: datetime | None = None
+    revoked_at: datetime | None = None
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class SignalKeyGenerateReport(BaseModel):
+    """Outcome of one signal-generation run for a key."""
+
+    key: str
+    exchange: str
+    generated_at: datetime
+    n_signals: int = 0
+    n_trades: int = 0
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    errors: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # Resolve forward references (models defined after their first use).

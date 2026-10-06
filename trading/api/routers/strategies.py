@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from trading.application.strategy_registry import STRATEGY_REGISTRY
 
-from ..schemas import StrategyInfo
+from ..schemas import StrategyInfo, StrategyParamSchema
 
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
@@ -16,6 +16,30 @@ def list_strategies() -> list[StrategyInfo]:
         StrategyInfo(name=n, params=STRATEGY_REGISTRY.params(n))
         for n in STRATEGY_REGISTRY.names()
     ]
+
+
+@router.get("/{name}/schema", response_model=StrategyParamSchema)
+def strategy_schema(name: str) -> StrategyParamSchema:
+    """Editable-parameter schema for ``name`` (types, ranges, groups, defaults).
+
+    Strategies without a schema yet return empty lists — the console then falls
+    back to its own built-in copy for the strategies it knows.
+    """
+    from trading.application.strategy_params import (
+        GROUPS,
+        defaults_for,
+        grid_for,
+        schema_for,
+    )
+
+    params = schema_for(name)
+    return StrategyParamSchema(
+        name=name,
+        groups=[g for g in GROUPS if any(p["group"] == g for p in params)],
+        params=params,
+        defaults=defaults_for(name),
+        sweep=grid_for(name),
+    )
 
 
 @router.post("/{name}/start")

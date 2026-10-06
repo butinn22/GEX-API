@@ -1,0 +1,116 @@
+{
+  "4h": {
+    "params": {
+      "entry_mode": "breakout",
+      "n_break": 30,
+      "k_sl_atr": 2.5,
+      "k_trail": 5.0,
+      "exit_level": "jaw"
+    },
+    "train": {
+      "total_return": 0.05796864946910607,
+      "cagr": 0.019022463202612805,
+      "sharpe": 0.9065380686377947,
+      "sortino": 0.5487753717707363,
+      "calmar": 0.6762276916247006,
+      "max_dd": 0.02813026357573371,
+      "dd_duration_days": 328.5,
+      "dd_window": "2023-01-14",
+      "profit_factor": 1.7464448037795348,
+      "expectancy": 29.51656972314452,
+      "win_rate": 0.28205128205128205,
+      "avg_win": 244.84710392728718,
+      "avg_loss": -55.07756871419723,
+      "payoff": 4.4454958641660856,
+      "n_trades": 195,
+      "exposure": 0.14039220818881834,
+      "turnover_pa": 2.0570932575349645,
+      "avg_hold_h": 86.85128205128206,
+      "med_hold_h": 60.0,
+      "n_stop_before_4h": 2,
+      "n_tp_before_4h": 0,
+      "n_exit_after_4h": 193,
+      "min_hold_violations": 0,
+      "notes": []
+    },
+    "val": {
+      "total_return": 0.019136399352708944,
+      "cagr": 0.019136399352708944,
+      "sharpe": 0.9734988576145003,
+      "sortino": 0.614551559948134,
+      "calmar": 0.959697965055874,
+      "max_dd": 0.019940022850412957,
+      "dd_duration_days": 219.66666666666666,
+      "dd_window": "2024-11-23",
+      "profit_factor": 1.5465703119126997,
+      "expectancy": 19.735415306104763,
+      "win_rate": 0.3333333333333333,
+      "avg_win": 167.5294472117117,
+      "avg_loss": -54.16160064669871,
+      "payoff": 3.0931406238253976,
+      "n_trades": 99,
+      "exposure": 0.13685583822570124,
+      "turnover_pa": 3.15732605556286,
+      "avg_hold_h": 81.85858585858585,
+      "med_hold_h": 68.0,
+      "n_stop_before_4h": 1,
+      "n_tp_before_4h": 0,
+      "n_exit_after_4h": 98,
+      "min_hold_violations": 0,
+      "notes": []
+    },
+    "holdout": {
+      "total_return": 0.011890540232797564,
+      "cagr": 0.009430221400092753,
+      "sharpe": 0.5589882106046709,
+      "sortino": 0.3337882487376638,
+      "calmar": 0.35495973186182034,
+      "max_dd": 0.026567017477249433,
+      "dd_duration_days": 438.8333333333333,
+      "dd_window": "2025-07-21",
+      "profit_factor": 1.379869936021697,
+      "expectancy": 15.01801098821045,
+      "win_rate": 0.31521739130434784,
+      "avg_win": 173.06349743539005,
+      "avg_loss": -57.733085947792844,
+      "payoff": 2.9976484817023077,
+      "n_trades": 92,
+      "exposure": 0.09401222417901171,
+      "turnover_pa": 3.07468958605577,
+      "avg_hold_h": 75.78260869565217,
+      "med_hold_h": 60.0,
+      "n_stop_before_4h": 0,
+      "n_tp_before_4h": 0,
+      "n_exit_after_4h": 92,
+      "min_hold_violations": 0,
+      "notes": []
+    },
+    "holdout_regimes": {
+      "bull": {
+        "share_of_bars": 0.02140007254261879,
+        "ret_sum": 0.004774424536138522
+      },
+      "bear": {
+        "share_of_bars": 0.02176278563656148,
+        "ret_sum": 0.0
+      },
+      "sideways": {
+        "share_of_bars": 0.9568371418208197,
+        "ret_sum": 0.007082301781263567
+      }
+    },
+    "holdout_trade_stats": {
+      "n": 92,
+      "total_net": 1381.6570109153615,
+      "best_trade": 962.699300217939,
+      "worst_trade": -92.85018025699563,
+      "best_trade_share": 0.6967715522828211
+    },
+    "holdout_exit_mix": {
+      "SIGNAL": 0.30434782608695654,
+      "STOP": 0.18478260869565216,
+      "TRAIL": 0.5108695652173914
+    },
+    "holdout_expectancy_pct": 0.0010512607691747315
+  }
+}

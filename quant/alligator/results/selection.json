@@ -1,0 +1,9 @@
+{
+  "4h": {
+    "entry_mode": "breakout",
+    "n_break": 30,
+    "k_sl_atr": 2.5,
+    "k_trail": 5.0,
+    "exit_level": "jaw"
+  }
+}

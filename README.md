@@ -54,10 +54,60 @@ settings per ticker** (strategy, params, weight, source, timeframe, limit).
 | `POST /api/v1/backtest/portfolio` | Basket backtest — each ticker runs its **own strategy + settings**; returns combined equity, per-ticker attribution, and a correlation matrix. |
 | `POST /api/v1/backtest/portfolio/monte-carlo` | Basket + Monte-Carlo distribution. |
 | `POST /api/v1/backtest/portfolio/report` | **Self-contained HTML report** with embedded SVG charts (equity, underwater/drawdown, correlation heatmap, MC fan chart, return histogram). |
+| `POST /api/v1/backtest/optimize` | Grid-search one ticker — selectable **objective** (Sharpe/Sortino/Calmar/return/profit factor/win rate/drawdown), optional **preset save**. |
+| `POST /api/v1/backtest/optimize/global` + `GET …/optimize/global/{run_id}` | **Optimize every ticker** — progress polling (current ticker, completed/failed, ETA), per-ticker failure isolation, cancel endpoint. |
 | `POST /api/v1/backtest/cancel/{token}` | **Stop** an in-flight run — the engine aborts at the next block boundary and the request returns **HTTP 499**. |
 | `GET /api/v1/backtest/cancel` | Tokens of runs currently executing in this process. |
 | `GET /api/v1/data/universe?category=&n=` | Auto-select **N tickers** from a named universe (`all` round-robins across categories for a diversified basket). |
 | `GET /api/v1/data/categories` | Available universes. |
+
+## Unified strategy: optimize → broker → API key → live dashboard
+
+The **Optimize & Deploy** tab (or the API directly) drives the full workflow
+for the unified strategy `trend_confluence_unified` — Trend Confluence as the
+core, with the **EMF + ADL** parameters and signal logic and the **Momentum**
+profile merged into one configuration schema (see
+[`docs/UNIFIED_STRATEGY.md`](docs/UNIFIED_STRATEGY.md)):
+
+1. **Presets per ticker** — `POST /api/v1/presets/from-backtest/{symbol}`
+   validates a parameter set through a real backtest run and saves it as the
+   ticker's default preset (`strategy_presets` table). Presets can be edited
+   (`PATCH /api/v1/presets/{id}`), re-optimized and re-defaulted.
+2. **Optimize** — `Optimize Selected Ticker` (grid search with a selectable
+   objective, winner saved as the preset) or `Optimize All Tickers`
+   (`POST /api/v1/backtest/optimize/global` — sequential, deterministic,
+   per-ticker failure isolation, progress + ETA polling, cancellable).
+   EMF+ADL fields sweep via dotted grid keys (`"emf.atr_tp_mult"`).
+3. **Choose API / broker** — bingx or tbank (validated; tickers without an
+   order route on that broker are accepted with a visible warning).
+4. **Create API key** — `POST /api/v1/signal-keys` creates a unique
+   `sk_…` key referencing the complete configuration (strategy, version,
+   tickers, optimized params/presets, costs). Keys are revocable/disableable
+   and auditable (`last_used_at`, `revoked_at`).
+5. **Generate signals** — `POST /api/v1/signal-keys/{key}/generate` runs the
+   same portfolio backtest engine on fresh data for every enabled ticker and
+   stores the signal + trade ledgers (idempotent — always consistent).
+6. **Live dashboard** — open **`/API_KEY/{key}`**: metrics summary, equity /
+   drawdown / PnL-distribution charts (the same server-side SVG charts as the
+   backtest report), latest signals and trades, **CSV / Excel downloads**
+   with the full trade column set, manual Refresh + 60 s auto-refresh with
+   last-update time.
+
+```bash
+# end-to-end smoke test (needs a running server + admin login):
+curl -s -X POST localhost:8000/api/v1/auth/token -H 'content-type: application/json' \
+     -d '{"username":"admin","password":"admin"}'   # → token
+curl -s -X POST localhost:8000/api/v1/presets/from-backtest/NVDA -H "authorization: Bearer $T" \
+     -H 'content-type: application/json' -d '{"strategy":"trend_confluence_unified"}'
+curl -s -X POST localhost:8000/api/v1/backtest/optimize -H "authorization: Bearer $T" \
+     -H 'content-type: application/json' \
+     -d '{"strategy":"trend_confluence_unified","symbol":"NVDA","save_preset":true,"objective":"sharpe"}'
+curl -s -X POST localhost:8000/api/v1/signal-keys -H "authorization: Bearer $T" \
+     -H 'content-type: application/json' \
+     -d '{"exchange":"bingx","tickers":["BTC"],"strategy":"trend_confluence_unified"}'
+# → {"key": "sk_…"}  then open  http://localhost:8000/API_KEY/sk_…
+```
+
 
 **Choosing how many tickers:** pass `n_tickers` + `category` (+ `default_*`
 settings) instead of an explicit `tickers` list, e.g.
@@ -74,6 +124,92 @@ for the same run queued on a Celery worker (a cancel that lands *before* the
 worker picks up the job is honoured too). Long Monte-Carlo runs are executed in a
 worker thread, so the event loop stays free and `/health` keeps answering while a
 simulation is running.
+
+### Live signal engine
+
+The platform ships a real-time signal service that turns any strategy into a
+live feed of trade plans:
+
+- **Start**: `POST /api/v1/signals/engine/start` with `symbols`, `strategy`,
+  `preset`, `timeframe`, `poll_seconds`, `bars`. One background task per ticker
+  fetches real bars from the venue the ticker resolves to (Bybit for crypto,
+  MOEX for RU names, yFinance otherwise) and feeds only the bars it has not
+  seen yet.
+- **Every signal is stored** (`key_signals`) with its **complete trade plan** —
+  entry, stop, target, size, risk %, risk amount, timeframe, bar time — and
+  opens or closes a **position row** (`signal_positions`) that carries the
+  whole lifecycle: entry/exit prices, initial stop, ratcheted trail, MFE in R,
+  bars held, exit reason, gross/net PnL, PnL in R and percent return.
+- **Delivery**: signals are published to `WS /ws/signals` and to every
+  subscribed `WS /ws/client` session as a JSON trade plan, so a local client
+  (or TradingView-style bridge) can act on them immediately.
+- **Reads**: `GET /api/v1/signals` (filter by symbol/side/state/strategy),
+  `GET /api/v1/signals/positions`, `GET /api/v1/signals/stats`,
+  `GET /api/v1/signals/engine` (per-ticker diagnostics).
+- **Exports**: `GET /api/v1/signals/export/signals.csv|.xlsx` and
+  `.../positions.csv|.xlsx` — full per-signal and per-position tables, written
+  with the dependency-free XLSX writer (no `openpyxl` needed).
+
+The first poll replays the fetch window to warm the indicators up; the signals
+it produces are stored with `source="backfill"` so they are clearly
+distinguishable from live ones while still establishing the correct position
+state.
+
+### Main strategy: `confluence_breakout`
+
+`confluence_breakout` is the port of the two systems that **survived
+out-of-sample validation** in the research harness, behind one parameter set:
+
+| Preset | Timeframe | Validated result |
+|---|---|---|
+| `alligator_4h` (default) | 4H | maxDD 2.7%, profit factor 1.38 OOS, win 31.5%, payoff 3.0 |
+| `donchian_1d` | 1D | profit factor 1.88–2.08 on fresh OOS ticker sets |
+
+Both are frozen research artefacts — the documented disable conditions
+(rolling Sharpe < 0, drawdown > 50%, cost regime > 2× validated costs) apply.
+
+Entry: Alligator aligned + jaw rising, confirmed HH/HL structure, ADL above its
+EMA, EMF > 0, and a Donchian breakout (or a pullback to the lips) — optionally
+gated by an SMA trend filter. Exits, in priority order: resting intrabar stop,
+chandelier + structural trail, Alligator line, structure break, MA exit, time
+stop. Risk is fixed at `risk_pct` of equity per trade (0.5% by default), so a
+stop-out costs a known amount.
+
+Reproduce the numbers on the research cache:
+
+```bash
+python - <<'PY'
+import asyncio, csv, sys
+from datetime import datetime, timezone
+sys.path.insert(0, ".")
+from trading.application.backtest.engine import BacktestConfig, run_backtest
+from trading.application.strategies.confluence_breakout import (
+    ConfluenceBreakoutStrategy, preset_params)
+from trading.domain import Bar
+
+def load(sym, tf):
+    out = []
+    with open(f"quant/cache/{sym}USDT_{tf}.csv") as fh:
+        for r in csv.DictReader(fh):
+            ts = datetime.fromisoformat(r["ts"]).replace(tzinfo=timezone.utc)
+            out.append(Bar(timestamp=ts, open=float(r["open"]), high=float(r["high"]),
+                           low=float(r["low"]), close=float(r["close"]), volume=float(r["volume"])))
+    return out
+
+async def main():
+    for sym in ("BTC", "ETH", "XRP", "LTC", "ADA", "DOGE", "SOL"):
+        bars = load(sym, "4h")
+        p = preset_params("alligator_4h")
+        p["timeframe"] = "4h"
+        s = ConfluenceBreakoutStrategy(f"{sym}USDT", params=p, preset="alligator_4h")
+        res = await run_backtest(s, bars, BacktestConfig(periods_per_year=2190))
+        print(f"{sym:6} trades={len(res.trades):4} ret={res.metrics.total_return:7.2f}% "
+              f"maxDD={res.metrics.max_drawdown:6.2f}% PF={res.metrics.profit_factor:6.3f} "
+              f"win={res.metrics.win_rate:5.1%}")
+
+asyncio.run(main())
+PY
+```
 
 ## Performance
 
@@ -171,7 +307,7 @@ correlation heatmap) embedded in the HTML report; **cooperative cancellation**
 (Redis-backed run tokens, HTTP 499, works via API or Celery); **universe selection**
 ("choose N tickers");
 **indicator library** (SMA/EMA/RSI/MACD/
-Bollinger/ATR) with an optional TA-Lib backend; **6 strategies** via a **strategy
+Bollinger/ATR) with an optional TA-Lib backend; **10 strategies** via a **strategy
 registry + runner** (dual **long/short SMA crossover with independent per-side
 settings**; **EMD + ADL** with optional TP/trailing/ATR exits, vectorized
 indicators and an O(n) batch replay); **signal pipeline** (filters → aggregators);
@@ -190,7 +326,9 @@ exception handlers; Celery tasks + beat; **TTL cache**; **bulk insert + task-res
 store**; Prometheus `/metrics` + **alert rules** + Grafana dashboards + structlog +
 correlation IDs; Alembic migrations (verified vs SQLite); **property-based tests**
 (hypothesis); `fetch_data` CLI; **BingX WebSocket streams** (market + user-data
-parsers/stream); **TBANK stream bridge** (SDK callbacks → domain); **Timescale
+parsers/stream); **live signal engine** (per-ticker polling tasks, full trade-plan
+signals persisted with a position ledger, `WS /ws/signals` + local-client fan-out,
+CSV/XLSX signal and position exports); **TBANK stream bridge** (SDK callbacks → domain); **Timescale
 bars/trades storage** + hypertable DDL; **live strategy runner**
 (`/strategies/{name}/start|stop` background tasks); Docker image (with TA-Lib) +
 compose; one-click launcher (`run.bat` + desktop shortcut) + app icon/favicon;

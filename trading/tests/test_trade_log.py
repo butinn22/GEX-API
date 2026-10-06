@@ -11,6 +11,7 @@ from trading.application.backtest.trade_log import (
     TradeState,
     classify_fill,
     event_from_fill,
+    events_from_fill,
 )
 from trading.domain import Bar, Fill, Position, PositionSide, Side, Signal
 
@@ -88,6 +89,47 @@ class TestEventFromFill:
         assert d["strategy"] == "s"
 
 
+class TestEventsFromFill:
+    """Flip fills must split into exit + entry (regression: flip-opened
+    positions used to have no entry event, so closed-trade reconstruction
+    could not pair them)."""
+
+    def test_flip_long_to_short_splits(self):
+        pos = Position("X", PositionSide.LONG, 2.0, 100.0)
+        evs = events_from_fill(pos, fill(Side.SELL, 110.0, 5.0))
+        assert [e.state for e in evs] == [TradeState.LONG_EXIT, TradeState.SHORT_ENTRY]
+        assert evs[0].quantity == pytest.approx(2.0)
+        assert evs[0].realized_pnl == pytest.approx(20.0)
+        assert evs[1].quantity == pytest.approx(3.0)
+        assert evs[1].realized_pnl == 0.0 and evs[1].pct_return == 0.0
+        assert evs[0].price == evs[1].price == pytest.approx(110.0)
+
+    def test_flip_short_to_long_splits(self):
+        pos = Position("X", PositionSide.SHORT, 3.0, 100.0)
+        evs = events_from_fill(pos, fill(Side.BUY, 90.0, 4.0))
+        assert [e.state for e in evs] == [TradeState.SHORT_EXIT, TradeState.LONG_ENTRY]
+        assert evs[0].realized_pnl == pytest.approx(30.0)
+        assert evs[1].quantity == pytest.approx(1.0)
+
+    def test_exact_close_is_single_exit(self):
+        pos = Position("X", PositionSide.LONG, 2.0, 100.0)
+        evs = events_from_fill(pos, fill(Side.SELL, 110.0, 2.0))
+        assert [e.state for e in evs] == [TradeState.LONG_EXIT]
+
+    def test_partial_close_is_single_exit(self):
+        pos = Position("X", PositionSide.LONG, 4.0, 100.0)
+        evs = events_from_fill(pos, fill(Side.SELL, 110.0, 1.0))
+        assert [e.state for e in evs] == [TradeState.LONG_EXIT]
+        assert evs[0].quantity == pytest.approx(1.0)
+
+    def test_entry_and_add_are_single_events(self):
+        assert [e.state for e in events_from_fill(Position("X"), fill(Side.BUY, 100.0, 1.0))] == \
+            [TradeState.LONG_ENTRY]
+        pos = Position("X", PositionSide.LONG, 1.0, 100.0)
+        assert [e.state for e in events_from_fill(pos, fill(Side.BUY, 105.0, 1.0))] == \
+            [TradeState.LONG_ADD]
+
+
 def bar(i: int, price: float) -> Bar:
     return Bar(timestamp=T0 + timedelta(days=i), open=price, high=price,
                low=price, close=price, volume=1000.0)
@@ -135,6 +177,24 @@ class TestEngineEvents:
         result = await run_backtest(strat, bars, cfg)
         states = [e.state for e in result.events]
         assert states == [TradeState.SHORT_ENTRY, TradeState.SHORT_EXIT]
+
+    async def test_flip_emits_exit_then_entry(self):
+        # Falling prices: the exit sell is sized off a higher equity-to-price
+        # ratio than the entry buy, so its quantity exceeds the position —
+        # a flip. The ledger must carry BOTH the long exit and the short entry.
+        bars = [bar(0, 100.0), bar(1, 80.0), bar(2, 64.0), bar(3, 64.0)]
+        strat = ScriptedStrategy("X", [Side.BUY, Side.SELL, None, None])
+        cfg = BacktestConfig(initial_cash=10_000, fee_rate=0.0, slippage=0.0,
+                             position_fraction=0.4)
+        result = await run_backtest(strat, bars, cfg)
+        states = [e.state for e in result.events]
+        assert states == [TradeState.LONG_ENTRY, TradeState.LONG_EXIT, TradeState.SHORT_ENTRY]
+        exit_ev, entry_ev = result.events[1], result.events[2]
+        assert exit_ev.quantity + entry_ev.quantity == pytest.approx(
+            result.events[1].quantity + result.events[2].quantity)
+        # the flipped remainder really opens a new short
+        assert entry_ev.quantity > 0.0
+        assert entry_ev.realized_pnl == 0.0
 
     async def test_exit_pnl_matches_price_move(self):
         bars = [bar(0, 100.0), bar(1, 100.0), bar(2, 110.0), bar(3, 110.0)]

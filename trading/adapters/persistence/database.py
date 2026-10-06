@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import (
 from trading.config import settings
 from .models import Base
 
-__all__ = ["configure", "init_db", "dispose", "get_session"]
+__all__ = ["configure", "init_db", "dispose", "get_session", "session_factory"]
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -48,3 +48,16 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         configure()
     async with _session_factory() as session:
         yield session
+
+
+def session_factory() -> async_sessionmaker[AsyncSession]:
+    """The configured factory, creating the engine on first use.
+
+    Background tasks (the live signal engine) need their own sessions outside
+    of the request dependency; this is the same factory, not a second engine.
+    """
+    global _session_factory
+    if _session_factory is None:
+        configure()
+    assert _session_factory is not None
+    return _session_factory

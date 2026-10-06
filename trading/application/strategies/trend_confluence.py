@@ -188,10 +188,19 @@ class TrendConfluenceParams:
     # sides
     allow_long: bool = True
     allow_short: bool = True
+    # entries — quality filters (win-rate oriented)
+    need_rejection: bool = False  # prev bar must be a confirmation candle in trade
+                                  # direction (off by default — the optimizer
+                                  # enables it per ticker where it earns its keep)
+    reentry_cooldown: int = 3    # bars to wait after any exit before re-entering
+    # risk management
+    risk_pct: float = 0.01   # target risk per trade, fraction of equity (0 = full size)
+    stop_atr: float = 2.0    # hard stop at entry ∓ stop_atr·ATR(entry) on close (0 = off)
+    tp_r: float = 1.5        # take profit at tp_r × initial risk (0 = off)
     # exits
     invalidation_atr: float = 0.5  # close beyond EMA200/trendline by this → exit
     use_trailing: bool = True
-    atr_trail_mult: float = 3.0
+    atr_trail_mult: float = 2.5
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any] | None) -> "TrendConfluenceParams":
@@ -232,6 +241,7 @@ class _Frame:
     ema_mid: np.ndarray
     ema_slow: np.ndarray
     atr: np.ndarray
+    open: np.ndarray
     roll_max: np.ndarray  # rolling max of close (pullback reference)
     roll_min: np.ndarray
 
@@ -318,6 +328,7 @@ def _compute_frame(
     return _Frame(
         n=n, regime=regime, tl_support=tl_sup, tl_resistance=tl_res,
         ema_fast=ema_fast, ema_mid=ema_mid, ema_slow=ema_slow, atr=atr,
+        open=open_.copy(),
         roll_max=roll_max, roll_min=roll_min,
     )
 
@@ -421,7 +432,18 @@ class TrendConfluenceStrategy(Strategy):
         self._entry_price: float | None = None
         self._entry_strength = 1.0
         self._best: float | None = None
+        self._stop_ref_atr: float | None = None  # ATR frozen at entry (stop/tp reference)
+        self._last_exit_bar = -10**9
         self.fallback_count = 0
+
+    def _state_snapshot(self) -> tuple:
+        """Booked-position fields a vetoed entry must be able to undo."""
+        return (self._side, self._entry_price, self._entry_strength,
+                self._best, self._stop_ref_atr)
+
+    def _state_restore(self, snap: tuple) -> None:
+        (self._side, self._entry_price, self._entry_strength,
+         self._best, self._stop_ref_atr) = snap
 
     async def start(self) -> None:
         self._reset_state()
@@ -523,6 +545,11 @@ class TrendConfluenceStrategy(Strategy):
             size_mult = p.range_size_mult
 
         if self._side == "flat":
+            # Re-entry cooldown: after any exit the strategy sits out a few
+            # bars, which breaks the whipsaw chains (flip long→short→long on
+            # consecutive bars, each round trip paying fees + slippage).
+            if (i - self._last_exit_bar) < p.reentry_cooldown:
+                return out
             if regime >= 0 and p.allow_long:
                 sig = self._try_long(i, close, low_i, atr, tol, wall_tol, regime, size_mult, price, timestamp)
                 if sig is not None:
@@ -564,11 +591,21 @@ class TrendConfluenceStrategy(Strategy):
         # Respect a large CALL wall overhead: do not buy directly into it.
         if p.respect_call_wall and w.enabled and w.call_wall and 0 < w.call_wall - close <= wall_tol:
             return None
+        # Rejection confirmation: the *previous* bar must print a bull candle
+        # (close >= open) while this bar is still in the zone — the classic
+        # "confirmation candle" entry. Requiring the rejection on the entry
+        # bar itself never fires: the touch bar of a pullback is by definition
+        # still moving against the trade.
+        if p.need_rejection and i > 0:
+            prev_close = float(self._closes[i - 1])  # type: ignore[index]
+            if prev_close < f.open[i - 1]:
+                return None
         hits = _confluence(_support_levels(f, i, w, close), close, low_i, tol)
         if len(hits) < p.min_confluence:
             return None
-        strength = min(1.0, len(hits) / 4.0) * size_mult
-        self._open("long", close, strength)
+        strength = self._risk_size(p, close, atr,
+                                   min(1.0, len(hits) / 4.0) * size_mult)
+        self._open("long", close, strength, atr=atr)
         return Signal(
             self.symbol, Side.BUY, self.name,
             f"add_long_confluence:{','.join(hits)}",
@@ -590,21 +627,48 @@ class TrendConfluenceStrategy(Strategy):
             return None
         if p.respect_put_wall and w.enabled and w.put_wall and 0 < close - w.put_wall <= wall_tol:
             return None
+        # Rejection confirmation (shorts): the previous bar must print a bear
+        # candle (close <= open) while this bar is still in the zone.
+        if p.need_rejection and i > 0:
+            prev_close = float(self._closes[i - 1])  # type: ignore[index]
+            if prev_close > f.open[i - 1]:
+                return None
         hits = _confluence(_resistance_levels(f, i, w, close), close, high_i, tol)
         if len(hits) < p.min_confluence:
             return None
-        strength = min(1.0, len(hits) / 4.0) * size_mult
-        self._open("short", close, strength)
+        strength = self._risk_size(p, close, atr,
+                                   min(1.0, len(hits) / 4.0) * size_mult)
+        self._open("short", close, strength, atr=atr)
         return Signal(
             self.symbol, Side.SELL, self.name,
             f"add_short_confluence:{','.join(hits)}",
             strength=round(strength, 3), price=price, timestamp=timestamp,
         )
 
+    @staticmethod
+    def _risk_size(p: "TrendConfluenceParams", close: float, atr: float,
+                   strength: float) -> float:
+        """Scale position strength so a stopped trade loses ≈ ``risk_pct`` of
+        equity instead of a fixed 95% notional.
+
+        The engine sizes ``qty = equity × position_fraction × strength / price``,
+        so ``risk ≈ equity × position_fraction × strength × stop_dist/close``.
+        Solving for ``strength`` with ``position_fraction = 0.95`` (the engine
+        default) gives the cap below; if the engine runs a different fraction
+        the realised risk scales proportionally.
+        """
+        if p.risk_pct <= 0 or p.stop_atr <= 0 or close <= 0 or not math.isfinite(atr):
+            return min(1.0, strength)
+        stop_frac = p.stop_atr * atr / close
+        if stop_frac <= 1e-12:
+            return min(1.0, strength)
+        return min(1.0, strength * p.risk_pct / (0.95 * stop_frac))
+
     def _exit_check(
         self, i: int, close: float, atr: float, price: Price, timestamp, *, regime: int
     ) -> Signal | None:
-        """Exit rules for the open position: wall caps, invalidation, trailing."""
+        """Exit rules, in priority order: hard stop, take profit, wall caps,
+        trend invalidation, ATR trailing."""
         if self._side == "flat" or self._entry_price is None:
             return None
         f, p, w = self._frame, self._p, self._walls
@@ -616,6 +680,32 @@ class TrendConfluenceStrategy(Strategy):
         # silently flip it. Matching strengths keeps exits close-only (up to
         # equity drift).
         s = self._entry_strength
+        entry = self._entry_price
+        ref = self._stop_ref_atr if self._stop_ref_atr else atr
+
+        # 0a. Hard stop-loss — the missing piece that made losing trades run:
+        #     risk is frozen at entry (∓ stop_atr·ATR) instead of waiting for
+        #     the EMA200 invalidation many ATRs away.
+        if p.stop_atr > 0 and ref and math.isfinite(ref):
+            stop_px = entry - p.stop_atr * ref if long else entry + p.stop_atr * ref
+            hit = close <= stop_px if long else close >= stop_px
+            if hit:
+                self._close_position()
+                return Signal(self.symbol,
+                              Side.SELL if long else Side.BUY, self.name, "stop_loss",
+                              strength=s, price=price, timestamp=timestamp)
+
+        # 0b. Take profit at a fixed reward multiple of the initial risk —
+        #     banks winners while they exist, lifting the win rate.
+        if p.tp_r > 0 and p.stop_atr > 0 and ref and math.isfinite(ref):
+            tp_px = entry + p.tp_r * p.stop_atr * ref if long \
+                else entry - p.tp_r * p.stop_atr * ref
+            hit = close >= tp_px if long else close <= tp_px
+            if hit:
+                self._close_position()
+                return Signal(self.symbol,
+                              Side.SELL if long else Side.BUY, self.name, "take_profit",
+                              strength=s, price=price, timestamp=timestamp)
 
         # 1. Options-wall caps — big walls are magnets/rejection zones.
         if long and p.exit_at_call_wall and w.enabled and w.call_wall and close >= w.call_wall - p.wall_atr_tol * atr:
@@ -660,16 +750,20 @@ class TrendConfluenceStrategy(Strategy):
         return None
 
     # ── position bookkeeping ────────────────────────────────────────────
-    def _open(self, side: str, close: float, strength: float = 1.0) -> None:
+    def _open(self, side: str, close: float, strength: float = 1.0,
+              atr: float | None = None) -> None:
         self._side = side
         self._entry_price = close
         self._entry_strength = strength
         self._best = close
+        self._stop_ref_atr = atr if atr and math.isfinite(atr) else None
 
     def _close_position(self) -> None:
         self._side = "flat"
         self._entry_price = None
         self._best = None
+        self._stop_ref_atr = None
+        self._last_exit_bar = self._processed
 
     # ── misc Strategy API ───────────────────────────────────────────────
     async def on_tick(self, tick: Tick) -> list[Signal]:

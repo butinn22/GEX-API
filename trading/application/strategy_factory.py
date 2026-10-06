@@ -33,6 +33,9 @@ STRATEGY_NAMES: tuple[str, ...] = (
     "momentum",
     "gex_emf",
     "trend_confluence",
+    "trend_confluence_unified",
+    "trend_confluence_pine",
+    "confluence_breakout",
 )
 
 
@@ -158,5 +161,55 @@ def build_strategy(name: str, symbol: str, params: Mapping[str, Any] | None = No
             return TrendConfluenceStrategy(symbol, params=forwarded or None)
         except (TypeError, ValueError) as exc:
             raise StrategyError(f"trend_confluence: {exc}") from exc
+
+    if name == "trend_confluence_unified":
+        from trading.application.strategies.trend_confluence_unified import (
+            UnifiedTrendStrategy,
+        )
+
+        # Same forwarding convention as trend_confluence: the unified strategy
+        # filters/validates its own schema (TC fields + emf/momentum knobs +
+        # the nested ``emf`` / ``options`` blocks).
+        forwarded = {k: v for k, v in p.items() if k not in ("fast", "slow", "period", "long", "short")}
+        try:
+            return UnifiedTrendStrategy(symbol, params=forwarded or None)
+        except (TypeError, ValueError) as exc:
+            raise StrategyError(f"trend_confluence_unified: {exc}") from exc
+
+    if name == "trend_confluence_pine":
+        from trading.application.strategies.trend_confluence_pine import (
+            PineConfluenceStrategy,
+        )
+
+        # Same forwarding convention: the strategy validates its own schema
+        # (unified fields + the percent TP/trailing and add knobs).
+        forwarded = {k: v for k, v in p.items() if k not in ("fast", "slow", "period", "long", "short")}
+        try:
+            return PineConfluenceStrategy(symbol, params=forwarded or None)
+        except (TypeError, ValueError) as exc:
+            raise StrategyError(f"trend_confluence_pine: {exc}") from exc
+
+    if name == "confluence_breakout":
+        from trading.application.strategies.confluence_breakout import (
+            ConfluenceBreakoutParams,
+            ConfluenceBreakoutStrategy,
+            preset_params,
+        )
+
+        # ``preset`` selects one of the frozen out-of-sample-validated
+        # configurations (alligator_4h | donchian_1d); any parameter the caller
+        # also passes overrides the preset on that key only.
+        preset = p.pop("preset", None) or None
+        try:
+            merged = preset_params(preset)
+        except ValueError as exc:
+            raise StrategyError(f"confluence_breakout: {exc}") from exc
+        forwarded = {k: v for k, v in p.items()
+                     if k in ConfluenceBreakoutParams.FIELD_NAMES}
+        merged.update(forwarded)
+        try:
+            return ConfluenceBreakoutStrategy(symbol, params=merged, preset=preset)
+        except (TypeError, ValueError) as exc:
+            raise StrategyError(f"confluence_breakout: {exc}") from exc
 
     raise StrategyError(f"unknown strategy '{name}' (known: {', '.join(STRATEGY_NAMES)})")

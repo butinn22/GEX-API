@@ -42,7 +42,7 @@ from .match_engine import (
     SlippageModel,
 )
 from .metrics import BacktestMetrics, compute_metrics
-from .trade_log import TradeEvent, event_from_fill
+from .trade_log import TradeEvent, events_from_fill
 
 __all__ = ["BacktestConfig", "Trade", "BacktestResult", "run_backtest"]
 
@@ -134,6 +134,10 @@ async def run_backtest(
     equity = np.empty(len(bars), dtype=float)
     trades: list[Trade] = []
     events: list[TradeEvent] = []
+    #: Unamortised entry-side fees (per symbol) and the quantity they belong to,
+    #: charged proportionally on close — see step 1.
+    open_fees: dict[str, float] = {}
+    open_qty: dict[str, float] = {}
     pending: list[OrderIntent] = []
 
     match_engine = MatchEngine(
@@ -150,12 +154,28 @@ async def run_backtest(
             pos = portfolio.position_for(intent.symbol)
             portfolio = portfolio.apply_fill(fill)
             closed_qty = _closed_quantity(pos.side, pos.quantity, fill)
-            events.append(
-                event_from_fill(pos, fill, strategy=intent.strategy, reason=intent.reason)
+            events.extend(
+                events_from_fill(pos, fill, strategy=intent.strategy, reason=intent.reason)
             )
+            # Fees are paid on *both* legs: an opening fill's fee is banked per
+            # symbol and charged proportionally when that quantity closes. Only
+            # charging the closing fill made realized_pnl (and therefore profit
+            # factor / win rate) optimistic by roughly one side of costs.
+            if closed_qty <= 0:
+                open_fees[intent.symbol] = open_fees.get(intent.symbol, 0.0) + fill.fee
+                open_qty[intent.symbol] = open_qty.get(intent.symbol, 0.0) + fill.quantity
+                entry_fee = 0.0
+            else:
+                # proportional to the share of the *position* that closed, not of
+                # this fill (a partial close leaves the rest of the fee banked).
+                held = pos.quantity or closed_qty
+                share = min(1.0, closed_qty / held) if held else 1.0
+                entry_fee = open_fees.get(intent.symbol, 0.0) * share
+                open_fees[intent.symbol] = open_fees.get(intent.symbol, 0.0) - entry_fee
+                open_qty[intent.symbol] = max(0.0, open_qty.get(intent.symbol, 0.0) - closed_qty)
             if closed_qty > 0:  # only a real close is a trade (opens/adds are not)
                 gross = (fill.price - pos.average_entry_price) * closed_qty * pos.side.sign
-                fee_share = fill.fee * (closed_qty / fill.quantity)
+                fee_share = fill.fee / fill.quantity * closed_qty
                 trades.append(
                     Trade(
                         symbol=intent.symbol,
@@ -163,7 +183,7 @@ async def run_backtest(
                         entry_price=pos.average_entry_price,
                         exit_price=fill.price,
                         quantity=closed_qty,
-                        realized_pnl=gross - fee_share,
+                        realized_pnl=gross - fee_share - entry_fee,
                         entry_time=bar.timestamp,
                         exit_time=bar.timestamp,
                     )

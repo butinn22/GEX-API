@@ -48,6 +48,7 @@ independently. The only dependencies across the boundary are the existing
 │                 fetcher wrappers over gex market-data adapters   │
 │                 ratelimit → delegates to gex RateLimitPort       │
 │  application/   ExecutionEngine OrderStateMachine RiskManager    │
+│                 SignalEngine (live signals + position ledger)    │
 │                 BacktestEngine MonteCarlo PathSimulators Metrics │
 │  api/           routers + websockets (FastAPI)                   │
 │  tasks/         celery tasks + beat schedules                    │
@@ -64,6 +65,25 @@ are domain entities; **Broker** and **Data** are anticorruption-layer
 boundaries implemented as ports; **Strategy** is an application service whose
 interface (`on_bar`/`on_tick`/`generate_signals`) is itself a port so strategies
 are pluggable.
+
+### The live signal path
+
+```
+fetch (real venue) ──bar──▶ Strategy.on_bar ──Signal(entry, stop, risk)
+                                                        │
+                          ┌─────────────────────────────┼──────────────────────┐
+                          ▼                             ▼                      ▼
+                   key_signals row            signal_positions row      signal_hub → /ws/signals
+                   (full trade plan,              (lifecycle: entry,      + /ws/client (subscribed
+                    exportable)                    stop, trail, PnL)       sessions)
+```
+
+``SignalEngine`` (``trading/application/signal_engine.py``) is the single
+process-wide service behind it: one asyncio task per ticker, dedup by bar
+timestamp, a first poll marked ``source="backfill"`` (indicator warm-up, not a
+live signal), and per-ticker error isolation so a venue hiccup on one ticker
+never stops the run. Reads and exports go through
+``routers/signals.py`` and ``reporting/signal_export.py``.
 
 ## 3. Gap analysis (spec vs repo)
 

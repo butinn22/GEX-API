@@ -21,7 +21,7 @@ from typing import Any
 
 from trading.domain import Fill, Position, PositionSide, Side
 
-__all__ = ["TradeState", "TradeEvent", "classify_fill", "event_from_fill"]
+__all__ = ["TradeState", "TradeEvent", "classify_fill", "event_from_fill", "events_from_fill"]
 
 
 class TradeState(str, Enum):
@@ -133,3 +133,70 @@ def event_from_fill(
         strategy=strategy,
         reason=reason,
     )
+
+
+def events_from_fill(
+    position_before: Position,
+    fill: Fill,
+    *,
+    strategy: str | None = None,
+    reason: str | None = None,
+) -> list[TradeEvent]:
+    """Ledger events for ``fill`` — a *flip* splits into exit + entry.
+
+    A flip fill (an opposite-side order larger than the current position)
+    closes the old side and opens the new one in a single execution. The
+    ledger records **both** halves: the exit (realized PnL on the closed
+    quantity) and the entry of the remainder. Without the split, positions
+    opened by a flip have no entry event and closed-trade reconstruction
+    (e.g. ``_pair_trades`` in the signal-key dashboard) cannot pair them.
+    """
+    state = classify_fill(position_before, fill)
+    flipped = (
+        state.is_exit
+        and position_before.side is not PositionSide.FLAT
+        and fill.quantity > position_before.quantity
+    )
+    if not flipped:
+        return [event_from_fill(position_before, fill, strategy=strategy, reason=reason)]
+
+    closed = position_before.quantity
+    remainder = fill.quantity - closed
+    exit_state = (
+        TradeState.LONG_EXIT
+        if position_before.side is PositionSide.LONG
+        else TradeState.SHORT_EXIT
+    )
+    entry_state = TradeState.LONG_ENTRY if fill.side is Side.BUY else TradeState.SHORT_ENTRY
+    sign = position_before.side.sign
+    avg = position_before.average_entry_price
+    realized = (fill.price - avg) * closed * sign if avg > 0 else 0.0
+    pct = (fill.price - avg) / avg * sign if avg > 0 else 0.0
+    return [
+        TradeEvent(
+            timestamp=fill.timestamp,
+            symbol=fill.symbol,
+            state=exit_state,
+            direction=exit_state.direction,
+            side=fill.side,
+            price=fill.price,
+            quantity=closed,
+            realized_pnl=realized,
+            pct_return=pct,
+            strategy=strategy,
+            reason=reason,
+        ),
+        TradeEvent(
+            timestamp=fill.timestamp,
+            symbol=fill.symbol,
+            state=entry_state,
+            direction=entry_state.direction,
+            side=fill.side,
+            price=fill.price,
+            quantity=remainder,
+            realized_pnl=0.0,
+            pct_return=0.0,
+            strategy=strategy,
+            reason=reason,
+        ),
+    ]

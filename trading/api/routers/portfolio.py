@@ -153,8 +153,3 @@ async def place_order(
         order_type=order.order_type.value, status=order.status.value,
         strategy=order.strategy, reason=order.reason,
     )
-
-
-@router.get("/signals")
-def signals() -> list:
-    return []

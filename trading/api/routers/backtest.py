@@ -24,6 +24,7 @@ run then raises :class:`RunCancelled`, which this layer maps to **HTTP 499**
 from __future__ import annotations
 
 import asyncio
+import logging
 import math
 
 from fastapi import APIRouter, HTTPException
@@ -54,6 +55,7 @@ from trading.application.cancellation import (
     run_registry,
 )
 from trading.application.instruments import select_universe
+from trading.application.presets import PresetService
 from trading.application.strategy_factory import build_strategy
 from trading.domain import Bar, DataFetchError, StrategyError
 from trading.ports import Strategy
@@ -66,6 +68,8 @@ from ..schemas import (
     BacktestResponse,
     CancelOut,
     CorrelationOut,
+    GlobalOptimizeRequest,
+    GlobalOptimizeStatus,
     HistogramOut,
     MonteCarloRequest,
     MonteCarloRunOptions,
@@ -80,6 +84,8 @@ from ..schemas import (
 )
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
+
+log = logging.getLogger(__name__)
 
 #: Charts don't need every bar; cap payload size while keeping both endpoints.
 MAX_POINTS = 1000
@@ -287,7 +293,27 @@ def _portfolio_response(
     )
 
 
-async def _persist_result(request: BacktestRequest, result) -> int | None:
+def _log_planned_combos(strategy: str, grid: dict[str, list] | None) -> None:
+    """Log the planned sweep size before it starts.
+
+    A sweep's wall time is ``combos × 2 backtests``; logging the planned count
+    makes "the UI hung on Run optimization" diagnosable from the server log
+    alone (an oversized grid shows up here instead of as silence).
+    """
+    grid = grid or {}
+    planned = 1
+    for values in grid.values():
+        planned *= max(1, len(values))
+    log.info(
+        "optimize %s starting: %d planned combinations from %d grid axis(es)%s",
+        strategy, planned, len(grid),
+        "" if grid else " (default sweep — request grid was empty/absent)",
+    )
+
+
+async def _persist_result(request: BacktestRequest, result, *,
+                          strategy: str | None = None,
+                          symbol: str | None = None) -> int | None:
     """Store metrics + the granular trade-event ledger for later export.
 
     Persistence is best-effort: a database hiccup must not fail a completed
@@ -300,7 +326,7 @@ async def _persist_result(request: BacktestRequest, result) -> int | None:
         await init_db()
         async with _session_factory() as s:
             row = await TaskResultStore(s).save_backtest(
-                request.strategy, request.symbol,
+                strategy or request.strategy, symbol or request.symbol,
                 {"total_return": result.metrics.total_return,
                  "sharpe": result.metrics.sharpe,
                  "max_drawdown": result.metrics.max_drawdown,
@@ -313,11 +339,35 @@ async def _persist_result(request: BacktestRequest, result) -> int | None:
         return None
 
 
+async def _load_preset(preset_id: int) -> StrategyPresetRow:
+    """Load a saved strategy version for ``preset_id``-driven runs.
+
+    The stored row is the source of truth: its strategy/symbol/params are used
+    verbatim (explicit request ``params`` keys still override — the existing
+    override convention).
+    """
+    from trading.adapters.persistence import database
+    from trading.adapters.persistence.models import StrategyPresetRow
+
+    await database.init_db()
+    async with database._session_factory() as session:
+        row = await PresetService(session).get(preset_id)
+        if row is None:
+            raise HTTPException(404, f"preset {preset_id} not found")
+        return row
+
+
 # ── single-symbol backtest ─────────────────────────────────────────────
 
 
 @router.post("", response_model=BacktestResponse)
 async def run(request: BacktestRequest) -> BacktestResponse:
+    # A saved strategy version is the source of truth when preset_id is set:
+    # its strategy/symbol/params are used verbatim (explicit request params
+    # still override on a per-key basis).
+    preset_row = await _load_preset(request.preset_id) if request.preset_id else None
+    strategy_name = preset_row.strategy if preset_row else request.strategy
+    symbol = preset_row.symbol if preset_row else request.symbol
     if request.bars:
         bars = [
             Bar(timestamp=b.timestamp, open=b.open, high=b.high, low=b.low,
@@ -326,7 +376,7 @@ async def run(request: BacktestRequest) -> BacktestResponse:
         ]
     else:
         bars = await _bars_for(
-            request.symbol, request.source, request.timeframe, request.limit,
+            symbol, request.source, request.timeframe, request.limit,
             refresh=request.refresh_data,
         )
 
@@ -334,16 +384,34 @@ async def run(request: BacktestRequest) -> BacktestResponse:
     if len(bars) < 2:
         raise HTTPException(400, "need at least 2 bars")
 
-    params = dict(request.params or {})
-    params.update({
-        "fast": request.fast, "slow": request.slow, "period": request.period,
-        "long": request.long.model_dump() if request.long else None,
-        "short": request.short.model_dump() if request.short else None,
-        "settings": request.settings,
-    })
+    params: dict = {}
+    if preset_row is not None:
+        params.update(PresetService.params_of(preset_row))
+    params.update(dict(request.params or {}))
+    # The ergonomic fast/slow/period fields carry defaults, so with a preset
+    # loaded only the *explicitly given* ones may override the stored params
+    # (``model_fields_set`` separates "sent" from "defaulted"). Not-given keys
+    # are simply absent — never written as None over the preset's values.
+    explicit = request.model_fields_set if preset_row is not None else None
+
+    def _given(key: str) -> bool:
+        return explicit is None or key in explicit
+
+    if _given("fast"):
+        params["fast"] = request.fast
+    if _given("slow"):
+        params["slow"] = request.slow
+    if _given("period"):
+        params["period"] = request.period
+    if request.long is not None:
+        params["long"] = request.long.model_dump()
+    if request.short is not None:
+        params["short"] = request.short.model_dump()
+    if request.settings is not None and _given("settings"):
+        params["settings"] = request.settings
     try:
         strategy: Strategy = build_strategy(
-            request.strategy, request.symbol, {k: v for k, v in params.items() if v is not None}
+            strategy_name, symbol, {k: v for k, v in params.items() if v is not None}
         )
     except StrategyError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -357,14 +425,16 @@ async def run(request: BacktestRequest) -> BacktestResponse:
     )
     result = await run_backtest(strategy, bars, cfg)
     idx = _sample_indices(len(bars))
-    result_id = await _persist_result(request, result)
+    result_id = await _persist_result(request, result,
+                                      strategy=strategy_name, symbol=symbol)
     return BacktestResponse(
-        strategy=request.strategy,
-        symbol=request.symbol,
+        strategy=strategy_name,
+        symbol=symbol,
         metrics=_metrics_out(result.metrics),
         equity_curve=_downsample(list(result.equity_curve), idx),
         times=[bars[i].timestamp.isoformat() for i in idx],
         result_id=result_id,
+        preset_id=request.preset_id,
         n_trades=len(result.trades),
     )
 
@@ -550,18 +620,32 @@ async def analyze(request: BacktestRequest) -> AnalyzeResponse:
 async def optimize(request: OptimizeRequest) -> OptimizeResponse:
     """Grid-search a strategy's parameters with a 70/30 train/validation split.
 
-    Candidates are ranked by validation Sharpe, discounted for train/validation
-    disagreement (overfitting) and thin trade samples. The best candidate is
-    re-run on the full history and returned with its win/loss analysis and
-    recommendations — the adaptive half of the improvement loop.
+    Candidates are ranked by the chosen ``objective`` (default: the
+    ``profit_win`` composite — validation profit gates the pick, win rate
+    scales it), discounted for train/validation disagreement (overfitting) and
+    thin trade samples. The best candidate is re-run on the full history and
+    returned with its win/loss analysis and recommendations — the adaptive
+    half of the improvement loop. With ``save_preset`` the winner is persisted
+    as the ticker's default preset (source=``optimizer``).
 
     The sweep is synchronous CPU work and runs in a thread so the event loop
     stays free to serve ``POST /backtest/cancel/{token}``.
     """
     token = _open_run(request.run_token)
     try:
+        # A saved strategy version seeds the sweep when preset_id is set: its
+        # strategy/symbol/base params are used verbatim (explicit request
+        # params still override on a per-key basis).
+        preset_row = (await _load_preset(request.preset_id)
+                      if request.preset_id else None)
+        strategy_name = preset_row.strategy if preset_row else request.strategy
+        symbol = preset_row.symbol if preset_row else request.symbol
+        base_params: dict = {}
+        if preset_row is not None:
+            base_params.update(PresetService.params_of(preset_row))
+        base_params.update(dict(request.params))
         bars = await _bars_for(
-            request.symbol, request.source, request.timeframe, request.limit,
+            symbol, request.source, request.timeframe, request.limit,
             refresh=request.refresh_data,
         )
         cfg = BacktestConfig(
@@ -570,15 +654,31 @@ async def optimize(request: OptimizeRequest) -> OptimizeResponse:
             periods_per_year=request.periods_per_year,
         )
         try:
+            _log_planned_combos(strategy_name, request.grid)
             result = await asyncio.to_thread(
                 optimize_strategy,
-                request.strategy, request.symbol, bars,
-                base_params=request.params, grid=request.grid, cfg=cfg, cancel=token,
+                strategy_name, symbol, bars,
+                base_params=base_params, grid=request.grid, cfg=cfg,
+                cancel=token, objective=request.objective,
+            )
+            log.info(
+                "optimize %s/%s finished: %d candidates (planned grid %s)",
+                strategy_name, symbol, result.n_candidates, request.grid or "default",
             )
         except StrategyError as exc:
             raise HTTPException(400, str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
+        if request.save_preset:
+            await _save_optimized_preset(
+                symbol, strategy_name, result.best_params,
+                strategy_version=_strategy_version(strategy_name),
+                optimizer_run_id=token.token,
+                metrics=(result.best or {}).get("metrics") or None,
+                strategy_name=((preset_row.strategy_name if preset_row else "")
+                               or request.strategy_name),
+                timeframe=request.timeframe,
+            )
         payload = result.as_dict()
         payload["run_token"] = token.token
         return OptimizeResponse(**payload)
@@ -586,6 +686,133 @@ async def optimize(request: OptimizeRequest) -> OptimizeResponse:
         raise _cancelled(exc) from exc
     finally:
         run_registry.clear(token.token)
+
+
+async def _save_optimized_preset(
+    symbol: str,
+    strategy: str,
+    best_params: dict,
+    *,
+    strategy_version: str,
+    optimizer_run_id: str,
+    metrics: dict | None = None,
+    strategy_name: str = "",
+    timeframe: str = "",
+) -> None:
+    """Persist an optimization winner as the group's next version.
+
+    Best-effort by design (mirrors ``_persist_result``): a database hiccup
+    must not fail a completed optimization. The winner carries its metrics
+    snapshot together with its provenance (``backtest_ref =
+    "optimizer:<run_token>"``) — never fabricated.
+    """
+    try:
+        from trading.adapters.persistence.database import _session_factory, init_db
+        from trading.application.presets import PresetService
+
+        await init_db()
+        async with _session_factory() as session:
+            await PresetService(session).save_optimization(
+                symbol=symbol,
+                strategy=strategy,
+                strategy_version=strategy_version,
+                best_params=best_params,
+                optimizer_run_id=optimizer_run_id,
+                metrics=metrics,
+                strategy_name=strategy_name,
+                timeframe=timeframe,
+            )
+    except Exception:
+        pass
+
+
+def _strategy_version(strategy_name: str) -> str:
+    from trading.application.strategies.trend_confluence_unified import (
+        UNIFIED_STRATEGY_VERSION,
+    )
+
+    if strategy_name == "trend_confluence_unified":
+        return UNIFIED_STRATEGY_VERSION
+    return ""
+
+
+# ── global (all-tickers) optimization ─────────────────────────────────
+
+
+@router.post("/optimize/global", response_model=GlobalOptimizeStatus)
+async def optimize_global(request: GlobalOptimizeRequest) -> GlobalOptimizeStatus:
+    """Start optimization for every ticker (explicit list or a universe).
+
+    Returns immediately with a ``run_id``; poll ``GET /optimize/global/{id}``
+    for progress (current ticker, completed/failed counts, ETA, results).
+    Failures are isolated per ticker and reported in ``errors`` — one bad
+    ticker never aborts the run.
+    """
+    from trading.application.global_optimize import global_optimize_runner
+
+    try:
+        symbols = global_optimize_runner.resolve_symbols(
+            request.symbols, request.category, request.n_tickers,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    token = _open_run(request.run_token)
+    try:
+        cfg = BacktestConfig(
+            initial_cash=request.initial_cash, fee_rate=request.fee_rate,
+            slippage=request.slippage, position_fraction=request.position_fraction,
+            periods_per_year=request.periods_per_year,
+        )
+        state = await global_optimize_runner.start(
+            run_id=token.token,
+            symbols=symbols,
+            strategy=request.strategy,
+            base_params=dict(request.params),
+            grid=request.grid,
+            objective=request.objective,
+            source=request.source,
+            timeframe=request.timeframe,
+            limit=request.limit,
+            cfg=cfg,
+            refresh=request.refresh_data,
+            save_preset=request.save_preset,
+            session_factory=_session_factory_value(),
+            cancel=token,
+        )
+        return GlobalOptimizeStatus(**state.as_dict())
+    except ValueError as exc:
+        run_registry.clear(token.token)
+        raise HTTPException(400, str(exc)) from exc
+
+
+def _session_factory_value():
+    from trading.adapters.persistence import database
+
+    if database._session_factory is None:
+        database.configure()
+    return database._session_factory
+
+
+@router.get("/optimize/global/{run_id}", response_model=GlobalOptimizeStatus)
+async def optimize_global_status(run_id: str) -> GlobalOptimizeStatus:
+    """Progress/result of a global optimization run."""
+    from trading.application.global_optimize import global_optimize_runner
+
+    state = global_optimize_runner.status(run_id)
+    if state is None:
+        raise HTTPException(404, f"unknown optimization run '{run_id}'")
+    return GlobalOptimizeStatus(**state.as_dict())
+
+
+@router.post("/optimize/global/{run_id}/cancel", response_model=CancelOut)
+async def optimize_global_cancel(run_id: str) -> CancelOut:
+    """Stop a running global optimization at the next ticker boundary."""
+    from trading.application.global_optimize import global_optimize_runner
+
+    if not global_optimize_runner.cancel_run(run_id):
+        raise HTTPException(404, f"no running optimization '{run_id}'")
+    return CancelOut(token=run_id, cancelled=True, known=True)
 
 
 @router.post("/autotune")

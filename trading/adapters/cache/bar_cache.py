@@ -133,14 +133,32 @@ _next_probe = float("-inf")  # -inf = "never probed, probe now"
 
 
 async def _probe_redis(redis_url: str) -> BarCache | None:
-    """Return a RedisBarCache if ``redis_url`` answers PING, else None."""
+    """Return a RedisBarCache if ``redis_url`` answers PING, else None.
+
+    Both timeouts are set deliberately: ``socket_connect_timeout`` bounds the
+    TCP handshake (a dead port on this host *times out* rather than refusing)
+    and ``socket_timeout`` bounds the PING reply — a half-dead broker that
+    *accepts* connections but never responds would otherwise hang this await
+    (and therefore every uncached ``load_bars`` call) forever. The
+    ``asyncio.wait_for`` ceiling is belt-and-braces on top of both.
+    """
+    client = None
     try:
         import redis.asyncio as aioredis
 
-        client = aioredis.from_url(redis_url, socket_connect_timeout=_PROBE_TIMEOUT)
-        await client.ping()
+        client = aioredis.from_url(
+            redis_url,
+            socket_connect_timeout=_PROBE_TIMEOUT,
+            socket_timeout=_PROBE_TIMEOUT,
+        )
+        await asyncio.wait_for(client.ping(), timeout=_PROBE_TIMEOUT * 2)
         return RedisBarCache(client)
     except Exception:
+        if client is not None:
+            try:
+                await client.aclose()
+            except Exception:  # a failed close must not mask the probe result
+                pass
         return None
 
 

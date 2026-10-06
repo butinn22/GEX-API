@@ -100,6 +100,22 @@ async def test_strategies_and_portfolio(client):
     assert r.json()["configured"] is False  # no live keys
 
 
+async def test_strategy_schema_endpoint(client):
+    """The console builds its settings form from this payload."""
+    r = await client.get("/api/v1/strategies/trend_confluence_pine/schema")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["name"] == "trend_confluence_pine"
+    assert {"TC", "EMF", "ADL", "MOM", "PINE"} <= set(d["groups"])
+    keys = {p["key"] for p in d["params"]}
+    assert {"tp_percent", "trailing_percent", "emf.damping", "momentum_period"} <= keys
+    assert d["defaults"]["tp_percent"] == 2.0
+    assert d["sweep"]["trailing_percent"]
+    # an unknown strategy returns an empty (but valid) schema
+    empty = await client.get("/api/v1/strategies/nope/schema")
+    assert empty.status_code == 200 and empty.json()["params"] == []
+
+
 async def test_orders_require_credentials(client):
     r = await client.post("/api/v1/auth/token", json={"username": "admin", "password": "admin"})
     token = r.json()["access_token"]

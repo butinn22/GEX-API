@@ -1,0 +1,85 @@
+classDiagram
+    class StrategyPresetRow {
+        +int id
+        +str symbol
+        +str strategy
+        +str strategy_name
+        +int version
+        +str strategy_version
+        +str params_json
+        +str timeframe
+        +str metrics_json
+        +str status
+        +str backtest_ref
+        +str source
+        +str optimizer_run_id
+        +bool is_default
+        +str notes
+    }
+
+    class PresetRepository {
+        +create(..., strategy_name, version, timeframe, metrics_json, status, backtest_ref) StrategyPresetRow
+        +get(preset_id) StrategyPresetRow?
+        +list(symbol?, strategy?, strategy_name?) List
+        +get_default(symbol, strategy, strategy_name?) StrategyPresetRow?
+        +get_live(symbol, strategy) StrategyPresetRow?
+        +list_versions(symbol, strategy, strategy_name) List
+        +latest_per_name(symbol?, strategy?) List
+        +next_version(symbol, strategy, strategy_name) int
+        +set_default(preset_id) StrategyPresetRow?
+        +set_status(preset_id, status) StrategyPresetRow?
+        +demote_live(symbol, strategy) int
+        +update_params(preset_id, params_json, notes?) StrategyPresetRow?
+        +delete(preset_id) bool
+    }
+
+    class PresetService {
+        +save_version(symbol, strategy?, strategy_name?, params, source, optimizer_run_id?, metrics?, timeframe?, backtest_ref?, notes?) StrategyPresetRow
+        +save(...) StrategyPresetRow
+        +save_optimization(..., metrics?, strategy_name?, timeframe?) StrategyPresetRow
+        +update(preset_id, params, notes?) StrategyPresetRow?
+        +list_versions(symbol, strategy, strategy_name) List
+        +latest_per_name(symbol?, strategy?) List
+        +validate_for_live(preset_id) tuple~bool, list~
+        +promote(preset_id) StrategyPresetRow
+        +rollback(preset_id) StrategyPresetRow
+        +demote(preset_id) StrategyPresetRow
+        +get_deployable(symbol, strategy, preset_id?) dict
+        +params_of(row) dict
+        +full_params(strategy, symbol, overrides) dict
+    }
+
+    class PresetsRouter {
+        +POST /presets create_preset()
+        +GET /presets/latest latest_presets()
+        +GET /presets/versions list_versions()
+        +GET /presets/{id}/validate validate_preset()
+        +POST /presets/{id}/promote promote_preset()
+        +POST /presets/{id}/rollback rollback_preset()
+        +POST /presets/{id}/demote demote_preset()
+    }
+
+    class SignalEngine {
+        +SignalEngineConfig params_by_symbol
+        +SignalEngineConfig preset_ids
+        +reload_ticker(symbol) bool
+        -_build_strategy(symbol) Strategy
+    }
+
+    class SignalKeyService {
+        +create(...) tickers store preset_id, params=null
+        +generate(...) resolve via PresetService.get_deployable
+    }
+
+    class PresetValidationError {
+        +str code
+        +list~dict~ reasons
+    }
+
+    PresetService --> PresetRepository : uses
+    PresetRepository --> StrategyPresetRow : persists
+    PresetsRouter --> PresetService : calls
+    PresetsRouter --> SignalEngine : hot-swap on promote/demote
+    SignalEngine --> PresetService : get_deployable
+    SignalKeyService --> PresetService : get_deployable
+    PresetService ..> PresetValidationError : raises

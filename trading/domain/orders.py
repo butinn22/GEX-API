@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import Iterator
+from typing import Any, Iterator, Mapping
 
 from .base import utcnow
 from .enums import OrderStatus, OrderType, PositionSide, Side, TimeInForce
@@ -53,7 +53,21 @@ _TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
 
 @dataclass(frozen=True)
 class Signal:
-    """A strategy's opinion: direction + reason + strength (0..1), optionally sized."""
+    """A strategy's opinion: direction + reason + strength (0..1), optionally sized.
+
+    Beyond direction/reason/strength the signal carries the **complete trade
+    plan** the strategy wants executed. Those fields are optional so existing
+    simple strategies stay untouched, but the confluence-breakout family fills
+    them all in — that is what makes a signal self-describing enough to hand to
+    a broker (or to export as a per-position row) without re-deriving anything.
+
+    ``entry_price`` / ``stop_loss`` / ``take_profit`` are the levels the risk
+    model needs; ``position_size`` / ``risk_pct`` / ``risk_amount`` describe the
+    intended exposure (fraction of equity, and the currency amount risked
+    between entry and stop); ``timeframe`` is the bar interval the signal was
+    computed on; ``bar_time`` is the timestamp of the *closed bar* that produced
+    it (which can lag ``timestamp``, the emission time).
+    """
 
     symbol: str
     side: Side
@@ -63,10 +77,47 @@ class Signal:
     strength: float = 1.0
     price: Price | None = None
     quantity: Quantity | None = None
+    # ── trade plan ──
+    entry_price: float | None = None
+    stop_loss: float | None = None
+    take_profit: float | None = None
+    timeframe: str | None = None
+    risk_pct: float | None = None
+    risk_amount: float | None = None
+    position_size: float | None = None
+    bar_time: datetime | None = None
+    #: Free-form extras (indicator snapshot, exit cause, trail level, …).
+    meta: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.strength <= 1.0):
             raise ValueError("signal strength must be in [0, 1]")
+
+    def plan_dict(self) -> dict[str, Any]:
+        """JSON-serialisable view of the trade plan (``None`` entries dropped)."""
+        out = {
+            "symbol": self.symbol,
+            "side": self.side.value,
+            "strategy": self.strategy,
+            "reason": self.reason,
+            "timestamp": self.timestamp.isoformat(),
+            "strength": self.strength,
+            "entry_price": self.entry_price,
+            "stop_loss": self.stop_loss,
+            "take_profit": self.take_profit,
+            "timeframe": self.timeframe,
+            "risk_pct": self.risk_pct,
+            "risk_amount": self.risk_amount,
+            "position_size": self.position_size,
+            "bar_time": self.bar_time.isoformat() if self.bar_time else None,
+        }
+        if self.price is not None:
+            out["price"] = self.price.value if hasattr(self.price, "value") else float(self.price)
+        if self.quantity is not None:
+            out["quantity"] = self.quantity.value if hasattr(self.quantity, "value") else float(self.quantity)
+        if self.meta:
+            out["meta"] = dict(self.meta)
+        return {k: v for k, v in out.items() if v is not None}
 
 
 # ── OrderIntent ───────────────────────────────────────────────────────

@@ -23,12 +23,24 @@ from trading.api.local_client_ws import (
     stop_dispatcher,
 )
 from trading.api.middleware import RateLimitMiddleware
-from trading.api.routers import backtest, data, export, keys, portfolio, strategies
+from trading.api.routers import (
+    backtest,
+    dashboard,
+    data,
+    export,
+    keys,
+    portfolio,
+    presets,
+    signal_keys,
+    signals,
+    strategies,
+)
 from trading.api.websockets import router as ws_router
 from trading.config import settings
 from trading.domain import RateLimitExceededError, TradingError
 from trading.logging_config import CorrelationIdMiddleware, configure_logging
 from trading.observability import metrics_response
+from trading.application.signal_engine import signal_engine
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -38,7 +50,11 @@ async def lifespan(_: FastAPI):
     configure_logging()
     await init_db()
     await start_dispatcher()  # fan signal_hub out to subscribed local clients
+    # A previous process may have left open positions behind; adopting them is
+    # safe (the engine only appends), so the ledger is never purged implicitly.
     yield
+    if signal_engine.running:
+        await signal_engine.stop()
     await stop_dispatcher()
     # Release the fetchers' HTTP connection pools; without this the loop-scoped
     # registry keeps live sockets open until the process exits.
@@ -70,8 +86,12 @@ app.include_router(strategies.router, prefix=_API)
 app.include_router(portfolio.router, prefix=_API)
 app.include_router(data.router, prefix=_API)
 app.include_router(export.router, prefix=_API)
+app.include_router(presets.router, prefix=_API)
+app.include_router(signal_keys.router, prefix=_API)
+app.include_router(signals.router, prefix=_API)
 app.include_router(ws_router)
 app.include_router(local_client_router)
+app.include_router(dashboard.router)  # /API_KEY/{key} — key is the credential
 
 
 @app.get("/health")

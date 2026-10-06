@@ -80,6 +80,15 @@ def _trend_confluence(symbol: str, **p) -> Strategy:
     return TrendConfluenceStrategy(symbol, params=params or None)
 
 
+def _trend_confluence_unified(symbol: str, **p) -> Strategy:
+    from trading.application.strategies.trend_confluence_unified import (
+        UnifiedTrendStrategy,
+    )
+
+    params = {k: v for k, v in p.items() if v is not None}
+    return UnifiedTrendStrategy(symbol, params=params or None)
+
+
 STRATEGY_REGISTRY = StrategyRegistry()
 STRATEGY_REGISTRY.register("sma_crossover", _sma, params=["fast", "slow"])
 STRATEGY_REGISTRY.register("buy_and_hold", lambda symbol, **p: BuyAndHold(symbol))
@@ -103,6 +112,67 @@ STRATEGY_REGISTRY.register(
             "use_options_walls", "gamma_flip_filter", "respect_call_wall",
             "exit_at_call_wall", "allow_range", "range_size_mult",
             "allow_long", "allow_short", "atr_trail_mult", "options"],
+)
+
+
+def _unified_param_names() -> list[str]:
+    from trading.application.strategies.trend_confluence_unified import (
+        UNIFIED_PARAM_NAMES,
+    )
+
+    return list(UNIFIED_PARAM_NAMES)
+
+
+STRATEGY_REGISTRY.register(
+    "trend_confluence_unified", _trend_confluence_unified,
+    params=_unified_param_names(),
+)
+
+
+def _trend_confluence_pine(symbol: str, **p) -> Strategy:
+    from trading.application.strategies.trend_confluence_pine import (
+        PineConfluenceStrategy,
+    )
+
+    params = {k: v for k, v in p.items() if v is not None}
+    return PineConfluenceStrategy(symbol, params=params or None)
+
+
+def _pine_param_names() -> list[str]:
+    from trading.application.strategies.trend_confluence_pine import (
+        PINE_PARAM_NAMES,
+    )
+
+    return list(PINE_PARAM_NAMES)
+
+
+STRATEGY_REGISTRY.register(
+    "trend_confluence_pine", _trend_confluence_pine,
+    params=_pine_param_names(),
+)
+
+
+def _confluence_breakout(symbol: str, **p) -> Strategy:
+    from trading.application.strategies.confluence_breakout import (
+        ConfluenceBreakoutStrategy,
+    )
+
+    params = {k: v for k, v in p.items() if v is not None}
+    preset = params.pop("preset", None)
+    return ConfluenceBreakoutStrategy(symbol, params=params or None, preset=preset)
+
+
+def _confluence_breakout_param_names() -> list[str]:
+    from trading.application.strategies.confluence_breakout import (
+        ConfluenceBreakoutParams,
+    )
+
+    return list(ConfluenceBreakoutParams.FIELD_NAMES)
+
+
+STRATEGY_REGISTRY.register(
+    "confluence_breakout", _confluence_breakout,
+    params=_confluence_breakout_param_names(),
 )
 
 

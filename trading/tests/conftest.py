@@ -8,6 +8,9 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
+from typing import Any
+
+from sqlalchemy import event
 
 import pytest
 
@@ -18,6 +21,23 @@ os.environ.setdefault("TRADING_DATABASE_URL", f"sqlite+aiosqlite:///{_db.as_posi
 os.environ.setdefault("TRADING_SECRET_KEY", "test-secret-key")
 os.environ.setdefault("TRADING_ADMIN_USERNAME", "admin")
 os.environ.setdefault("TRADING_ADMIN_PASSWORD", "admin")
+
+# Shared SQLite file + many async sessions (live-engine background tasks,
+# request sessions, fixture cleanups) → writers occasionally hit the default
+# 5 s busy timeout with "database is locked", which flakes the suite. WAL
+# allows readers during writes and a longer busy timeout makes writers wait
+# instead of erroring. Test-infra only; production is Postgres.
+import trading.adapters.persistence.database as _database
+
+_engine = _database.configure()
+
+
+@event.listens_for(_engine.sync_engine, "connect")
+def _sqlite_pragmas(dbapi_conn: Any, _record: Any) -> None:
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA busy_timeout=15000")
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.close()
 
 
 @pytest.fixture(autouse=True)

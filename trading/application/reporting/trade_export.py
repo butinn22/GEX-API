@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from typing import Any, Iterable, Sequence
 from xml.sax.saxutils import escape
 
-from trading.application.backtest.trade_log import TradeEvent, event_from_fill
+from trading.application.backtest.trade_log import TradeEvent, events_from_fill
 from trading.domain import Fill, Position, PositionSide, Side
 
 __all__ = [
@@ -28,6 +28,8 @@ __all__ = [
     "events_to_csv",
     "events_to_xlsx",
     "events_from_order_rows",
+    "table_to_csv",
+    "table_to_xlsx",
 ]
 
 TRADE_CSV_COLUMNS = [
@@ -63,7 +65,7 @@ _RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>"""
 
 _WORKBOOK = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="trades" sheetId="1" r:id="rId1"/></sheets></workbook>"""
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="{name}" sheetId="1" r:id="rId1"/></sheets></workbook>"""
 
 _WORKBOOK_RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>"""
@@ -102,13 +104,39 @@ def events_to_xlsx(events: Sequence[TradeEvent]) -> bytes:
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("[Content_Types].xml", _CONTENT_TYPES)
         z.writestr("_rels/.rels", _RELS)
-        z.writestr("xl/workbook.xml", _WORKBOOK)
+        z.writestr("xl/workbook.xml", _WORKBOOK.format(name="trades"))
         z.writestr("xl/_rels/workbook.xml.rels", _WORKBOOK_RELS)
         z.writestr("xl/worksheets/sheet1.xml", _sheet_xml(rows))
     return buf.getvalue()
 
 
 # ── live trades: classify rows from the orders table ─────────────────
+
+
+def table_to_csv(columns: Sequence[str], rows: Iterable[Sequence[Any]]) -> str:
+    """CSV for an arbitrary table (headers + rows), machine-readable."""
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(list(columns))
+    for row in rows:
+        writer.writerow(["" if v is None else v for v in row])
+    return buf.getvalue()
+
+
+def table_to_xlsx(columns: Sequence[str], rows: Iterable[Sequence[Any]],
+                  sheet_name: str = "Sheet1") -> bytes:
+    """XLSX for an arbitrary table — same dependency-free writer as above."""
+    data = [list(columns)] + [
+        ["" if v is None else v for v in row] for row in rows
+    ]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", _CONTENT_TYPES)
+        z.writestr("_rels/.rels", _RELS)
+        z.writestr("xl/workbook.xml", _WORKBOOK.format(name=sheet_name))
+        z.writestr("xl/_rels/workbook.xml.rels", _WORKBOOK_RELS)
+        z.writestr("xl/worksheets/sheet1.xml", _sheet_xml(data))
+    return buf.getvalue()
 
 
 def events_from_order_rows(rows: Sequence[Any]) -> list[TradeEvent]:
@@ -141,9 +169,9 @@ def events_from_order_rows(rows: Sequence[Any]) -> list[TradeEvent]:
             price=price, quantity=qty,
             timestamp=row.created_at or datetime.now(timezone.utc),
         )
-        ev = event_from_fill(pos, fill, strategy=row.strategy, reason=row.reason)
-        if not known_price:
-            ev = replace(ev, realized_pnl=0.0, pct_return=0.0)
-        events.append(ev)
+        for ev in events_from_fill(pos, fill, strategy=row.strategy, reason=row.reason):
+            if not known_price:
+                ev = replace(ev, realized_pnl=0.0, pct_return=0.0)
+            events.append(ev)
         positions[row.symbol] = pos.apply_fill(fill)
     return events
