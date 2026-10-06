@@ -549,11 +549,17 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
               <div style="display:flex;gap:8px;align-items:flex-end">
                 <div class="field" style="flex:1"><label for="bt-preset">Load from saved strategy</label>
                   <select id="bt-preset"></select></div>
-                <button class="btn btn-ghost btn-sm" id="bt-preset-apply" style="margin-bottom:1px">Apply to basket</button>
+                <button class="btn btn-ghost btn-sm" id="bt-preset-apply" style="margin-bottom:1px">Apply to matching ticker</button>
               </div>
-              <p class="muted tiny" style="margin:8px 0 0">Applies the version's
-                strategy + parameters to its basket ticker — Analyze and Optimize
-                then run with the saved settings verbatim (no re-entry).</p>
+              <div class="eyebrow" style="margin-top:10px">Assign to basket</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-ghost btn-sm" id="bt-preset-apply-all" title="Bind every ticker in the basket to this version">Apply to All</button>
+                <button class="btn btn-ghost btn-sm" id="bt-preset-apply-selected" title="Bind only the ◉ enabled tickers to this version">Apply to Selected</button>
+              </div>
+              <p class="muted tiny" style="margin:8px 0 0">Assigning binds each route row to the
+                version's strategy + parameters (chip below the strategy dropdown) — Analyze,
+                Optimize and the portfolio backtest then run with the saved settings verbatim.
+                Editing a row's strategy clears its binding; clear a chip with ✕.</p>
             </div>
           </div>
 
@@ -681,10 +687,11 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
             <div class="card">
               <div class="card-head"><h2>Per-ticker attribution</h2><span class="spacer"></span>
                 <span class="sub">Analyze = win/loss diagnostics · Optimize = parameter search</span></div>
+              <div class="tiny" id="attr-summary" style="padding:10px 19px 0;color:var(--muted)"></div>
               <div style="overflow-x:auto">
                 <table class="data">
                   <thead><tr>
-                    <th>Symbol</th><th>Strategy</th><th>Route</th><th>Weight</th><th>Capital</th>
+                    <th>Symbol</th><th>Strategy</th><th>Assignment</th><th>Params</th><th>Route</th><th>Weight</th><th>Capital</th>
                     <th>Trades</th><th>Return</th><th>Sharpe</th><th>Max DD</th><th></th>
                   </tr></thead>
                   <tbody id="attr-body"></tbody>
@@ -739,6 +746,37 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
                 </div>
                 <h3 class="eyebrow">Recommendations</h3>
                 <div id="ta-recs"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="card-transfer">
+            <div class="card-head"><h2>Transfer basket</h2><span class="spacer"></span>
+              <span class="sub">export the exact basket as JSON, or deploy it straight to live signals</span></div>
+            <div class="section-body">
+              <p class="muted tiny" style="margin:0">Validate &amp; preview runs the server's
+                export checks and returns a lossless parameter snapshot (each ticker's fully
+                resolved params) that you can copy, archive, or POST back to
+                <span class="mono">/backtest/portfolio</span>. Deploy creates a signal key whose
+                per-ticker params are frozen at exactly these values.</p>
+              <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                <div class="field" style="max-width:220px"><label for="tf-broker">API / broker provider</label>
+                  <select id="tf-broker">
+                    <option value="bingx" selected>BingX — crypto futures</option>
+                    <option value="tbank">TBANK — Russian equities</option>
+                  </select></div>
+                <div class="field" style="flex:1;min-width:180px"><label for="tf-label">Label</label>
+                  <input id="tf-label" placeholder="basket transfer — optional" /></div>
+                <button class="btn btn-ghost" id="tf-validate">Validate &amp; preview</button>
+                <button class="btn btn-primary" id="tf-deploy">Deploy to live signals</button>
+              </div>
+              <div id="tf-error" class="note err" hidden></div>
+              <div id="tf-out" hidden>
+                <div style="display:flex;gap:8px;margin-bottom:8px">
+                  <button class="btn btn-ghost btn-sm" id="tf-copy">Copy payload JSON</button>
+                  <span class="faint tiny" style="align-self:center">lossless snapshot — tickers[] map 1:1 onto TickerConfig</span>
+                </div>
+                <pre class="code" id="tf-payload"></pre>
               </div>
             </div>
           </div>
@@ -1223,7 +1261,9 @@ function headers(extra) {
 }
 function apiError(status, detail) {
   const e = new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
-  e.status = status; return e;
+  e.status = status;
+  e.detail = detail;   // structured details (e.g. 422 validation_failed) stay inspectable
+  return e;
 }
 async function json(path, opts = {}) {
   if (S.demo) return mock(path, opts);
@@ -1299,10 +1339,16 @@ function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0;
 
 function demoPortfolio() {
   const spec = [
-    { symbol: "NVDA", strategy: "trend_confluence", source: "yfinance", fetch: "NVDA",   drift: 0.0011, vol: 0.019, weight: 1.4 },
-    { symbol: "BTC",  strategy: "sma_crossover_ls",  source: "bybit",    fetch: "BTCUSDT", drift: 0.0009, vol: 0.026, weight: 1.2 },
-    { symbol: "SPY",  strategy: "buy_and_hold",      source: "yfinance", fetch: "SPY",    drift: 0.0004, vol: 0.009, weight: 1.0 },
-    { symbol: "SBER", strategy: "momentum",          source: "moex",     fetch: "SBER",   drift: 0.0006, vol: 0.016, weight: 0.8 },
+    { symbol: "NVDA", strategy: "trend_confluence", source: "yfinance", fetch: "NVDA",   drift: 0.0011, vol: 0.019, weight: 1.4,
+      assignment: "preset", optimized: true, sname: "nvda-core", pid: 42, pver: 3,
+      params: { ema_fast: 20, ema_mid: 50, ema_slow: 200, zone_atr: 0.5, tp_percent: 2.0, trailing_percent: 1.0 } },
+    { symbol: "BTC",  strategy: "sma_crossover_ls",  source: "bybit",    fetch: "BTCUSDT", drift: 0.0009, vol: 0.026, weight: 1.2,
+      assignment: "preset", optimized: false, sname: "btc-trail", pid: 17, pver: 2,
+      params: { long: { fast: 10, slow: 30 }, short: { fast: 5, slow: 15 } } },
+    { symbol: "SPY",  strategy: "buy_and_hold",      source: "yfinance", fetch: "SPY",    drift: 0.0004, vol: 0.009, weight: 1.0,
+      assignment: "default", optimized: false, sname: "", pid: null, pver: null, params: {} },
+    { symbol: "SBER", strategy: "momentum",          source: "moex",     fetch: "SBER",   drift: 0.0006, vol: 0.016, weight: 0.8,
+      assignment: "adhoc", optimized: false, sname: "", pid: null, pver: null, params: { period: 34 } },
   ];
   const N = 1250, cash = 100000;
   const t0 = Date.now() - N * 864e5;
@@ -1348,7 +1394,10 @@ function demoPortfolio() {
     m.n_trades = 24 + k * 13;
     tickers.push({ symbol: sp.symbol, strategy: sp.strategy, source: sp.source, fetch_symbol: sp.fetch,
       timeframe: "1d", weight: sp.weight, capital: cap, metrics: m,
-      equity_curve: allSeries[k].map((v) => v / allSeries[k][0] * cap), n_trades: m.n_trades });
+      equity_curve: allSeries[k].map((v) => v / allSeries[k][0] * cap), n_trades: m.n_trades,
+      // transparency contract (TickerResultOut) — exercised in demo mode too
+      assignment: sp.assignment, optimized: sp.optimized,
+      strategy_name: sp.sname, preset_id: sp.pid, preset_version: sp.pver, params: sp.params });
   });
   const syms = spec.map((s) => s.symbol);
   const matrix = syms.map((_, i) => syms.map((__, j) => i === j ? 1 : 0));
@@ -1422,6 +1471,8 @@ async function mock(path, opts) {
   if (path.startsWith("/presets")) return [];
   if (path.startsWith("/keys/routing")) return [];
   if (path.startsWith("/keys")) return [];
+  if (path.startsWith("/baskets/deploy")) return demoBasketDeploy(body);
+  if (path.startsWith("/baskets/export")) return demoBasketExport(body);
   if (path.startsWith("/backtest/portfolio")) return demoPortfolio();
   if (path.startsWith("/backtest/analyze")) return demoAnalyze(body.symbol);
   if (path.startsWith("/backtest/optimize")) return demoOptimize(body.symbol);
@@ -1501,6 +1552,53 @@ function demoAutotune(symbol) {
     best_params: { fast: 8, slow: 34 }, long_targets: { entry: 162.4, stop_loss: 155.6, take_profit: 175.1 },
     short_targets: { entry: 160.1, stop_loss: 167.0, take_profit: 147.5 },
     ema50_confirmed_long: true, ema50_confirmed_short: false };
+}
+
+/* Demo stand-ins for POST /baskets/export · /baskets/deploy — mirror the real
+   contract (422 validation_failed with per-ticker errors, lossless payload). */
+function demoBasketExport(body) {
+  const errors = [];
+  (body.tickers || []).forEach((t) => {
+    const hasParams = t.params && Object.keys(t.params).length;
+    if (!t.strategy && !t.preset_id)
+      errors.push({ symbol: t.symbol, code: "strategy_missing",
+        message: "no saved strategy assigned and no explicit strategy provided" });
+    else if (!hasParams && !t.preset_id)
+      errors.push({ symbol: t.symbol, code: "params_missing",
+        message: "no saved strategy assigned and no explicit params provided" });
+  });
+  if (errors.length) throw apiError(422, { code: "validation_failed", errors });
+  return {
+    schema_version: "1",
+    exported_at: new Date().toISOString(),
+    costs: { initial_cash: body.initial_cash, fee_rate: body.fee_rate, slippage: body.slippage,
+             position_fraction: body.position_fraction, periods_per_year: body.periods_per_year },
+    tickers: (body.tickers || []).map((t, i) => {
+      const preset = t.preset_id ? btPresetState.rows.find((r) => r.id === t.preset_id) : null;
+      const hasParams = t.params && Object.keys(t.params).length;
+      return {
+        symbol: t.symbol, strategy: t.strategy,
+        strategy_name: preset ? (preset.strategy_name || "unnamed") : "",
+        preset_id: t.preset_id || null,
+        preset_version: preset ? (preset.version || 1) : null,
+        preset_source: preset ? (preset.source || "manual") : null,
+        backtest_ref: preset ? (preset.backtest_ref || null) : null,
+        params: hasParams ? t.params : { fast: 10, slow: 30 },
+        assignment: t.preset_id ? "preset" : (hasParams ? "adhoc" : "default"),
+        optimized: !!t.preset_id && i === 0,
+        weight: t.weight, source: t.source, timeframe: t.timeframe, limit: t.limit,
+        enabled: t.enabled !== false,
+        warnings: t.preset_id ? [] : ["non-optimized configuration (demo)"],
+      };
+    }),
+  };
+}
+function demoBasketDeploy(body) {
+  const payload = demoBasketExport(body.basket || {});
+  const key = "demo" + uid().slice(0, 10);
+  return { key, exchange: body.exchange || "bingx", label: body.label || "",
+           dashboard: "/API_KEY/" + key, n_tickers: (payload.tickers || []).length,
+           warnings: ["demo mode — the key is not live"] };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -1842,6 +1940,8 @@ function newTicker(symbol, strategy) {
   return {
     symbol: symbol || "", strategy: strategy || "sma_crossover", enabled: true, weight: 1,
     source: "auto", override: "", timeframe: "", limit: null,
+    presetId: null, presetLabel: "",      // binding to a saved strategy version (assignment)
+    basketError: null,                    // last /baskets/export validation error for this row
     fast: 5, slow: 20, period: 20,
     long: { enabled: true, fast: 10, slow: 20, strength: 1 },
     short: { enabled: true, fast: 10, slow: 20, strength: 1 },
@@ -1900,6 +2000,7 @@ function wallsHTML(t, i) {
 }
 function venueOf(t) { return t.override || (t.detect && t.detect.source) || "synthetic"; }
 function routeState(t) {
+  if (t.basketError) return "error";
   if (t.override || t.detect) return "resolved";
   if (t.detecting) return "resolving";
   if (t.detectError) return "error";
@@ -1907,6 +2008,7 @@ function routeState(t) {
 }
 /** The live ticker → fetcher binding chip. */
 function chipHTML(t) {
+  if (t.basketError) return `<span class="route-state neg">export error — ${esc(t.basketError)}</span>`;
   if (t.detecting) return '<span class="route-state"><span class="spin"></span> resolving fetcher…</span>';
   if (t.detectError) return `<span class="route-state neg">unresolved — ${esc(t.detectError)}</span>`;
   if (t.override) {
@@ -1934,6 +2036,16 @@ function updateRoute(i) {
   if (chip) chip.innerHTML = chipHTML(t);
   renderVenueLegend();
 }
+/** Assignment chip under the strategy dropdown: preset name · vX + clear. */
+function presetChipHTML(t, i) {
+  return `<span class="fetch-chip" style="--venue:var(--accent);margin-top:6px;max-width:fit-content"
+      data-preset-chip="${i}" title="Bound to a saved strategy version — runs with its params verbatim">
+    <span class="vdot"></span><span class="vname">${esc(t.presetLabel || "preset")}</span>
+    <button class="btn-icon" data-preset-clear="${i}" title="Clear assignment"
+      aria-label="Clear strategy assignment"
+      style="width:17px;height:17px;min-height:17px;padding:0;border:0;background:none;color:var(--muted);font-size:10px;line-height:1">✕</button>
+  </span>`;
+}
 function routeHTML(t, i) {
   return `<div class="route" data-i="${i}" data-state="${routeState(t)}" data-off="${t.enabled ? 0 : 1}"
       style="--venue:var(--v-${venueOf(t)})">
@@ -1958,7 +2070,8 @@ function routeHTML(t, i) {
       <div class="field"><label>Strategy</label>
         <select data-i="${i}" data-k="strategy">
           ${Object.keys(STRATEGY_LABELS).map((n) => `<option value="${n}" ${t.strategy === n ? "selected" : ""}>${esc(STRATEGY_LABELS[n])}</option>`).join("")}
-        </select></div>
+        </select>
+        ${t.presetId ? presetChipHTML(t, i) : ""}</div>
       <div class="field"><label>Weight · <span class="mono" id="wv-${i}">${(+t.weight).toFixed(2)}</span></label>
         <input type="range" min="0" max="3" step="0.05" value="${t.weight}" data-i="${i}" data-k="weight" /></div>
     </div>
@@ -2076,9 +2189,12 @@ function buildRequest() {
   return {
     tickers: activeTickers().map((t) => {
       const src = synth ? "synthetic" : (t.override || "auto");
-      return { symbol: (t.symbol || "").trim(), strategy: t.strategy, weight: Number(t.weight) || 1,
+      const cfg = { symbol: (t.symbol || "").trim(), strategy: t.strategy, weight: Number(t.weight) || 1,
         source: src, timeframe: $("opt-timeframe").value, limit: Number($("opt-limit").value) || 1500,
         params: paramsFor(t), enabled: true };
+      // a ticker bound to a saved strategy version runs with that preset's params verbatim
+      if (t.presetId) cfg.preset_id = t.presetId;
+      return cfg;
     }),
     initial_cash: Number($("opt-cash").value),
     fee_rate: Number($("opt-fee").value) / 100,
@@ -2135,11 +2251,31 @@ $("bt-preset-apply").onclick = () => {
     t.strategy = row.strategy;
   }
   t.presetId = row.id;
+  t.presetLabel = (row.strategy_name || "unnamed") + " · v" + (row.version || 1);
   renderRoutes();
   markStale();
   toast(row.symbol + " → " + (row.strategy_name || "unnamed") +
         " v" + (row.version || 1) + " (Analyze / Optimize use the saved params)", "ok");
 };
+/* Basket-level assignment: bind one saved strategy version to every ticker
+   ("all") or to the ◉ enabled subset ("selected"). Rows keep their existing
+   strategy dropdowns — assigning only rewrites strategy + presetId/presetLabel. */
+function applyPresetTo(scope) {
+  const id = Number($("bt-preset").value || 0);
+  const row = btPresetState.rows.find((r) => r.id === id);
+  if (!row) return toast("Pick a saved strategy first", "warn");
+  const targets = scope === "all" ? S.tickers.slice() : activeTickers();
+  if (!targets.length)
+    return toast(scope === "all" ? "Add tickers to the basket first"
+                                 : "No enabled tickers — toggle rows with ◉ to select", "warn");
+  const label = (row.strategy_name || "unnamed") + " · v" + (row.version || 1);
+  targets.forEach((t) => { t.strategy = row.strategy; t.presetId = row.id; t.presetLabel = label; });
+  renderRoutes();
+  markStale();
+  toast(label + " → " + targets.length + " ticker(s) (" + (scope === "all" ? "all" : "enabled") + ")", "ok");
+}
+$("bt-preset-apply-all").onclick = () => applyPresetTo("all");
+$("bt-preset-apply-selected").onclick = () => applyPresetTo("selected");
 function updatePreview() {
   const el = $("api-preview"); if (!el) return;
   try { el.textContent = JSON.stringify(buildRequest(), null, 2); } catch (e) { el.textContent = ""; }
@@ -2211,6 +2347,83 @@ async function downloadReport() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   TRANSFER BASKET  —  POST /baskets/export (validate & preview) and
+   POST /baskets/deploy (create a live signal key). The basket body mirrors
+   buildRequest()'s TickerConfig tickers + the global cost fields.
+   ═══════════════════════════════════════════════════════════════════════ */
+function basketBody() {
+  const req = buildRequest();
+  return {
+    tickers: req.tickers,
+    initial_cash: req.initial_cash, fee_rate: req.fee_rate, slippage: req.slippage,
+    position_fraction: req.position_fraction,
+    periods_per_year: PERIODS_PER_YEAR[$("opt-timeframe").value] || 252,
+  };
+}
+/* 422 detail: {code:"validation_failed", errors:[{symbol, code, message}]} */
+function transferErrors(e) {
+  let d = e && e.detail;
+  if (typeof d === "string") { try { d = JSON.parse(d); } catch (err) { return null; } }
+  if (d && typeof d === "object" && d.code === "validation_failed" && Array.isArray(d.errors))
+    return d.errors;
+  return null;
+}
+function clearRouteErrors() { S.tickers.forEach((t) => { delete t.basketError; }); }
+function markRouteErrors(errors) {
+  clearRouteErrors();
+  (errors || []).forEach((err) => {
+    const idx = S.tickers.findIndex((t) =>
+      (t.symbol || "").trim().toUpperCase() === String(err.symbol || "").trim().toUpperCase());
+    if (idx >= 0) S.tickers[idx].basketError = err.message || err.code || "validation failed";
+  });
+  renderRoutes();
+}
+function showTransferErrors(errors) {
+  $("tf-error").hidden = false;
+  $("tf-error").innerHTML = "<div><b>Validation failed</b></div>" + (errors || []).map((x) =>
+    `<div><b>${esc(x.symbol)}</b> — <span class="mono tiny">${esc(x.code || "")}</span>${x.message ? ": " + esc(x.message) : ""}</div>`).join("");
+}
+async function transferValidate() {
+  if (!activeTickers().length) return toast("Add at least one enabled ticker first", "err");
+  $("tf-error").hidden = true; $("tf-out").hidden = true;
+  const btn = $("tf-validate"); btn.disabled = true;
+  setStatus("validating basket…", true);
+  try {
+    const d = await json("/baskets/export", { method: "POST", body: basketBody() });
+    clearRouteErrors(); renderRoutes();
+    $("tf-payload").textContent = JSON.stringify(d, null, 2);
+    $("tf-out").hidden = false;
+    setStatus("basket validated — lossless payload ready to copy");
+    toast("Basket validated — " + ((d.tickers || []).length) + " ticker(s) exported", "ok");
+  } catch (e) {
+    const errs = transferErrors(e);
+    if (errs) { markRouteErrors(errs); showTransferErrors(errs); setStatus(""); }
+    else { setStatus(""); toast("Export failed: " + e.message, "err"); }
+  } finally { btn.disabled = false; }
+}
+async function transferDeploy() {
+  if (!activeTickers().length) return toast("Add at least one enabled ticker first", "err");
+  $("tf-error").hidden = true;
+  const btn = $("tf-deploy"); btn.disabled = true;
+  setStatus("deploying basket to live signals…", true);
+  try {
+    const d = await json("/baskets/deploy", { method: "POST", body: {
+      basket: basketBody(), exchange: $("tf-broker").value,
+      label: $("tf-label").value || "basket transfer" } });
+    clearRouteErrors(); renderRoutes();
+    setStatus("basket deployed — signal key created");
+    toast("Signal key " + d.key + " created — live dashboard: /API_KEY/" + d.key, "ok");
+  } catch (e) {
+    const errs = transferErrors(e);
+    if (errs) { markRouteErrors(errs); showTransferErrors(errs); setStatus(""); }
+    else { setStatus(""); toast("Deploy failed: " + e.message, "err"); }
+  } finally { btn.disabled = false; }
+}
+$("tf-validate").onclick = transferValidate;
+$("tf-deploy").onclick = transferDeploy;
+$("tf-copy").onclick = () => copy($("tf-payload").textContent, "Payload JSON copied");
+
+/* ═══════════════════════════════════════════════════════════════════════
    RESULTS RENDERING
    ═══════════════════════════════════════════════════════════════════════ */
 const METRICS = [
@@ -2234,6 +2447,31 @@ function metricCards(m, equity) {
     return `<div class="kpi${hero}"><div class="k">${label}</div><div class="v ${c}">${val}</div>${spark}</div>`;
   }).join("");
 }
+/* ── transparency cells (TickerResultOut: assignment / params) ─────────
+   Missing fields (old backend, partial demo data) degrade to a dash. */
+function assignmentCellHTML(t) {
+  const a = t.assignment;
+  if (!a) return '<span class="muted">—</span>';
+  if (a === "default")
+    return '<span class="muted">default params</span> <span class="badge warn" title="No saved strategy assigned — the engine ran strategy defaults">not optimized</span>';
+  const ver = t.preset_version ? " v" + t.preset_version : "";
+  const head = a === "preset"
+    ? `<b>${esc(t.strategy_name || "preset")}</b><span class="muted tiny">${esc(ver)}</span>`
+    : '<b>adhoc</b>';
+  const badge = t.optimized
+    ? '<span class="badge ok" title="Traces back to an optimizer run / validated backtest">optimized</span>'
+    : '<span class="badge" title="Not traced to an optimizer run">not optimized</span>';
+  return `${head} ${badge}`;
+}
+function paramsCellHTML(t) {
+  const p = t.params;
+  if (!p || !Object.keys(p).length) return '<span class="muted">—</span>';
+  const entries = Object.entries(pineFlatten(p));
+  const sum = entries.slice(0, 4).map(([k, v]) => `${k}=${v}`).join(" · ") +
+    (entries.length > 4 ? " · …" : "");
+  return `<span class="mono" title="${esc(JSON.stringify(p))}">${esc(sum)}</span>`;
+}
+
 function renderResults(d, fresh) {
   $("kpis").innerHTML = metricCards(d.metrics, d.equity_curve);
   const sp = document.querySelector('[data-spark="1"]');
@@ -2292,11 +2530,17 @@ function renderResults(d, fresh) {
   } else $("card-corr").hidden = true;
 
   /* attribution table */
+  const optN = tickers.filter((t) => t.optimized === true).length;
+  $("attr-summary").textContent = tickers.length
+    ? `${tickers.length} ticker${tickers.length === 1 ? "" : "s"} · ${optN} optimized · ${tickers.length - optN} not optimized`
+    : "";
   $("attr-body").innerHTML = tickers.map((t, k) => {
     const route = t.source || (t.override || "auto");
     return `<tr>
       <td class="txt"><b>${esc(t.symbol)}</b></td>
       <td class="txt">${esc(STRATEGY_LABELS[t.strategy] || t.strategy)}</td>
+      <td class="txt">${assignmentCellHTML(t)}</td>
+      <td class="txt tiny">${paramsCellHTML(t)}</td>
       <td class="txt"><span class="fetch-chip" style="--venue:var(--v-${esc(t.source)})">
         <span class="vdot"></span><span class="vname">${esc((VENUES[t.source] || { label: t.source }).label)}</span></span></td>
       <td>${((t.weight || 0) * 100).toFixed(1)}%</td>
@@ -2309,7 +2553,7 @@ function renderResults(d, fresh) {
         <button class="btn btn-ghost btn-sm" data-analyze="${k}">Analyze</button>
         <button class="btn btn-ghost btn-sm" data-optimize="${k}">Optimize</button>
       </td></tr>`;
-  }).join("") || '<tr><td colspan="10" class="muted txt">no tickers</td></tr>';
+  }).join("") || '<tr><td colspan="12" class="muted txt">no tickers</td></tr>';
 
   if (d.errors && d.errors.length) {
     $("errors-box").hidden = false;
@@ -3522,18 +3766,29 @@ $("routes").addEventListener("input", (e) => {
   }
   const v = el.type === "checkbox" ? el.checked : el.value;
   setPath(S.tickers[Number(i)], k, v);
-  if (k === "symbol") { detectOne(Number(i)); }   // re-render in place, keep focus
+  if (k === "symbol") { delete S.tickers[Number(i)].basketError; detectOne(Number(i)); }   // re-render in place, keep focus
   markStale(); updatePreview();
 });
 $("routes").addEventListener("change", (e) => {
   const el = e.target; const i = el.dataset.i, k = el.dataset.k;
   if (i === undefined || !k) return;
   setPath(S.tickers[Number(i)], k, el.type === "checkbox" ? el.checked : el.value);
-  if (k === "strategy") { renderRoutes(); markStale(); return; }
+  if (k === "strategy") {
+    // a manual strategy edit supersedes the preset binding → unbind the row
+    const t = S.tickers[Number(i)];
+    if (t) { t.presetId = null; t.presetLabel = ""; }
+    renderRoutes(); markStale(); return;
+  }
   if (k === "override") { renderRoutes(); markStale(); return; }
   renderVenueLegend(); updatePreview();
 });
 $("routes").addEventListener("click", (e) => {
+  const pc = e.target.closest("button[data-preset-clear]");
+  if (pc) {
+    const t = S.tickers[Number(pc.dataset.presetClear)];
+    if (t) { t.presetId = null; t.presetLabel = ""; renderRoutes(); markStale(); }
+    return;
+  }
   const rm = e.target.closest("button[data-remove]"), tg = e.target.closest("button[data-toggle]");
   if (rm) { S.tickers.splice(Number(rm.dataset.remove), 1); renderRoutes(); markStale(); return; }
   if (tg) { const t = S.tickers[Number(tg.dataset.toggle)]; t.enabled = !t.enabled; renderRoutes(); markStale(); }
