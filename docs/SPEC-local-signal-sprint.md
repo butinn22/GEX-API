@@ -103,7 +103,7 @@ Server → Client:
   (longs require close > EMA50, shorts close < EMA50).
 - `autotune(symbol, strategy, bars, profile)` → `optimize_strategy` (existing
   train/validation grid search) + volatility stats + SL/TP targets. Runs **before**
-  live trading; exposed as `POST /api/v1/autotune`.
+  live trading; exposed as `POST /api/v1/backtest/autotune`.
 
 ## 7. Trade reporting
 

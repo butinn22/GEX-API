@@ -216,7 +216,7 @@ export replay use the same splitting, so their ledgers stay identical.
   complete column set (trade id, key, broker, ticker, strategy, version, preset,
   entry/exit timestamps, direction, prices, quantity, fees, gross/net PnL,
   return %, duration, exit reason, source).
-* **Near-real-time**: the page auto-polls `/API_KEY/{key}/data` every 15 s,
+* **Near-real-time**: the page auto-polls `/API_KEY/{key}/data` every 60 s,
   has a manual **Refresh** button, and always shows the last-update time.
 
 ## 6. Traceability & error handling

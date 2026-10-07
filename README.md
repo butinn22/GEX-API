@@ -9,7 +9,7 @@ engine (`gex/`). Architecture and decisions are in [`ARCHITECTURE.md`](ARCHITECT
 - `trading/` — the new trading bounded context (hexagonal):
   - `domain/` — pure dataclasses (Signal, OrderIntent, Order state machine, Position/Portfolio, Bar, value objects).
   - `ports/` — async `BaseFetcher`, `BrokerAdapter`, `Strategy`.
-  - `adapters/` — rate limiter (token bucket, Redis+Lua), BingX (HMAC-SHA256), TBANK (dry-run), persistence (encrypted API keys), synthetic fetcher.
+  - `adapters/` — rate limiter (in-memory `TokenBucket` + an **unwired** `RedisTokenBucket`), BingX (HMAC-SHA256), TBANK (dry-run), persistence (encrypted API keys), synthetic fetcher.
   - `application/` — strategy factory, **portfolio backtest** engine, metrics, **Monte-Carlo** engine, server-side **SVG charts** + reporter, cooperative **cancellation**.
   - `api/` — FastAPI REST + JWT + WebSocket stub; `static/` — **multi-ticker backtest console** (API-key manager + backtest UI).
 
@@ -321,7 +321,7 @@ adapter (real `tinkoff-invest` SDK, lazy session, dry-run fallback); order execu
 engine (routing, backoff retry, kill switch) + order persistence; **broker health
 monitor**; **WS reconnect manager**; live WebSocket streaming (signals/orders/
 positions); encrypted API-key storage + JWT + vanilla-JS key manager; token-bucket
-rate limiter (in-memory + Redis/Lua) + **API rate-limit middleware**, CORS,
+rate limiter (in-memory `TokenBucket` + optional `RedisTokenBucket`) + **in-memory, per-IP API rate-limit middleware**, CORS,
 exception handlers; Celery tasks + beat; **TTL cache**; **bulk insert + task-result
 store**; Prometheus `/metrics` + **alert rules** + Grafana dashboards + structlog +
 correlation IDs; Alembic migrations (verified vs SQLite); **property-based tests**

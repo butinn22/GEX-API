@@ -24,9 +24,10 @@ Constraints discovered by inspection:
 
 - The engine is **synchronous** and **pandas-first**; exchange/broker I/O is
   inherently async. We do not rewrite the engine.
-- Rate limiting is already **distributed (Redis + Lua)** with a `Decision`
+- Rate limiting in `gex` is **distributed (Redis + Lua)** with a `Decision`
   (allowed / retry_after / rule_name) and a local bounded fallback — this is the
-  foundation for requirement #1 and is reused, not rebuilt.
+  foundation for requirement #1 and is reused, not rebuilt. (The `trading` API
+  middleware is currently in-memory per-IP — see §3 row 1.)
 - Persistence is sync SQLAlchemy 2.0 (SQLite dev / Postgres prod with graceful
   fallback). No TimescaleDB, no async sessions.
 
@@ -87,21 +88,23 @@ never stops the run. Reads and exports go through
 
 ## 3. Gap analysis (spec vs repo)
 
+> Status column reflects the current tree (2026-10). It was captured as the initial 2026-10-02 spec-vs-repo snapshot.
+
 | # | Requirement | Status | Notes |
 |---|---|---|---|
-| 1 | Unified async `BaseFetcher` (get_ohlcv/get_orderbook/get_trades) | ❌ missing | existing `MarketDataPort` is sync/DataFrame; new async port + wrappers |
-| 1 | Redis-backed strict rate limiting | ✅ exists | `gex/adapters/ratelimit` (Redis+Lua token bucket) reused; add per-exchange rule config |
-| 2 | Pluggable `Strategy` ABC + `Signal`/`OrderIntent` dataclasses | ❌ missing | added this turn; existing Pine strategy re-issued behind it later |
-| 2 | TA-Lib / pandas-ta indicators | ⚠️ partial | `gex/domain/indicators` exists (pandas); pandas-ta/TA-Lib to be wrapped |
-| 3 | Monte-Carlo backtest engine (vectorized + event-driven, GBM/bootstrap/block, CI) | ❌ missing | net-new; numba/joblib for N=10⁴ paths |
-| 4 | TBANK (invest-python, unary + streams, sandbox/prod) | ❌ missing | net-new adapter |
-| 4 | BINGX (REST V3 + WS, HMAC-SHA256, spot+futures) | ❌ missing | net-new adapter |
-| 5 | REST /strategies /backtest /signals /orders /positions /portfolio /data | ⚠️ partial | `gex/routers` cover analytics; trading routes net-new |
-| 5 | WebSocket live signals/streams | ❌ missing | net-new |
-| 5 | JWT auth, rate limiting, Swagger | ⚠️ partial | `gex/auth` (users/telegram) exists; JWT + slowapi net-new for trading |
-| 6 | Celery + Redis tasks | ⚠️ partial | existing queue is Redis **Streams** (`TaskPublisher`), not Celery — see ADR-2 |
-| 6 | Postgres + TimescaleDB (OHLCV/trades hypertables) | ❌ missing | sync Postgres exists; Timescale + async migrations net-new |
-| 6 | Docker, Alembic, Pytest>85%, Prometheus/Grafana, structured logging | ⚠️ partial | structlog + Prometheus + middleware exist in `gex`; Docker/Alembic/Grafana net-new |
+| 1 | Unified async `BaseFetcher` (get_ohlcv/get_orderbook/get_trades) | ✅ exists | `trading/ports/fetcher.py` + `trading/adapters/fetchers/*` |
+| 1 | Redis-backed strict rate limiting | ⚠️ partial | `gex` has Redis+Lua; the `trading` API middleware uses an in-memory per-IP bucket (`trading/api/middleware.py`) — `RedisTokenBucket` present but not wired |
+| 2 | Pluggable `Strategy` ABC + `Signal`/`OrderIntent` dataclasses | ✅ exists | `trading/ports/strategy.py`, `trading/domain/` |
+| 2 | TA-Lib / pandas-ta indicators | ⚠️ partial | pandas indicators in `gex/domain/indicators`; TA-Lib C backend only in Docker |
+| 3 | Monte-Carlo backtest engine (vectorized + event-driven, GBM/bootstrap/block, CI) | ✅ exists | `trading/application/backtest/monte_carlo.py` |
+| 4 | TBANK (invest-python, unary + streams, sandbox/prod) | ✅ exists | `trading/adapters/brokers/tbank.py` (+ `tbank_stream.py`) |
+| 4 | BINGX (REST V3 + WS, HMAC-SHA256, spot+futures) | ✅ exists | `trading/adapters/brokers/bingx.py` (+ `bingx_ws.py`) |
+| 5 | REST /strategies /backtest /signals /orders /positions /portfolio /data | ✅ exists | all routers mounted in `trading/main.py` |
+| 5 | WebSocket live signals/streams | ✅ exists | `trading/api/websockets.py`, `trading/api/local_client_ws.py` |
+| 5 | JWT auth, rate limiting, Swagger | ✅ exists | `trading/api/auth.py`, `trading/api/middleware.py`, `/docs` |
+| 6 | Celery + Redis tasks | ✅ exists | `trading/tasks.py` (`celery_app`) — see ADR-2 |
+| 6 | Postgres + TimescaleDB (OHLCV/trades hypertables) | ⚠️ partial | DDL/`trading/adapters/persistence/timescale.py`, async sessions; needs a Docker/Postgres host |
+| 6 | Docker, Alembic, Pytest>85%, Prometheus/Grafana, structured logging | ✅ exists | `Dockerfile`, `docker-compose.yml`, `alembic/versions/0001-0007`, `trading/observability.py`, `.github/workflows/ci.yml` |
 
 ## 4. Key decisions (ADRs)
 
