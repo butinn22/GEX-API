@@ -1,9 +1,11 @@
 """Security primitives: at-rest encryption (Fernet) and JWT tokens.
 
-API keys are encrypted at rest with Fernet (a key derived from ``secret_key``),
-never stored in plaintext. JWTs are used for API authentication. Both derive
-their keying material from the same ``secret_key`` for simplicity; a real
-deployment should use a KMS (see ARCHITECTURE.md).
+API keys are encrypted at rest with Fernet, never stored in plaintext. JWTs
+authenticate API calls. The two use **separate keying material**:
+``settings.secret_key`` signs JWTs, while ``settings.encryption_secret``
+(``TRADING_BROKER_KEY_SECRET``, falling back to ``secret_key``) derives the
+Fernet key — so a leaked signing key does not also expose stored broker
+credentials. A real deployment should use a KMS (see ARCHITECTURE.md).
 """
 from __future__ import annotations
 

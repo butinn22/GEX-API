@@ -24,7 +24,7 @@ router = APIRouter(
 
 
 def _to_out(row: ApiKeyRow) -> ApiKeyOut:
-    api_key = decrypt(settings.secret_key, row.api_key_encrypted)
+    api_key = decrypt(settings.encryption_secret, row.api_key_encrypted)
     extra = json.loads(row.extra_json or "{}")
     return ApiKeyOut(
         id=row.id,

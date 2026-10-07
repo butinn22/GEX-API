@@ -284,7 +284,7 @@ class TestKeysServiceIntegration:
                           extra={"instruments": ["BTC-USDT"]})
         await svc.add_key(session, exchange="tbank", label="stocks",
                           api_key="k2", api_secret="",
-                          extra={"instruments": ["SBER"]})
+                          extra={"account_id": "acc-2", "instruments": ["SBER"]})
         router = await svc.build_account_router(session)
         assert isinstance(router, AccountRouter)
         assert [a.label for a in router.accounts] == ["crypto", "stocks"]
@@ -299,7 +299,7 @@ class TestKeysServiceIntegration:
                           api_key="k2", api_secret="s2")
         await svc.add_key(session, exchange="tbank", label="stocks",
                           api_key="k3", api_secret="",
-                          extra={"instruments": ["SBER"], "enabled": False})
+                          extra={"account_id": "acc-3", "instruments": ["SBER"], "enabled": False})
         accounts = await svc.resolve_accounts_for_symbol(session, "BTC-USDT")
         labels = [a.label for a in accounts]
         assert labels == ["crypto", "all"]  # disabled tbank account excluded

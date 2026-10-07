@@ -47,6 +47,13 @@ class KeysService:
             raise ValueError(f"unsupported exchange: {exchange}")
         if not api_key:
             raise ValueError("api_key is required")
+        # BingX authenticates every signed call with the secret → mandatory.
+        if exchange == "bingx" and not (api_secret or "").strip():
+            raise ValueError("api_secret is required for bingx credentials")
+        # TBANK routes orders by account id (stored in ``extra``) → mandatory.
+        # Its secret is optional (the token is the credential).
+        if exchange == "tbank" and not str((extra or {}).get("account_id") or "").strip():
+            raise ValueError("account_id is required for tbank credentials")
         repo = ApiKeyRepository(session)
         return await repo.create(
             exchange,

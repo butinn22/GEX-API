@@ -26,4 +26,4 @@ async def require_auth(
 
 
 def get_keys_service() -> KeysService:
-    return KeysService(settings.secret_key)
+    return KeysService(settings.encryption_secret)
