@@ -26,6 +26,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+import time
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
@@ -48,6 +49,7 @@ from trading.application.backtest.portfolio import (
 from trading.application.backtest.reporter import MonteCarloReporter, PortfolioReporter
 from trading.application.backtest.optimize import optimize_strategy
 from trading.application.backtest.trade_analysis import analyze_trades, recommend_adjustments
+from trading.observability import BACKTEST_DURATION
 from trading.application.cancellation import (
     CancelToken,
     RunCancelled,
@@ -101,6 +103,20 @@ CANCELLED_STATUS = 499
 
 
 # ── helpers ────────────────────────────────────────────────────────────
+
+
+async def _timed_backtest(strategy, bars, cfg):
+    """``run_backtest`` wrapped so ``BACKTEST_DURATION`` observes wall-clock.
+
+    Every single-symbol backtest entrypoint funnels through here, so the
+    histogram reflects all of them (``/backtest``, ``/backtest/monte-carlo``,
+    ``/backtest/analyze``) without duplicating timing code.
+    """
+    start = time.perf_counter()
+    try:
+        return await run_backtest(strategy, bars, cfg)
+    finally:
+        BACKTEST_DURATION.observe(time.perf_counter() - start)
 
 
 def _open_run(token: str | None) -> CancelToken:
@@ -526,7 +542,7 @@ async def run(request: BacktestRequest) -> BacktestResponse:
         position_fraction=request.position_fraction,
         periods_per_year=request.periods_per_year,
     )
-    result = await run_backtest(strategy, bars, cfg)
+    result = await _timed_backtest(strategy, bars, cfg)
     idx = _sample_indices(len(bars))
     result_id = await _persist_result(request, result,
                                       strategy=strategy_name, symbol=symbol)
@@ -562,7 +578,7 @@ async def monte_carlo(request: MonteCarloRequest) -> MonteCarloSummaryOut:
             initial_cash=request.initial_cash, fee_rate=request.fee_rate, slippage=request.slippage,
             position_fraction=request.position_fraction, periods_per_year=request.periods_per_year,
         )
-        result = await run_backtest(strategy, bars, cfg)
+        result = await _timed_backtest(strategy, bars, cfg)
         mc = await _run_mc(
             result.equity_curve,
             MonteCarloConfig(
@@ -706,7 +722,7 @@ async def analyze(request: BacktestRequest) -> AnalyzeResponse:
         slippage=request.slippage, position_fraction=request.position_fraction,
         periods_per_year=request.periods_per_year,
     )
-    result = await run_backtest(strategy, bars, cfg)
+    result = await _timed_backtest(strategy, bars, cfg)
     analysis = analyze_trades(result.trades)
     flat_params = {k: v for k, v in params.items() if v is not None}
     return AnalyzeResponse(

@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from trading.domain import Bar, DataFetchError, Exchange, OrderBook, Tick
+from trading.observability import DATA_FETCH_ERRORS
 from trading.ports import BaseFetcher
 
 __all__ = ["FetcherRegistry", "default_registry", "loop_registry", "aclose_loop_registry"]
@@ -61,6 +62,7 @@ class FetcherRegistry:
                 errors.append(f"{ex.value}: empty")
             except DataFetchError as exc:
                 errors.append(f"{ex.value}: {exc}")
+                DATA_FETCH_ERRORS.labels(source=ex.value).inc()
         raise DataFetchError(f"all sources failed for {symbol}: {'; '.join(errors)}")
 
     async def get_orderbook(self, exchanges: list[Exchange], symbol: str, *, depth: int = 20) -> OrderBook:

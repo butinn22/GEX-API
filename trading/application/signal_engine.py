@@ -53,6 +53,7 @@ from trading.application.strategies.confluence_breakout import (
 )
 from trading.adapters.fetchers.registry import FetcherRegistry
 from trading.domain import Bar, Exchange, Signal
+from trading.observability import STRATEGY_SIGNALS
 from trading.ports import Strategy
 
 __all__ = ["SignalEngineConfig", "SignalEngine", "signal_engine"]
@@ -500,6 +501,7 @@ class SignalEngine:
             await session.commit()
 
         self._publish(state, sig, meta, state_name, exit_reason, backfill)
+        STRATEGY_SIGNALS.labels(strategy=sig.strategy, side=sig.side.value).inc()
         if self._audit is not None:
             self._audit.record("live_signal", actor=sig.strategy, symbol=sig.symbol,
                                side=sig.side.value, reason=sig.reason)

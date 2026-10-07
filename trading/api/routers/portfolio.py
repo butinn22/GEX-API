@@ -25,6 +25,7 @@ from trading.domain import (
     Quantity,
     Side,
 )
+from trading.observability import ORDERS_TOTAL
 from trading.ports import BrokerAdapter
 
 from ..deps import get_keys_service, require_auth
@@ -142,6 +143,9 @@ async def place_order(
         order: Order = await broker.place_order(intent)
     except BrokerError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+    ORDERS_TOTAL.labels(
+        exchange=body.exchange, side=order.side.value, status=order.status.value
+    ).inc()
     await OrderRepository(session).create(order, body.exchange)
     order_hub.publish({
         "type": "order", "id": order.id, "exchange": body.exchange,

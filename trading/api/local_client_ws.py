@@ -36,6 +36,7 @@ from trading.application.native_payloads import (
 )
 from trading.application.signal_hub import signal_hub
 from trading.config import settings
+from trading.observability import STRATEGY_SIGNALS
 from trading.security import SecretError, decode_access_token
 
 from .deps import require_auth
@@ -101,6 +102,7 @@ def _handle_message(session: ClientSession, msg: dict[str, Any]) -> dict[str, An
         sig = signal_from_raw(msg.get("payload"), source=session.client_id)
         payloads = native_payloads_for(sig, tbank_lots=max(1, int(sig.quantity.value)) if sig.quantity else None)
         registry.touch(session.session_id)
+        STRATEGY_SIGNALS.labels(strategy=sig.strategy, side=sig.side.value).inc()
         signal_hub.publish({
             "type": "signal",
             "symbol": sig.symbol,

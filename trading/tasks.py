@@ -38,6 +38,7 @@ __all__ = [
     "fetch_market_data_task",
     "reconcile_positions_task",
     "cleanup_old_backtests_task",
+    "broker_health_task",
 ]
 
 celery_app = Celery(
@@ -74,6 +75,10 @@ celery_app.conf.beat_schedule = {
     "cleanup-backtests-daily": {
         "task": "trading.tasks.cleanup_old_backtests_task",
         "schedule": crontab(hour=3, minute=0),
+    },
+    "broker-health-every-5-min": {
+        "task": "trading.tasks.broker_health_task",
+        "schedule": crontab(minute="*/5"),
     },
 }
 
@@ -340,3 +345,52 @@ def reconcile_positions_task() -> dict:
 def cleanup_old_backtests_task(days: int = 30) -> dict:
     """Delete backtest results older than ``days`` (best-effort)."""
     return {"deleted": 0, "note": "backtest result store not wired yet"}
+
+
+@celery_app.task(name="trading.tasks.broker_health_task")
+def broker_health_task() -> dict:
+    """Ping every configured broker; reflect reachability into ``BROKER_STATUS``.
+
+    Without this beat entry the gauge is never set and the ``TradingBrokerDown``
+    alert can never fire. The task builds one broker per configured exchange and
+    runs :class:`BrokerHealthMonitor` over them.
+    """
+    from trading.adapters.brokers.bingx import BingxBroker, BingxClient
+    from trading.adapters.brokers.tbank import TbankBroker
+    from trading.adapters.persistence import database as db
+    from trading.application.broker_health import BrokerHealthMonitor
+    from trading.application.keys_service import KeysService
+    from trading.domain import Exchange
+
+    async def _run() -> dict:
+        db.configure()
+        svc = KeysService(settings.encryption_secret)
+        monitor = BrokerHealthMonitor()
+        results: dict[str, bool] = {}
+        async with db.session_factory()() as session:
+            seen: set[str] = set()
+            for row in await svc.list_keys(session):
+                if row.exchange in seen:
+                    continue
+                seen.add(row.exchange)
+                creds = await svc.resolve_credentials(session, row.exchange)
+                if creds is None:
+                    continue
+                if row.exchange == "bingx":
+                    broker = BingxBroker(BingxClient(
+                        creds["api_key"], creds["api_secret"],
+                        base_url=settings.bingx_base_url,
+                    ))
+                    exchange = Exchange.BINGX
+                elif row.exchange == "tbank":
+                    broker = TbankBroker(
+                        creds["api_key"], creds["extra"].get("account_id", ""),
+                        sandbox=settings.tbank_sandbox,
+                    )
+                    exchange = Exchange.TBANK
+                else:
+                    continue
+                results[row.exchange] = await monitor.check(exchange, broker)
+        return {"checked": results}
+
+    return asyncio.run(_run())
