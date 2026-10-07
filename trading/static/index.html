@@ -551,6 +551,7 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
                   <select id="bt-preset"></select></div>
                 <button class="btn btn-ghost btn-sm" id="bt-preset-apply" style="margin-bottom:1px">Apply to matching ticker</button>
               </div>
+              <div id="bt-preset-error" hidden></div>
               <div class="eyebrow" style="margin-top:10px">Assign to basket</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn btn-ghost btn-sm" id="bt-preset-apply-all" title="Bind every ticker in the basket to this version">Apply to All</button>
@@ -572,6 +573,7 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
             <div class="section-body">
               <div class="legend-venues" id="venue-legend"></div>
               <div class="routes" id="routes"></div>
+              <div id="routes-error" hidden></div>
             </div>
           </div>
 
@@ -1244,6 +1246,16 @@ function toast(msg, kind) {
   setTimeout(() => { el.style.transition = "opacity .3s,transform .3s"; el.style.opacity = "0"; el.style.transform = "translateY(6px)"; }, 2600);
   setTimeout(() => el.remove(), 3000);
 }
+/* Render an error + Retry into a host element. Use this instead of the
+   "No … yet" empty copy whenever a fetch *fails* (empty ≠ error). */
+function panelError(host, msg, retry) {
+  if (!host) return;
+  host.innerHTML =
+    '<div class="note err" style="margin-top:6px">' +
+    esc(msg) + ' <button class="btn btn-ghost btn-sm" data-retry>Retry</button></div>';
+  const b = host.querySelector("[data-retry]");
+  if (b && retry) b.onclick = () => { host.innerHTML = ""; retry(); };
+}
 
 /* ── state ───────────────────────────────────────────────────────────── */
 const S = {
@@ -1307,6 +1319,7 @@ async function json(path, opts = {}) {
   }
   if (res.status === 499) { const e = new Error("cancelled"); e.cancelled = true; throw e; }
   if (!res.ok) {
+    if (res.status === 401) handleAuthFailure();
     let detail = res.status + " " + res.statusText;
     try { const b = await res.json(); detail = b.detail || detail; } catch (e) { /* keep status */ }
     throw apiError(res.status, detail);
@@ -1317,6 +1330,7 @@ async function json(path, opts = {}) {
 async function blobGet(path) {
   if (S.demo) throw apiError(503, "exports need a live server");
   const res = await fetch(API + path, { headers: headers() });
+  if (res.status === 401) handleAuthFailure();
   if (!res.ok) throw apiError(res.status, "export failed (" + res.status + ")");
   return res.blob();
 }
@@ -1327,7 +1341,7 @@ async function textPost(path, opts = {}) {
     body: JSON.stringify(opts.body || {}), signal: opts.signal,
   });
   if (res.status === 499) { const e = new Error("cancelled"); e.cancelled = true; throw e; }
-  if (!res.ok) { let d = res.status; try { d = (await res.json()).detail || d; } catch (e) {} throw apiError(res.status, d); }
+  if (!res.ok) { if (res.status === 401) handleAuthFailure(); let d = res.status; try { d = (await res.json()).detail || d; } catch (e) {} throw apiError(res.status, d); }
   return res.text();
 }
 
@@ -2244,12 +2258,21 @@ function singleRequest(t) {
    version, so Analyze / Optimize run exactly with what was saved. */
 const btPresetState = { loaded: false, rows: [] };
 async function btLoadPresets() {
+  const note = $("bt-preset-error");
+  let failed = false;
   try {
     const rows = await json("/presets/latest");
     btPresetState.rows = Array.isArray(rows) ? rows : [];
-  } catch (err) { btPresetState.rows = []; }
+  } catch (e) { btPresetState.rows = []; failed = true; }
   const host = $("bt-preset");
   if (!host) return;
+  if (failed) {
+    // Show an error + Retry — never the "no saved strategies yet" empty copy.
+    host.innerHTML = "<option value=''>⚠ strategies unavailable</option>";
+    if (note) { note.hidden = false; panelError(note, "Couldn't load saved strategies.", btLoadPresets); }
+    return;
+  }
+  if (note) { note.hidden = true; note.innerHTML = ""; }
   host.innerHTML = btPresetState.rows.length
     ? btPresetState.rows.map((r) =>
         "<option value='" + r.id + "'>" + esc(r.symbol) + " · " +
@@ -2688,8 +2711,10 @@ async function optimizeTicker(k) {
    ═══════════════════════════════════════════════════════════════════════ */
 async function loadKeys() {
   let keys = [];
-  try { keys = (await json("/keys")) || []; } catch (e) { keys = []; }
+  let failed = false;
+  try { keys = (await json("/keys")) || []; } catch (e) { failed = true; }
   const host = $("accounts-list");
+  if (failed) { panelError(host, "Couldn't load accounts — the server didn't respond.", loadKeys); return; }
   if (!keys.length) { host.innerHTML = '<div class="muted sm">No accounts yet — connect one on the left.</div>'; return; }
   host.innerHTML = keys.map((k) => {
     const s = k.settings || {};
@@ -2722,6 +2747,9 @@ async function loadKeys() {
     </div>`;
   }).join("");
   $$("button[data-del]", host).forEach((b) => b.onclick = async () => {
+    const card = b.closest(".route");
+    const label = (card.querySelector("b")?.textContent || ("account #" + b.dataset.del)).trim();
+    if (!confirm('Delete broker account "' + label + '"?\n\nThis permanently removes its encrypted API credentials and its routing/risk settings. This cannot be undone.')) return;
     try { await json("/keys/" + b.dataset.del, { method: "DELETE" }); loadKeys(); }
     catch (e) { toast("Delete failed: " + e.message, "err"); }
   });
@@ -3723,7 +3751,15 @@ async function dpCreateKey() {
 
 async function loadSignalKeys() {
   let keys = [];
-  try { keys = await json("/signal-keys"); } catch (err) { return; }
+  let failed = false;
+  try { keys = await json("/signal-keys"); } catch (err) { failed = true; }
+  if (failed) {
+    $("dp-keys").innerHTML = "<tr><td colspan='6' class='neg'>Couldn't load signal keys. " +
+      "<button class='btn btn-ghost btn-sm' data-retry-keys>Retry</button></td></tr>";
+    const b = $("dp-keys").querySelector("[data-retry-keys]");
+    if (b) b.onclick = () => loadSignalKeys();
+    return;
+  }
   $("dp-keys").innerHTML = keys.map((k) => {
     const tickers = (k.config && k.config.tickers || []).map((t) => t.symbol).join(", ");
     const status = k.revoked_at ? "<span class='neg'>revoked</span>"
@@ -3741,7 +3777,15 @@ async function loadSignalKeys() {
 
 async function loadDeployPresets() {
   let rows = [];
-  try { rows = await json("/presets"); } catch (err) { return; }
+  let failed = false;
+  try { rows = await json("/presets"); } catch (err) { failed = true; }
+  if (failed) {
+    $("dp-presets").innerHTML = "<tr><td colspan='5' class='neg'>Couldn't load presets. " +
+      "<button class='btn btn-ghost btn-sm' data-retry-presets>Retry</button></td></tr>";
+    const b = $("dp-presets").querySelector("[data-retry-presets]");
+    if (b) b.onclick = () => loadDeployPresets();
+    return;
+  }
   $("dp-presets").innerHTML = rows.map((p) =>
     "<tr><td class='txt'>" + esc(p.symbol) + "</td><td class='txt'>" + esc(p.strategy) +
     "</td><td class='txt'>" + esc(p.source) + "</td><td class='txt'>" +
@@ -3767,6 +3811,8 @@ $("dp-keys").addEventListener("click", async (e) => {
   if (open) { window.open("/API_KEY/" + open.dataset.openDash, "_blank"); return; }
   const rev = e.target.closest("[data-revoke-key]");
   if (rev) {
+    const key = rev.dataset.revokeKey;
+    if (!confirm('Revoke signal key ' + key.slice(0, 12) + '…?\n\nLive signal generation for this key stops immediately. The key is soft-deleted and cannot be re-enabled from this console.')) return;
     try {
       await json("/signal-keys/" + rev.dataset.revokeKey, { method: "DELETE" });
       toast("Key revoked", "ok"); loadSignalKeys();
@@ -3777,6 +3823,20 @@ $("dp-keys").addEventListener("click", async (e) => {
 $("tabs").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-tab]"); if (b) selectTab(b.dataset.tab);
 });
+let _authHandled = false;
+function handleAuthFailure() {
+  if (S.demo) return;                 // demo has no session
+  if ($("view-app").hidden) return;   // already on the login screen (e.g. wrong password)
+  if (_authHandled) return;           // de-dupe: many in-flight calls can 401 at once
+  _authHandled = true;
+  try { localStorage.removeItem("gex.token"); } catch (e) {}
+  S.token = null;
+  $("password").value = "";
+  showLogin();
+  $("login-error").hidden = false;
+  $("login-error").textContent = "Your session expired — please sign in again.";
+  setApiPill("down", "signed out");
+}
 function showLogin() {
   $("view-login").hidden = false; $("view-app").hidden = true;
   $("tabs").hidden = true; $("logout-btn").hidden = true; $("actionbar").hidden = true;
@@ -3794,6 +3854,7 @@ $("login-form").addEventListener("submit", async (e) => {
   try {
     const d = await json("/auth/token", { method: "POST", body: { username: "admin", password: $("password").value } });
     S.token = d.access_token; localStorage.setItem("gex.token", S.token);
+    _authHandled = false;
     $("password").value = ""; showApp(); bootData();
     setApiPill("live", S.demo ? "demo data" : "connected");
   } catch (err) {
@@ -3848,7 +3909,7 @@ $("attr-body").addEventListener("click", (e) => {
 $("ta-close").onclick = () => { $("card-analysis").hidden = true; };
 
 $("btn-add").onclick = () => { S.tickers.push(newTicker("", $("opt-default-strategy").value)); renderRoutes(); markStale(); };
-$("btn-clear").onclick = () => { S.tickers = []; renderRoutes(); markStale(); };
+$("btn-clear").onclick = () => { if (!confirm("Remove all tickers from the basket?")) return; S.tickers = []; renderRoutes(); markStale(); };
 $("btn-auto").onclick = async () => {
   const cat = $("opt-category").value, n = Number($("opt-count").value) || 5;
   try {
@@ -3932,7 +3993,19 @@ async function pingApi() {
   } catch (e) { return false; }
 }
 async function bootData() {
-  try { S.instruments = (await json("/data/instruments")) || []; } catch (e) { S.instruments = []; }
+  const note = $("routes-error");
+  let instrFailed = false;
+  try { S.instruments = (await json("/data/instruments")) || []; }
+  catch (e) { S.instruments = []; instrFailed = true; }
+  if (instrFailed) {
+    S.instrumentsError = true;
+    toast("Couldn't load the instrument list — type symbols manually.", "err");
+    setApiPill("down", "degraded");
+    panelError(note, "Instrument list unavailable.", bootData);
+  } else {
+    S.instrumentsError = false;
+    if (note) { note.hidden = true; note.innerHTML = ""; }
+  }
   $("instrument-list").innerHTML = S.instruments.slice(0, 400)
     .map((i) => `<option value="${esc(i.symbol)}">${esc(i.name || i.symbol)} · ${esc(i.category)}</option>`).join("");
   const opts = Object.keys(STRATEGY_LABELS)
@@ -3959,8 +4032,26 @@ function seedTickers() {
     S.token = "demo"; showApp(); await bootData(); selectTab("backtest"); await runBacktest();
     return;
   }
-  if (S.token) { showApp(); await bootData(); selectTab("backtest"); }
-  else showLogin();
+  if (S.token) {
+    // Probe a protected endpoint before revealing the app: a stale/expired
+    // token in localStorage must not render the console as if it still works.
+    try {
+      await json("/keys", { timeoutMs: 4000 });
+      _authHandled = false;
+      showApp(); await bootData(); selectTab("backtest");
+    } catch (e) {
+      if (e && e.status === 401) {                 // stale token from a previous session
+        localStorage.removeItem("gex.token"); S.token = null;
+        showLogin();
+        $("login-error").hidden = false;
+        $("login-error").textContent = "Your session expired — please sign in again.";
+      } else {
+        // network/other failure → keep today's demo fallback
+        S.demo = true; enterDemo("Backend unreachable — showing demo data");
+        showApp(); await bootData(); selectTab("backtest");
+      }
+    }
+  } else showLogin();
 })();
 </script>
 </body>
