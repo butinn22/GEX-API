@@ -11,6 +11,7 @@ and a Refresh button with the last-update time (the page also auto-refreshes).
 from __future__ import annotations
 
 import asyncio
+import html
 import json
 import math
 from datetime import datetime, timezone
@@ -128,7 +129,12 @@ def _pnl_histogram(pnls: list[float], bins: int = 20):
 
 @router.get("/API_KEY/{key}", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard(key: str) -> HTMLResponse:
-    row, _svc, session = await _load_key(key)
+    # The key path segment is user-controlled (anybody can GET any key), so an
+    # unknown/revoked key must render an HTML page, not a raw JSON 4xx body.
+    try:
+        row, _svc, session = await _load_key(key)
+    except HTTPException as exc:
+        return HTMLResponse(_error_page(str(exc.detail)), status_code=exc.status_code)
     _key_guard(row)
     await session.close()
     config = json.loads(row.config_json or "{}")
@@ -296,13 +302,32 @@ async def dashboard_refresh(key: str) -> JSONResponse:
 # ── the page ──────────────────────────────────────────────────────────
 
 
+def _error_page(message: str) -> str:
+    """A minimal, escaped HTML error page (never echo raw JSON to a browser)."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard unavailable</title>
+<style>body {{ margin:0; font:14px/1.5 system-ui, sans-serif; background:#0f1420; color:#dbe4f0; }}
+main {{ padding:40px 24px; max-width:640px; margin:0 auto; }}
+h1 {{ font-size:18px; }} .muted {{ color:#7d8ca3; }}</style></head>
+<body><main>
+<h1>📡 Live strategy dashboard</h1>
+<p>{html.escape(message)}</p>
+<p class="muted">Check the key, or ask the operator to re-enable / re-issue it.</p>
+</main></body></html>"""
+
+
 def _page(*, key: str, exchange: str, tickers: str, strategy: str) -> str:
+    esc = html.escape
+    key_html = esc(key)
+    key_js = json.dumps(key)  # a safe JS string literal (handles quotes/backslash)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Live dashboard — {key[:10]}…</title>
+<title>Live dashboard — {esc(key[:10])}…</title>
 <style>
   :root {{ color-scheme: dark; }}
   * {{ box-sizing: border-box; }}
@@ -332,16 +357,16 @@ def _page(*, key: str, exchange: str, tickers: str, strategy: str) -> str:
 <body>
 <header>
   <h1>📡 Live strategy dashboard</h1>
-  <span class="badge">broker: {exchange}</span>
-  <span class="badge">tickers: {tickers or "—"}</span>
-  <span class="badge">strategy: {strategy}</span>
-  <span class="badge">key: <code>{key}</code></span>
+  <span class="badge">broker: {esc(exchange)}</span>
+  <span class="badge">tickers: {esc(tickers or "—")}</span>
+  <span class="badge">strategy: {esc(strategy)}</span>
+  <span class="badge">key: <code>{key_html}</code></span>
 </header>
 <main>
   <div class="toolbar">
     <button id="refresh">Refresh</button>
-    <a class="btn" href="/API_KEY/{key}/trades.csv">Download CSV</a>
-    <a class="btn" href="/API_KEY/{key}/trades.xlsx">Download Excel</a>
+    <a class="btn" href="/API_KEY/{key_html}/trades.csv">Download CSV</a>
+    <a class="btn" href="/API_KEY/{key_html}/trades.xlsx">Download Excel</a>
     <span class="muted">last update: <span id="updated">—</span>
       (auto-refresh every 60 s)</span>
     <span id="err"></span>
@@ -365,7 +390,7 @@ def _page(*, key: str, exchange: str, tickers: str, strategy: str) -> str:
   </tr></thead><tbody></tbody></table></div>
 </main>
 <script>
-const KEY = "{key}";
+const KEY = {key_js};
 const $ = (id) => document.getElementById(id);
 const fmt = (x, d=2) => (x === null || x === undefined) ? "—" :
     Number(x).toLocaleString(undefined, {{maximumFractionDigits: d}});

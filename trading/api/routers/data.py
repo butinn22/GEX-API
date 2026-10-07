@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
-from trading.adapters.fetchers import SyntheticFetcher, default_registry
+from trading.adapters.fetchers import SyntheticFetcher, loop_registry
 from trading.application.data_sources import detect_data_source
 from trading.application.instruments import CATEGORIES, load_instruments, select_universe
 from trading.domain import DataFetchError, Exchange
@@ -39,7 +39,10 @@ async def ohlcv(
         if exchanges is None:
             raise HTTPException(400, f"unknown source '{source}'")
         try:
-            bars = await default_registry().get_ohlcv(exchanges, symbol, timeframe, limit=limit)
+            # The loop-scoped registry reuses one HTTP client pool per exchange
+            # and is closed at app shutdown; a per-request ``default_registry()``
+            # built (and leaked) a fresh set of TLS connections every call.
+            bars = await loop_registry().get_ohlcv(exchanges, symbol, timeframe, limit=limit)
         except DataFetchError as exc:
             raise HTTPException(502, str(exc)) from exc
     return [

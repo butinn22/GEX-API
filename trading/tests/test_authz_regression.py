@@ -138,6 +138,13 @@ _GUARDED_ANON_REQUESTS = [
     ("GET", "/api/v1/data/ohlcv/BTC"),
     ("GET", "/api/v1/data/instruments"),
     ("GET", "/api/v1/data/sources"),
+    # Round 2 — management actions added for the audit's create→purge gaps.
+    ("DELETE", "/api/v1/orders/xyz"),
+    ("DELETE", "/api/v1/orders"),
+    ("DELETE", "/api/v1/backtest/results"),
+    ("DELETE", "/api/v1/backtest/results/1"),
+    ("DELETE", "/api/v1/signal-keys/999999/signals"),
+    ("POST", "/api/v1/signal-keys/cache/purge"),
 ]
 
 

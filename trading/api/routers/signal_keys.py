@@ -94,11 +94,26 @@ async def list_keys(svc=Depends(_svc)) -> list[SignalKeyOut]:
     return [_to_out(r) for r in await svc.list()]
 
 
+@router.post("/cache/purge")
+async def purge_summary_cache(svc=Depends(_svc)) -> dict:
+    """Drop the in-process signal-summary cache (forces a regenerate on next load)."""
+    return {"purged": svc.purge_cache()}
+
+
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_key(key_id: int, svc=Depends(_svc)) -> None:
     """Revoke a key (soft delete — it stays auditable but stops working)."""
     if await svc.revoke(key_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "signal key not found")
+
+
+@router.delete("/{key_id}/signals")
+async def delete_key_signals(key_id: int, svc=Depends(_svc)) -> dict:
+    """Hard-delete a key's generated ``key_signals`` rows (direct purge)."""
+    deleted = await svc.delete_signals(key_id)
+    if deleted < 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "signal key not found")
+    return {"deleted": deleted}
 
 
 @router.patch("/{key_id}", response_model=SignalKeyOut)

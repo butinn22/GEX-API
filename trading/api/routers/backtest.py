@@ -28,7 +28,7 @@ import logging
 import math
 import time
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 
 from trading.application.backtest.engine import BacktestConfig, run_backtest
@@ -999,3 +999,32 @@ async def cancel_run(token: str) -> CancelOut:
 async def active_runs() -> list[str]:
     """Tokens of runs currently executing in this process (debug/ops aid)."""
     return run_registry.active_tokens()
+
+
+# ── stored-result management (audit §4: create → purge) ────────────────
+
+
+@router.delete("/results")
+async def purge_results(
+    older_than_days: int | None = Query(default=None, ge=0),
+) -> dict:
+    """Purge stored backtest results (all, or those older than ``older_than_days``)."""
+    from trading.adapters.persistence.bulk import TaskResultStore
+    from trading.adapters.persistence.database import _session_factory
+
+    async with _session_factory() as session:
+        deleted = await TaskResultStore(session).purge(older_than_days)
+    return {"deleted": deleted}
+
+
+@router.delete("/results/{result_id}", status_code=204)
+async def delete_result(result_id: int) -> Response:
+    """Delete one stored backtest result (the console had download-only)."""
+    from trading.adapters.persistence.bulk import TaskResultStore
+    from trading.adapters.persistence.database import _session_factory
+
+    async with _session_factory() as session:
+        removed = await TaskResultStore(session).delete(result_id)
+    if not removed:
+        raise HTTPException(404, "backtest result not found")
+    return Response(status_code=204)

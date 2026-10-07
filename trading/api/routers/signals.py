@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from pydantic import BaseModel, ConfigDict, Field
 
 from trading.adapters.persistence.models import KeySignalRow, SignalPositionRow
 from trading.application.reporting.signal_export import (
@@ -40,6 +41,24 @@ router = APIRouter(
 _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
+class SignalEngineStartRequest(BaseModel):
+    """Typed body for ``POST /signals/engine/start`` (ENG-07).
+
+    ``extra="allow"`` so every remaining :class:`SignalEngineConfig` field
+    (``params``, ``preset_ids``, ``source``, …) still flows through unchanged;
+    the two DoS-prone numbers are range-checked here so the OpenAPI schema
+    documents them and a ``poll_seconds<=0`` request is rejected at the edge.
+    The engine keeps its stricter floors (``poll_seconds>=5``, ``bars>=250``).
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    symbols: list[str] | None = None
+    tickers: list[str] | None = None
+    poll_seconds: float = Field(default=60.0, gt=0, description="seconds between polls (min 5)")
+    bars: int = Field(default=500, ge=1, description="history window per poll (min 250)")
+
+
 def _download(content: str | bytes, filename: str, mime: str) -> Response:
     return Response(
         content=content, media_type=mime,
@@ -48,14 +67,14 @@ def _download(content: str | bytes, filename: str, mime: str) -> Response:
 
 
 @router.post("/engine/start")
-async def engine_start(payload: dict[str, Any]) -> dict[str, Any]:
+async def engine_start(payload: SignalEngineStartRequest) -> dict[str, Any]:
     """Start the live signal engine for ``symbols``.
 
     Body: :class:`~trading.application.signal_engine.SignalEngineConfig`
     (``symbols``, ``strategy``, ``preset``, ``timeframe``, ``params``, …).
     """
     try:
-        config = SignalEngineConfig.from_dict(payload)
+        config = SignalEngineConfig.from_dict(payload.model_dump(exclude_none=True))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     try:

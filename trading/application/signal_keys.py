@@ -360,7 +360,34 @@ class SignalKeyService:
         row.revoked_at = datetime.now(timezone.utc)
         await self._session.commit()
         await self._session.refresh(row)
+        # Drop the cached summary so a revoked key can't keep serving a stale
+        # dashboard from memory.
+        _summary_cache.pop(key_id, None)
         return row
+
+    async def delete_signals(self, key_id: int) -> int:
+        """Hard-delete a key's generated ``key_signals`` rows.
+
+        Returns the number deleted, or ``-1`` when the key does not exist (so
+        the caller can answer 404 vs ``{"deleted": 0}``). Distinct from
+        ``generate`` (which *replaces* rows) — this is the explicit purge the
+        API previously lacked.
+        """
+        if await self.get(key_id) is None:
+            return -1
+        result = await self._session.execute(
+            delete(KeySignalRow).where(KeySignalRow.key_id == key_id)
+        )
+        await self._session.commit()
+        return int(result.rowcount or 0)
+
+    def purge_cache(self, key_id: int | None = None) -> int:
+        """Drop the in-process summary cache (one key, or every key when None)."""
+        if key_id is None:
+            count = len(_summary_cache)
+            _summary_cache.clear()
+            return count
+        return 1 if _summary_cache.pop(key_id, None) is not None else 0
 
     async def set_active(self, key_id: int, active: bool) -> SignalKeyRow | None:
         row = await self.get(key_id)

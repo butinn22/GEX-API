@@ -148,6 +148,24 @@ def _finish(token) -> None:
         run_registry.clear(token.token)
 
 
+def _run_isolated(coro) -> Any:
+    """Run ``coro`` in a fresh loop, then release that loop's HTTP clients.
+
+    Celery executes each task in its own event loop; the loop-scoped fetcher
+    registry (and its httpx connection pools) would otherwise leak one TLS set
+    per task. Closing the registry in a ``finally`` keeps task memory flat.
+    """
+    from trading.adapters.fetchers import aclose_loop_registry
+
+    async def _wrapped() -> Any:
+        try:
+            return await coro
+        finally:
+            await aclose_loop_registry()
+
+    return asyncio.run(_wrapped())
+
+
 # ── tasks ──────────────────────────────────────────────────────────────
 
 
@@ -180,7 +198,7 @@ def run_backtest_task(self, strategy: str, symbol: str, bars: list | None = None
             "equity_curve": result.equity_curve.tolist(),
         }
 
-    return asyncio.run(_run())
+    return _run_isolated(_run())
 
 
 @celery_app.task(
@@ -228,7 +246,7 @@ def run_monte_carlo_task(symbol: str = "SYNTH", strategy: str = "sma_crossover",
         return payload
 
     try:
-        return asyncio.run(_run())
+        return _run_isolated(_run())
     except RunCancelled:
         return _cancelled_payload(token, symbol=symbol, strategy=strategy)
     finally:
@@ -310,7 +328,7 @@ def run_portfolio_backtest_task(tickers: list[dict], initial_cash: float = 100_0
         return payload
 
     try:
-        return asyncio.run(_run())
+        return _run_isolated(_run())
     except RunCancelled:
         return _cancelled_payload(token, n_tickers=len(tickers))
     finally:
@@ -330,7 +348,7 @@ def fetch_market_data_task(symbol: str, timeframe: str = "1d", limit: int = 500,
         return {"symbol": symbol, "bars": len(bars),
                 "first": bars[0].timestamp.isoformat(), "last": bars[-1].timestamp.isoformat()}
 
-    return asyncio.run(_run())
+    return _run_isolated(_run())
 
 
 @celery_app.task(name="trading.tasks.reconcile_positions_task")
@@ -393,4 +411,4 @@ def broker_health_task() -> dict:
                 results[row.exchange] = await monitor.check(exchange, broker)
         return {"checked": results}
 
-    return asyncio.run(_run())
+    return _run_isolated(_run())
