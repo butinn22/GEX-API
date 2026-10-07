@@ -5,6 +5,7 @@ interface, configured via ``TRADING_DATABASE_URL``.
 """
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import (
@@ -17,7 +18,14 @@ from sqlalchemy.ext.asyncio import (
 from trading.config import settings
 from .models import Base
 
-__all__ = ["configure", "init_db", "dispose", "get_session", "session_factory"]
+__all__ = [
+    "configure",
+    "init_db",
+    "run_migrations",
+    "dispose",
+    "get_session",
+    "session_factory",
+]
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -31,10 +39,66 @@ def configure(url: str | None = None) -> AsyncEngine:
 
 
 async def init_db(url: str | None = None) -> None:
-    """Create tables (idempotent). Call once at startup."""
+    """Create tables directly (``create_all``, idempotent).
+
+    **Test/bootstrap only — production uses :func:`run_migrations`.** The app
+    lifespan runs ``alembic upgrade head``; this helper exists so ~20 test files
+    can build a fresh schema fast without shelling out to Alembic.
+    """
     engine = _engine or configure(url)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+def _sync_url() -> str:
+    """Translate the async driver URL to the sync driver Alembic needs.
+
+    Mirrors ``alembic/env.py`` so the app and the CLI migrate the same database.
+    """
+    url = settings.database_url
+    return (
+        url.replace("sqlite+aiosqlite:///", "sqlite:///")
+        .replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+        .replace("postgresql://", "postgresql+psycopg2://")
+    )
+
+
+async def run_migrations() -> None:
+    """Bring the database up to ``head`` via Alembic (idempotent).
+
+    Alembic is synchronous, so the upgrade runs in a worker thread to keep the
+    event loop free. Multi-replica deployments additionally run
+    ``alembic upgrade head`` before the app starts (see docker-compose), so this
+    call usually finds the DB already at head.
+
+    A database that was bootstrapped by :func:`init_db` (``create_all`` — the
+    test path, or a legacy app-created DB) already has the tables but no
+    ``alembic_version`` marker; replaying the migration chain there would fail
+    with "table already exists", so such a DB is **stamped** at head instead.
+    """
+    def _upgrade() -> None:
+        from alembic import command
+        from alembic.config import Config
+        from sqlalchemy import create_engine, inspect
+        from sqlalchemy.pool import NullPool
+
+        url = _sync_url()
+        cfg = Config("alembic.ini")
+        cfg.set_main_option("sqlalchemy.url", url)
+
+        engine = create_engine(url, poolclass=NullPool)
+        try:
+            tables = set(inspect(engine).get_table_names())
+        finally:
+            engine.dispose()
+        has_tables = bool({"api_keys", "orders"} & tables)
+        if has_tables and "alembic_version" not in tables:
+            # create_all-managed DB: the schema already mirrors the models.
+            command.stamp(cfg, "head")
+            return
+        command.upgrade(cfg, "head")
+
+    await asyncio.to_thread(_upgrade)
 
 
 async def dispose() -> None:

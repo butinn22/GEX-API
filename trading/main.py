@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from trading.adapters.fetchers import aclose_loop_registry
-from trading.adapters.persistence.database import dispose, init_db
+from trading.adapters.persistence.database import dispose, run_migrations
 from trading.api import auth
 from trading.api.local_client_ws import (
     router as local_client_router,
@@ -49,7 +49,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     configure_logging()
-    await init_db()
+    await run_migrations()  # alembic upgrade head (idempotent)
     await start_dispatcher()  # fan signal_hub out to subscribed local clients
     # A previous process may have left open positions behind; adopting them is
     # safe (the engine only appends), so the ledger is never purged implicitly.

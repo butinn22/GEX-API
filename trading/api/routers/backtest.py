@@ -420,9 +420,8 @@ async def _persist_result(request: BacktestRequest, result, *,
     """
     try:
         from trading.adapters.persistence.bulk import TaskResultStore
-        from trading.adapters.persistence.database import _session_factory, init_db
+        from trading.adapters.persistence.database import _session_factory
 
-        await init_db()
         async with _session_factory() as s:
             row = await TaskResultStore(s).save_backtest(
                 strategy or request.strategy, symbol or request.symbol,
@@ -448,7 +447,6 @@ async def _load_preset(preset_id: int) -> StrategyPresetRow:
     from trading.adapters.persistence import database
     from trading.adapters.persistence.models import StrategyPresetRow
 
-    await database.init_db()
     async with database._session_factory() as session:
         row = await PresetService(session).get(preset_id)
         if row is None:
@@ -806,10 +804,9 @@ async def _save_optimized_preset(
     "optimizer:<run_token>"``) — never fabricated.
     """
     try:
-        from trading.adapters.persistence.database import _session_factory, init_db
+        from trading.adapters.persistence.database import _session_factory
         from trading.application.presets import PresetService
 
-        await init_db()
         async with _session_factory() as session:
             await PresetService(session).save_optimization(
                 symbol=symbol,

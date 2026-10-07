@@ -24,10 +24,28 @@ def _sync_url() -> str:
     )
 
 
-def run_migrations_offline() -> None:
+def _configure(**kwargs) -> None:
+    """Shared Alembic context config.
+
+    ``compare_type=False``: our models infer ``Double`` from ``Mapped[float]``
+    while the migrations spell the same storage as ``sa.Float()`` — FLOAT and
+    Double are identical on our SQLite/Postgres targets, so we compare structure
+    and nullability, not type spelling.
+
+    ``render_as_batch=True``: emit ``batch_alter_table`` ops on autogenerate so
+    ``--autogenerate`` produces SQLite-compatible ALTERs instead of failing.
+    """
     context.configure(
-        url=_sync_url(),
         target_metadata=target_metadata,
+        compare_type=False,
+        render_as_batch=True,
+        **kwargs,
+    )
+
+
+def run_migrations_offline() -> None:
+    _configure(
+        url=_sync_url(),
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -38,7 +56,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     connectable = create_engine(_sync_url(), poolclass=pool.NullPool)
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        _configure(connection=connection)
         with context.begin_transaction():
             context.run_migrations()
 
