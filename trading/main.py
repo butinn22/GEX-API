@@ -81,7 +81,12 @@ app = FastAPI(
 )
 app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-app.add_middleware(RateLimitMiddleware, requests=settings.rate_limit_requests, per_seconds=60.0)
+app.add_middleware(
+    RateLimitMiddleware,
+    requests=settings.rate_limit_requests,
+    per_seconds=60.0,
+    trust_proxy=settings.trust_proxy,
+)
 
 
 @app.exception_handler(TradingError)

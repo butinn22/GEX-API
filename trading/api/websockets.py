@@ -19,6 +19,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from trading.application.signal_hub import order_hub, position_hub, signal_hub
 
 from .deps import WS_SUBPROTOCOL, validate_ws_jwt
+from .ws_limits import ws_limiter
 
 router = APIRouter()
 
@@ -38,24 +39,31 @@ async def _run_stream(ws: WebSocket, hub, hello: dict, heartbeat: float = 5.0) -
         # ever opens. 1008 = policy violation.
         await ws.close(code=1008)
         return
-    await ws.accept(subprotocol=WS_SUBPROTOCOL)
-    q = hub.subscribe()
+    if not ws_limiter.acquire(ws):
+        # Per-IP concurrent-connection cap (the HTTP limiter never sees WS).
+        await ws.close(code=1013)  # try again later
+        return
     try:
-        await ws.send_json(hello)
-        sender = asyncio.create_task(_stream(ws, q, heartbeat))
-        reader = asyncio.create_task(ws.receive_text())
-        done, pending = await asyncio.wait(
-            {sender, reader}, return_when=asyncio.FIRST_COMPLETED
-        )
-        for task in pending:
-            task.cancel()
-        for task in done:
-            if task is sender:
-                await task  # surface any send error
-    except (WebSocketDisconnect, RuntimeError):
-        pass
+        await ws.accept(subprotocol=WS_SUBPROTOCOL)
+        q = hub.subscribe()
+        try:
+            await ws.send_json(hello)
+            sender = asyncio.create_task(_stream(ws, q, heartbeat))
+            reader = asyncio.create_task(ws.receive_text())
+            done, pending = await asyncio.wait(
+                {sender, reader}, return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in pending:
+                task.cancel()
+            for task in done:
+                if task is sender:
+                    await task  # surface any send error
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        finally:
+            hub.unsubscribe(q)
     finally:
-        hub.unsubscribe(q)
+        ws_limiter.release(ws)
 
 
 @router.websocket("/ws/signals")

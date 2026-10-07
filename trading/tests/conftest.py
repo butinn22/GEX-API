@@ -23,6 +23,13 @@ os.environ.setdefault("TRADING_ADMIN_USERNAME", "admin")
 os.environ.setdefault("TRADING_ADMIN_PASSWORD", "admin")
 # Static token the /ws/client handshake must present (Round-2 WS auth).
 os.environ.setdefault("TRADING_LOCAL_CLIENT_TOKEN", "test-client-token")
+# The app middleware's tight login bucket (default 10/min) + lockout would
+# throttle the suite's many logins from the single "testclient" IP. The
+# lockout/throttle tests build RateLimitMiddleware directly with explicit
+# small limits, so raising the env default here keeps the app-level wiring
+# from tripping mid-suite.
+os.environ.setdefault("TRADING_LOGIN_RATE_LIMIT", "1000000")
+os.environ.setdefault("TRADING_LOGIN_LOCKOUT_FAILURES", "1000000")
 
 # Shared SQLite file + many async sessions (live-engine background tasks,
 # request sessions, fixture cleanups) → writers occasionally hit the default

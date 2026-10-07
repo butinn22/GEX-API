@@ -39,6 +39,7 @@ from trading.config import settings
 from trading.security import SecretError, decode_access_token
 
 from .deps import require_auth
+from .ws_limits import ws_limiter
 
 __all__ = ["router", "registry", "dispatcher", "start_dispatcher", "stop_dispatcher"]
 
@@ -135,43 +136,50 @@ async def _watchdog(ws: WebSocket, session: ClientSession) -> None:
 
 @router.websocket("/ws/client")
 async def ws_client(ws: WebSocket) -> None:
-    await ws.accept()
-    session = registry.connect()
-    tasks: list[asyncio.Task] = []
+    if not ws_limiter.acquire(ws):
+        # Per-IP concurrent-connection cap (BaseHTTPMiddleware never sees WS).
+        await ws.close(code=1013)  # try again later
+        return
     try:
-        tasks = [
-            asyncio.create_task(_pump_outbox(ws, session)),
-            asyncio.create_task(_watchdog(ws, session)),
-        ]
-        while True:
-            msg = await ws.receive_json()
-            if not isinstance(msg, dict):
-                await ws.send_json(_error("BAD_MESSAGE", "frame must be a JSON object"))
-                continue
-            # Authenticate the producer at the handshake. An invalid/missing
-            # token never registers the session, so no signal frame can ever be
-            # emitted (every signal path requires an active handshake).
-            if msg.get("type") == "handshake" and not _valid_client_token(
-                str(msg.get("token") or "")
-            ):
-                await ws.send_json(
-                    _error("UNAUTHORIZED", "invalid or missing handshake token")
-                )
-                await ws.close(code=1008)
-                return
-            try:
-                reply = _handle_message(session, msg)
-            except LocalClientError as exc:
-                reply = _error(_ERROR_CODES.get(type(exc), "CLIENT_ERROR"), str(exc))
-            except SignalParseError as exc:
-                reply = _error("BAD_SIGNAL", str(exc))
-            await ws.send_json(reply)
-    except (WebSocketDisconnect, RuntimeError):
-        pass
+        await ws.accept()
+        session = registry.connect()
+        tasks: list[asyncio.Task] = []
+        try:
+            tasks = [
+                asyncio.create_task(_pump_outbox(ws, session)),
+                asyncio.create_task(_watchdog(ws, session)),
+            ]
+            while True:
+                msg = await ws.receive_json()
+                if not isinstance(msg, dict):
+                    await ws.send_json(_error("BAD_MESSAGE", "frame must be a JSON object"))
+                    continue
+                # Authenticate the producer at the handshake. An invalid/missing
+                # token never registers the session, so no signal frame can ever
+                # be emitted (every signal path requires an active handshake).
+                if msg.get("type") == "handshake" and not _valid_client_token(
+                    str(msg.get("token") or "")
+                ):
+                    await ws.send_json(
+                        _error("UNAUTHORIZED", "invalid or missing handshake token")
+                    )
+                    await ws.close(code=1008)
+                    return
+                try:
+                    reply = _handle_message(session, msg)
+                except LocalClientError as exc:
+                    reply = _error(_ERROR_CODES.get(type(exc), "CLIENT_ERROR"), str(exc))
+                except SignalParseError as exc:
+                    reply = _error("BAD_SIGNAL", str(exc))
+                await ws.send_json(reply)
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        finally:
+            for task in tasks:
+                task.cancel()
+            registry.disconnect(session.session_id)
     finally:
-        for task in tasks:
-            task.cancel()
-        registry.disconnect(session.session_id)
+        ws_limiter.release(ws)
 
 
 @router.get("/api/v1/local-clients", dependencies=[Depends(require_auth)])
