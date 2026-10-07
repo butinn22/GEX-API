@@ -38,7 +38,7 @@ A desktop shortcut can be generated with
 ## Test & verify
 
 ```bash
-.venv/Scripts/python.exe -m pytest trading/tests -q       # 418 tests
+.venv/Scripts/python.exe -m pytest trading/tests -q       # 834 tests (833 passed, 1 skipped)
 PYTHONPATH=. .venv/Scripts/python.exe scripts/verify_backtest.py   # metrics + Monte-Carlo CI
 ```
 
@@ -291,7 +291,7 @@ demonstrably change the outcome.
 
 ## Status
 
-**Done & tested (418 tests):** domain + async ports; event-driven + **vectorized**
+**Done & tested (834 tests — 833 passed, 1 skipped):** domain + async ports; event-driven + **vectorized**
 backtest engines (no-lookahead fills, fees/slippage, trade ledger) with a batch
 **`prepare()` hook** (O(n) replay for heavy strategies); **match engine**
 with pluggable commission/slippage models; metrics (Sharpe, Sortino, **Calmar**,

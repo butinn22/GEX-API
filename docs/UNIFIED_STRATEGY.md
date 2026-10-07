@@ -331,5 +331,5 @@ for the missing-entry-events bug).
 An end-to-end smoke script against a live server ships as
 `scripts/smoke_unified_workflow.py` (login → preset-from-backtest →
 optimize+save → global optimize → key create → generate → dashboard →
-exports → refresh → revoke → 410). Full suite: **629 passed, 1 skipped**
+exports → refresh → revoke → 410). Full suite: **833 passed, 1 skipped** (834 collected)
 after the final fixes.

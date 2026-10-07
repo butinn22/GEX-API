@@ -159,7 +159,7 @@ never stops the run. Reads and exports go through
 13. Docs (MkDocs).
 14. Docker/Helm/deploy hardening.
 
-Steps 1–14 above are now implemented and covered by the test suite (378 tests).
+Steps 1–14 above are now implemented and covered by the test suite (834 tests).
 The latest slice added the **portfolio backtest** (multi-ticker, per-ticker
 settings), the **Monte-Carlo engine** with confidence intervals and fan bands,
 **server-side SVG charts** + self-contained HTML reports, **universe selection**

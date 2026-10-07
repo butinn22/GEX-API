@@ -1,6 +1,6 @@
 # Finalization report — live signals + the main strategy
 
-Date: 2026-10-06 · Suite: **678 passed, 1 skipped** (was 651) · UI QA: 17/17 checks, 0 console errors
+Date: 2026-10-06 · Suite (at report time): **678 passed, 1 skipped** · current suite: **834 (833 passed, 1 skipped)** · UI QA: 17/17 checks, 0 console errors
 
 ## What was requested
 
@@ -95,7 +95,7 @@ positions, recent signals, per-ticker diagnostics, ledger stats and the four dow
 
 | Check | Result |
 |---|---|
-| `pytest trading/tests` | **678 passed, 1 skipped** (new: 13 strategy, 12 engine/API/export, 1 fee, 2 registry) |
+| `pytest trading/tests` | **833 passed, 1 skipped** (834 collected) |
 | No-lookahead | streaming == batch replay, asserted per signal |
 | jsdom UI QA (real backend) | 17/17 checks, **0 console errors**, engine start/stop round-trip, real venue rows, all exports download |
 | Research reproduction | aggregate PF 1.375 / maxDD ≤ 0.32 % per symbol on 500 trades |
