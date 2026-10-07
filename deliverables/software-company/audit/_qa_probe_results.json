@@ -1,0 +1,622 @@
+[
+  {
+    "probe": "health",
+    "method": "GET",
+    "path": "/health",
+    "expected": "200",
+    "actual": 200,
+    "body": "{\"status\":\"ok\"}",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "metrics",
+    "method": "GET",
+    "path": "/metrics",
+    "expected": "200",
+    "actual": 200,
+    "body": "# HELP python_gc_objects_collected_total Objects collected during gc\n# TYPE python_gc_objects_collected_total counter\npython_gc_objects_collected_total{generation=\"0\"} 1029.0\npython_gc_objects_collect",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "docs",
+    "method": "GET",
+    "path": "/docs",
+    "expected": "200",
+    "actual": 200,
+    "body": "\n    <!DOCTYPE html>\n    <html>\n    <head>\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <link type=\"text/css\" rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/swag",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "index",
+    "method": "GET",
+    "path": "/",
+    "expected": "200",
+    "actual": 200,
+    "body": "<!doctype html>\r\n<html lang=\"en\" data-theme=\"dark\">\r\n<head>\r\n<meta charset=\"utf-8\" />\r\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\r\n<meta name=\"color-scheme\" content=\"dark l",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "favicon",
+    "method": "GET",
+    "path": "/favicon.ico",
+    "expected": "200",
+    "actual": 200,
+    "body": "\u0000\u0000\u0001\u0000\u0007\u0000\u0010\u0010\u0000\u0000\u0000\u0000 \u0000\ufffd\u0002\u0000\u0000v\u0000\u0000\u0000\u0018\u0018\u0000\u0000\u0000\u0000 \u0000Z\u0004\u0000\u00000\u0003\u0000\u0000  \u0000\u0000\u0000\u0000 \u0000(\u0006\u0000\u0000\ufffd\u0007\u0000\u000000\u0000\u0000\u0000\u0000 \u0000\ufffd\t\u0000\u0000\ufffd\r\u0000\u0000@@\u0000\u0000\u0000\u0000 \u0000\ufffd\f\u0000\u0000?\u0017\u0000\u0000\ufffd\ufffd\u0000\u0000\u0000\u0000 \u0000\ufffd\u001b\u0000\u0000\ufffd#\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000 \u0000\u000f7\u0000\u0000\ufffd?\u0000\u0000\ufffdPNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u0000\u0010\u0000\u0000\u0000\u0010\b\u0006\u0000\u0000\u0000\u001f\ufffd\ufffda\u0000\u0000\u0002\ufffdIDATx\ufffd}\ufffd\ufffdKTQ\u0018\u019f\ufffd\ufffds\ufffd\u0799i>\u0018\ufffd\u032f\u001a\rSZTP(A\ufffd\ufffd\b\ufffd\u0010-\ufffd\nA;\t\ufffd\u001f",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "static-index",
+    "method": "GET",
+    "path": "/static/index.html",
+    "expected": "200",
+    "actual": 200,
+    "body": "<!doctype html>\r\n<html lang=\"en\" data-theme=\"dark\">\r\n<head>\r\n<meta charset=\"utf-8\" />\r\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\r\n<meta name=\"color-scheme\" content=\"dark l",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "login-correct",
+    "method": "POST",
+    "path": "/api/v1/auth/token",
+    "expected": "200+token",
+    "actual": 200,
+    "body": "{\"access_token\":\"<redacted-dev-jwt>\"}",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "login-wrong",
+    "method": "POST",
+    "path": "/api/v1/auth/token",
+    "expected": "401",
+    "actual": 401,
+    "body": "{\"detail\":\"Invalid credentials\"}",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "login-baduser",
+    "method": "POST",
+    "path": "/api/v1/auth/token",
+    "expected": "401",
+    "actual": 401,
+    "body": "{\"detail\":\"Invalid credentials\"}",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "keys-no-token",
+    "method": "GET",
+    "path": "/api/v1/keys",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "keys-with-token",
+    "method": "GET",
+    "path": "/api/v1/keys",
+    "expected": "200",
+    "actual": 200,
+    "body": "[]",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "keys-bad-token",
+    "method": "GET",
+    "path": "/api/v1/keys",
+    "expected": "401",
+    "actual": 401,
+    "body": "{\"detail\":\"Invalid or expired token\"}",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "signals-with-token",
+    "method": "GET",
+    "path": "/api/v1/signals",
+    "expected": "200",
+    "actual": 200,
+    "body": "[]",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "signals-no-token",
+    "method": "GET",
+    "path": "/api/v1/signals",
+    "expected": "401",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "backtest-real",
+    "method": "POST",
+    "path": "/api/v1/backtest",
+    "expected": "200",
+    "actual": 200,
+    "body": "{\"strategy\":\"sma_crossover\",\"symbol\":\"SYNTH\",\"metrics\":{\"total_return\":-0.007825090042750671,\"annualized_return\":-0.010998722784241854,\"sharpe\":-0.43234642868683587,\"sortino\":-0.2990940150268212,\"calm",
+    "verdict": "PASS",
+    "note": "result_id=1"
+  },
+  {
+    "probe": "backtest-NO-token",
+    "method": "POST",
+    "path": "/api/v1/backtest",
+    "expected": "200 (UNAUTH!)",
+    "actual": 200,
+    "body": "{\"strategy\":\"sma_crossover\",\"symbol\":\"SYNTH\",\"metrics\":{\"total_return\":-0.007825090042750671,\"annualized_return\":-0.0109",
+    "verdict": "UNAUTHENTICATED-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "export-signals-csv",
+    "method": "GET",
+    "path": "/api/v1/signals/export/signals.csv",
+    "expected": "200 non-trivial",
+    "actual": 200,
+    "body": "195 bytes, ct=text/csv; charset=utf-8",
+    "verdict": "PASS",
+    "note": "download: attachment; filename=\"signals.csv\""
+  },
+  {
+    "probe": "export-signals-xlsx",
+    "method": "GET",
+    "path": "/api/v1/signals/export/signals.xlsx",
+    "expected": "200 non-trivial",
+    "actual": 200,
+    "body": "1768 bytes, ct=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "verdict": "PASS",
+    "note": "download: attachment; filename=\"signals.xlsx\""
+  },
+  {
+    "probe": "export-positions-csv",
+    "method": "GET",
+    "path": "/api/v1/signals/export/positions.csv",
+    "expected": "200 non-trivial",
+    "actual": 200,
+    "body": "337 bytes, ct=text/csv; charset=utf-8",
+    "verdict": "PASS",
+    "note": "download: attachment; filename=\"positions.csv\""
+  },
+  {
+    "probe": "export-positions-xlsx",
+    "method": "GET",
+    "path": "/api/v1/signals/export/positions.xlsx",
+    "expected": "200 non-trivial",
+    "actual": 200,
+    "body": "1864 bytes, ct=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "verdict": "PASS",
+    "note": "download: attachment; filename=\"positions.xlsx\""
+  },
+  {
+    "probe": "dashboard-bogus-key",
+    "method": "GET",
+    "path": "/API_KEY/does-not-exist-123",
+    "expected": "404",
+    "actual": 404,
+    "body": "{\"detail\":\"unknown API key\"}",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "dashboard-bogus-data",
+    "method": "GET",
+    "path": "/API_KEY/does-not-exist-123/data",
+    "expected": "404",
+    "actual": 404,
+    "body": "{\"detail\":\"unknown API key\"}",
+    "verdict": "PASS",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest",
+    "method": "POST",
+    "path": "/api/v1/backtest",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"strategy\":\"sma_crossover\",\"symbol\":\"SYNTH\",\"metrics\":{\"total_return\":0.3097269229363,\"annualized_return\":0.01369450308",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/monte-carlo",
+    "method": "POST",
+    "path": "/api/v1/backtest/monte-carlo",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"label\":\"SYNTH\",\"method\":\"gbm\",\"n_paths\":10000,\"n_steps\":999,\"initial_equity\":100000.0,\"steps\":[0,1,2,3,4,5,6,7,8,9,10,",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/portfolio",
+    "method": "POST",
+    "path": "/api/v1/backtest/portfolio",
+    "expected": "401/403",
+    "actual": 422,
+    "body": "{\"detail\":[{\"type\":\"value_error\",\"loc\":[\"body\"],\"msg\":\"Value error, provide either 'tickers' or 'n_tickers' >= 1\",\"input",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/portfolio/monte-carlo",
+    "method": "POST",
+    "path": "/api/v1/backtest/portfolio/monte-carlo",
+    "expected": "401/403",
+    "actual": 422,
+    "body": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"portfolio\"],\"msg\":\"Field required\",\"input\":{}}]}",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/portfolio/report",
+    "method": "POST",
+    "path": "/api/v1/backtest/portfolio/report",
+    "expected": "401/403",
+    "actual": 422,
+    "body": "{\"detail\":[{\"type\":\"value_error\",\"loc\":[\"body\"],\"msg\":\"Value error, provide either 'tickers' or 'n_tickers' >= 1\",\"input",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/analyze",
+    "method": "POST",
+    "path": "/api/v1/backtest/analyze",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"strategy\":\"sma_crossover\",\"symbol\":\"SYNTH\",\"metrics\":{\"total_return\":0.3097269229363,\"annualized_return\":0.01369450308",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/optimize",
+    "method": "POST",
+    "path": "/api/v1/backtest/optimize",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"symbol\":\"SYNTH\",\"strategy\":\"trend_confluence\",\"n_candidates\":64,\"baseline\":{\"params\":{\"trendline_refresh\":10},\"metrics",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/optimize/global",
+    "method": "POST",
+    "path": "/api/v1/backtest/optimize/global",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"run_id\":\"d61d81ccc55649c3a79dbbb7ec2a61a9\",\"state\":\"running\",\"total\":206,\"completed\":0,\"failed\":0,\"current_symbol\":\"\",",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/optimize/global/abc/cancel",
+    "method": "POST",
+    "path": "/api/v1/backtest/optimize/global/abc/cancel",
+    "expected": "401/403",
+    "actual": 404,
+    "body": "{\"detail\":\"no running optimization 'abc'\"}",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/autotune",
+    "method": "POST",
+    "path": "/api/v1/backtest/autotune",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"symbol\":\"SYNTH\",\"strategy\":\"trend_confluence\",\"risk_profile\":\"medium\",\"volatility\":{\"atr14\":1.69102976,\"adr\":1.6163973",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/backtest/cancel/abc",
+    "method": "POST",
+    "path": "/api/v1/backtest/cancel/abc",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"token\":\"abc\",\"cancelled\":true,\"known\":false}",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep GET /api/v1/backtest/cancel",
+    "method": "GET",
+    "path": "/api/v1/backtest/cancel",
+    "expected": "-",
+    "actual": 200,
+    "body": "[\"d61d81ccc55649c3a79dbbb7ec2a61a9\"]",
+    "verdict": "public-read",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/presets",
+    "method": "POST",
+    "path": "/api/v1/presets",
+    "expected": "401/403",
+    "actual": 422,
+    "body": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"symbol\"],\"msg\":\"Field required\",\"input\":{}}]}",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/presets/from-backtest/SYNTH",
+    "method": "POST",
+    "path": "/api/v1/presets/from-backtest/SYNTH",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"id\":1,\"symbol\":\"SYNTH\",\"strategy\":\"trend_confluence_unified\",\"strategy_version\":\"1.0.0\",\"strategy_name\":\"\",\"version\":1",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/presets/1/promote",
+    "method": "POST",
+    "path": "/api/v1/presets/1/promote",
+    "expected": "401/403",
+    "actual": 422,
+    "body": "{\"detail\":{\"code\":\"validation_failed\",\"reasons\":[{\"code\":\"no_backtest_evidence\",\"message\":\"no metrics snapshot recorded ",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/presets/1/rollback",
+    "method": "POST",
+    "path": "/api/v1/presets/1/rollback",
+    "expected": "401/403",
+    "actual": 409,
+    "body": "{\"detail\":\"preset 1 is already the group's active version\"}",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/presets/1/demote",
+    "method": "POST",
+    "path": "/api/v1/presets/1/demote",
+    "expected": "401/403",
+    "actual": 409,
+    "body": "{\"detail\":\"preset 1 is not live_enabled\"}",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep PATCH /api/v1/presets/1",
+    "method": "PATCH",
+    "path": "/api/v1/presets/1",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"id\":1,\"symbol\":\"SYNTH\",\"strategy\":\"trend_confluence_unified\",\"strategy_version\":\"1.0.0\",\"strategy_name\":\"\",\"version\":1",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep DELETE /api/v1/presets/999999",
+    "method": "DELETE",
+    "path": "/api/v1/presets/999999",
+    "expected": "401/403",
+    "actual": 404,
+    "body": "{\"detail\":\"preset 999999 not found\"}",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/strategies/sma_crossover/start",
+    "method": "POST",
+    "path": "/api/v1/strategies/sma_crossover/start",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"name\":\"sma_crossover\",\"status\":\"running\"}",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/strategies/sma_crossover/stop",
+    "method": "POST",
+    "path": "/api/v1/strategies/sma_crossover/stop",
+    "expected": "401/403",
+    "actual": 200,
+    "body": "{\"name\":\"sma_crossover\",\"status\":\"not_running\"}",
+    "verdict": "UNAUTH-MUTATION",
+    "note": ""
+  },
+  {
+    "probe": "sweep GET /api/v1/strategies",
+    "method": "GET",
+    "path": "/api/v1/strategies",
+    "expected": "-",
+    "actual": 200,
+    "body": "[{\"name\":\"buy_and_hold\",\"params\":[]},{\"name\":\"confluence_breakout\",\"params\":[\"pivot_left\",\"pivot_right\",\"adl_ema_span\",\"",
+    "verdict": "public-read",
+    "note": ""
+  },
+  {
+    "probe": "sweep GET /api/v1/data/instruments",
+    "method": "GET",
+    "path": "/api/v1/data/instruments",
+    "expected": "-",
+    "actual": 200,
+    "body": "[{\"symbol\":\"NVDA\",\"name\":\"NVDA\",\"category\":\"us\"},{\"symbol\":\"AAPL\",\"name\":\"AAPL\",\"category\":\"us\"},{\"symbol\":\"GOOGL\",\"name",
+    "verdict": "public-read",
+    "note": ""
+  },
+  {
+    "probe": "sweep GET /api/v1/portfolio",
+    "method": "GET",
+    "path": "/api/v1/portfolio",
+    "expected": "-",
+    "actual": 200,
+    "body": "{\"cash\":0.0,\"currency\":\"USDT\",\"positions\":[],\"configured\":false}",
+    "verdict": "public-read",
+    "note": ""
+  },
+  {
+    "probe": "sweep GET /api/v1/positions",
+    "method": "GET",
+    "path": "/api/v1/positions",
+    "expected": "-",
+    "actual": 200,
+    "body": "[]",
+    "verdict": "public-read",
+    "note": ""
+  },
+  {
+    "probe": "sweep GET /api/v1/orders",
+    "method": "GET",
+    "path": "/api/v1/orders",
+    "expected": "-",
+    "actual": 200,
+    "body": "[]",
+    "verdict": "public-read",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/orders",
+    "method": "POST",
+    "path": "/api/v1/orders",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/keys",
+    "method": "POST",
+    "path": "/api/v1/keys",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep DELETE /api/v1/keys/999999",
+    "method": "DELETE",
+    "path": "/api/v1/keys/999999",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep PATCH /api/v1/keys/999999/settings",
+    "method": "PATCH",
+    "path": "/api/v1/keys/999999/settings",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep GET /api/v1/keys",
+    "method": "GET",
+    "path": "/api/v1/keys",
+    "expected": "-",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/signal-keys",
+    "method": "POST",
+    "path": "/api/v1/signal-keys",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/baskets/export",
+    "method": "POST",
+    "path": "/api/v1/baskets/export",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/baskets/deploy",
+    "method": "POST",
+    "path": "/api/v1/baskets/deploy",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/signals/engine/start",
+    "method": "POST",
+    "path": "/api/v1/signals/engine/start",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep POST /api/v1/signals/engine/stop",
+    "method": "POST",
+    "path": "/api/v1/signals/engine/stop",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep DELETE /api/v1/signals/positions",
+    "method": "DELETE",
+    "path": "/api/v1/signals/positions",
+    "expected": "401/403",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep GET /api/v1/signals",
+    "method": "GET",
+    "path": "/api/v1/signals",
+    "expected": "-",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "sweep GET /api/v1/export/live-trades.csv",
+    "method": "GET",
+    "path": "/api/v1/export/live-trades.csv",
+    "expected": "-",
+    "actual": 401,
+    "body": "{\"detail\":\"Not authenticated\"}",
+    "verdict": "PROTECTED",
+    "note": ""
+  },
+  {
+    "probe": "rate-limit-burst",
+    "method": "GET",
+    "path": "/health x420",
+    "expected": "429 + Retry-After",
+    "actual": 429,
+    "body": "429_count=141 first_at=278 Retry-After=1",
+    "verdict": "PASS",
+    "note": ""
+  }
+]

@@ -1,0 +1,68 @@
+[200] GET    /health                                              health  PASS
+[200] GET    /metrics                                             metrics  PASS
+[200] GET    /docs                                                docs  PASS
+[200] GET    /                                                    index  PASS
+[200] GET    /favicon.ico                                         favicon  PASS
+[200] GET    /static/index.html                                   static-index  PASS
+[200] POST   /api/v1/auth/token                                   login-correct  PASS
+[401] POST   /api/v1/auth/token                                   login-wrong  PASS
+[401] POST   /api/v1/auth/token                                   login-baduser  PASS
+[401] GET    /api/v1/keys                                         keys-no-token  PASS
+[200] GET    /api/v1/keys                                         keys-with-token  PASS
+[401] GET    /api/v1/keys                                         keys-bad-token  PASS
+[200] GET    /api/v1/signals                                      signals-with-token  PASS
+[401] GET    /api/v1/signals                                      signals-no-token  PASS
+[200] POST   /api/v1/backtest                                     backtest-real  PASS
+[200] POST   /api/v1/backtest                                     backtest-NO-token  UNAUTHENTICATED-MUTATION
+[200] GET    /api/v1/signals/export/signals.csv                   export-signals-csv  PASS
+[200] GET    /api/v1/signals/export/signals.xlsx                  export-signals-xlsx  PASS
+[200] GET    /api/v1/signals/export/positions.csv                 export-positions-csv  PASS
+[200] GET    /api/v1/signals/export/positions.xlsx                export-positions-xlsx  PASS
+[404] GET    /API_KEY/does-not-exist-123                          dashboard-bogus-key  PASS
+[404] GET    /API_KEY/does-not-exist-123/data                     dashboard-bogus-data  PASS
+
+--- AUTH ENFORCEMENT SWEEP (no Authorization header) ---
+[200] POST   /api/v1/backtest                                     sweep POST /api/v1/backtest  UNAUTH-MUTATION
+[200] POST   /api/v1/backtest/monte-carlo                         sweep POST /api/v1/backtest/monte-carlo  UNAUTH-MUTATION
+[422] POST   /api/v1/backtest/portfolio                           sweep POST /api/v1/backtest/portfolio  UNAUTH-MUTATION
+[422] POST   /api/v1/backtest/portfolio/monte-carlo               sweep POST /api/v1/backtest/portfolio/monte-carlo  UNAUTH-MUTATION
+[422] POST   /api/v1/backtest/portfolio/report                    sweep POST /api/v1/backtest/portfolio/report  UNAUTH-MUTATION
+[200] POST   /api/v1/backtest/analyze                             sweep POST /api/v1/backtest/analyze  UNAUTH-MUTATION
+[200] POST   /api/v1/backtest/optimize                            sweep POST /api/v1/backtest/optimize  UNAUTH-MUTATION
+[200] POST   /api/v1/backtest/optimize/global                     sweep POST /api/v1/backtest/optimize/global  UNAUTH-MUTATION
+[404] POST   /api/v1/backtest/optimize/global/abc/cancel          sweep POST /api/v1/backtest/optimize/global/abc/cancel  UNAUTH-MUTATION
+[200] POST   /api/v1/backtest/autotune                            sweep POST /api/v1/backtest/autotune  UNAUTH-MUTATION
+[200] POST   /api/v1/backtest/cancel/abc                          sweep POST /api/v1/backtest/cancel/abc  UNAUTH-MUTATION
+[200] GET    /api/v1/backtest/cancel                              sweep GET /api/v1/backtest/cancel  public-read
+[422] POST   /api/v1/presets                                      sweep POST /api/v1/presets  UNAUTH-MUTATION
+[200] POST   /api/v1/presets/from-backtest/SYNTH                  sweep POST /api/v1/presets/from-backtest/SYNTH  UNAUTH-MUTATION
+[422] POST   /api/v1/presets/1/promote                            sweep POST /api/v1/presets/1/promote  UNAUTH-MUTATION
+[409] POST   /api/v1/presets/1/rollback                           sweep POST /api/v1/presets/1/rollback  UNAUTH-MUTATION
+[409] POST   /api/v1/presets/1/demote                             sweep POST /api/v1/presets/1/demote  UNAUTH-MUTATION
+[200] PATCH  /api/v1/presets/1                                    sweep PATCH /api/v1/presets/1  UNAUTH-MUTATION
+[404] DELETE /api/v1/presets/999999                               sweep DELETE /api/v1/presets/999999  UNAUTH-MUTATION
+[200] POST   /api/v1/strategies/sma_crossover/start               sweep POST /api/v1/strategies/sma_crossover/start  UNAUTH-MUTATION
+[200] POST   /api/v1/strategies/sma_crossover/stop                sweep POST /api/v1/strategies/sma_crossover/stop  UNAUTH-MUTATION
+[200] GET    /api/v1/strategies                                   sweep GET /api/v1/strategies  public-read
+[200] GET    /api/v1/data/instruments                             sweep GET /api/v1/data/instruments  public-read
+[200] GET    /api/v1/portfolio                                    sweep GET /api/v1/portfolio  public-read
+[200] GET    /api/v1/positions                                    sweep GET /api/v1/positions  public-read
+[200] GET    /api/v1/orders                                       sweep GET /api/v1/orders  public-read
+[401] POST   /api/v1/orders                                       sweep POST /api/v1/orders  PROTECTED
+[401] POST   /api/v1/keys                                         sweep POST /api/v1/keys  PROTECTED
+[401] DELETE /api/v1/keys/999999                                  sweep DELETE /api/v1/keys/999999  PROTECTED
+[401] PATCH  /api/v1/keys/999999/settings                         sweep PATCH /api/v1/keys/999999/settings  PROTECTED
+[401] GET    /api/v1/keys                                         sweep GET /api/v1/keys  PROTECTED
+[401] POST   /api/v1/signal-keys                                  sweep POST /api/v1/signal-keys  PROTECTED
+[401] POST   /api/v1/baskets/export                               sweep POST /api/v1/baskets/export  PROTECTED
+[401] POST   /api/v1/baskets/deploy                               sweep POST /api/v1/baskets/deploy  PROTECTED
+[401] POST   /api/v1/signals/engine/start                         sweep POST /api/v1/signals/engine/start  PROTECTED
+[401] POST   /api/v1/signals/engine/stop                          sweep POST /api/v1/signals/engine/stop  PROTECTED
+[401] DELETE /api/v1/signals/positions                            sweep DELETE /api/v1/signals/positions  PROTECTED
+[401] GET    /api/v1/signals                                      sweep GET /api/v1/signals  PROTECTED
+[401] GET    /api/v1/export/live-trades.csv                       sweep GET /api/v1/export/live-trades.csv  PROTECTED
+
+--- RATE LIMIT BURST (configured=300/min) ---
+[429] GET    /health x420                                         rate-limit-burst  PASS
+
+Saved -> _qa_probe_results.json

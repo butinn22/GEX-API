@@ -1,0 +1,30 @@
+[PASS] health 
+[PASS] login 
+[PASS] preset from backtest 
+[PASS] optimize + save preset 
+[PASS]   best params carry integration knobs 
+       preset param count: 40 | emf block: 52 keys
+[PASS] saved preset is complete unified config 
+[PASS] presets list 
+[PASS] default preset for SYNTH 
+[PASS] global optimize start 
+[PASS] global optimize done 
+[PASS] create API key 
+       key=sk_pPuZDpgS3... id=1
+[PASS] generate signals 
+[PASS]   generate report has signals/trades counts 
+[PASS] dashboard HTML 
+[PASS] dashboard data 
+[PASS]   trade record complete 
+       trades in /data: 18
+[PASS] dashboard charts (SVG) 
+[PASS] CSV export 
+       csv header: trade_id,api_key,broker,ticker,strategy,strategy_version,preset_id,entry_time,exit_time,direction,entry_price,exit_price,quantity,fee,gross_pnl,net_pnl,return_p
+[PASS] XLSX export 
+       xlsx content-type: None
+[PASS] manual refresh 
+[PASS] revoke key 
+[PASS] revoked key -> 410 Gone 
+[PASS] key audit trail (revoked_at) 
+
+SMOKE TEST PASSED: all steps green
