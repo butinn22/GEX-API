@@ -16,8 +16,9 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from collections.abc import Mapping
 from decimal import ROUND_DOWN, Decimal
-from typing import Any, Mapping
+from typing import Any
 
 from trading.domain import OrderType, Price, Quantity, Side, Signal
 

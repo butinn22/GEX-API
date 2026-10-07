@@ -9,7 +9,7 @@ breaches a threshold).
 from __future__ import annotations
 
 import asyncio
-from typing import Mapping
+from collections.abc import Mapping
 
 from trading.application.account_router import (
     AccountOrderResult,
@@ -131,7 +131,9 @@ class ExecutionEngine:
                 equity=equities.get(account.key_id, 0.0), price=price,
             )
             try:
-                order = await self._retry_on(broker, lambda b: b.place_order(sized))
+                order = await self._retry_on(
+                    broker, lambda b, _sized=sized: b.place_order(_sized)
+                )
             except BrokerError as exc:
                 results.append(AccountOrderResult(
                     account.key_id, account.label,

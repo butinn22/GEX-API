@@ -19,11 +19,10 @@ The overlay makes them live. Contract locked in here:
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from trading.application.backtest.engine import BacktestConfig, run_backtest
 from trading.application.strategies.gex_emf import GexEMFStrategy
@@ -35,7 +34,7 @@ from trading.domain import Bar
 def _bars(n: int, seed: int = 0) -> list[Bar]:
     rng = np.random.default_rng(seed)
     close = 100.0 * np.cumprod(1.0 + rng.normal(0.0004, 0.015, n))
-    t0 = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2020, 1, 1, tzinfo=UTC)
     out: list[Bar] = []
     for i in range(n):
         c = float(close[i])
@@ -213,7 +212,7 @@ async def test_trailing_level_ignores_the_current_bars_high(monkeypatch):
     calm = frame.copy()
     calm.loc[1, "high"] = 100.5
 
-    t0 = datetime(2021, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2021, 1, 1, tzinfo=UTC)
     stamps = [t0 + timedelta(days=i) for i in range(3)]
 
     assert _reasons(s._signal_at(frame, 0, stamps[0])) == ["long_entry"]

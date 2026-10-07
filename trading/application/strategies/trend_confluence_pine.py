@@ -39,8 +39,9 @@ close-only and partial exits proportional.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
 from trading.domain import Price, Side, Signal
 
@@ -94,7 +95,7 @@ class PineConfluenceParams(UnifiedTrendParams):
             raise ValueError("add_size_mult must be > 0")
 
     @classmethod
-    def from_dict(cls, raw: Mapping[str, Any] | None) -> "PineConfluenceParams":
+    def from_dict(cls, raw: Mapping[str, Any] | None) -> PineConfluenceParams:
         if not raw:
             return cls()
         fields = cls.__dataclass_fields__
@@ -107,11 +108,7 @@ class PineConfluenceParams(UnifiedTrendParams):
 
 
 #: Parameter names accepted by the Pine-confluence strategy (registry/UI).
-PINE_PARAM_NAMES: list[str] = list(UNIFIED_PARAM_NAMES) + [
-    "tp_enabled", "tp_percent", "tp_close_pct", "tp_cooldown_bars",
-    "trailing_enabled", "trailing_percent",
-    "allow_adds", "add_cooldown_bars", "add_size_mult",
-]
+PINE_PARAM_NAMES: list[str] = [*list(UNIFIED_PARAM_NAMES), "tp_enabled", "tp_percent", "tp_close_pct", "tp_cooldown_bars", "trailing_enabled", "trailing_percent", "allow_adds", "add_cooldown_bars", "add_size_mult"]
 
 
 class PineConfluenceStrategy(UnifiedTrendStrategy):

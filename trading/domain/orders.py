@@ -13,9 +13,10 @@ Design notes (see ARCHITECTURE.md ADR-5/ADR-6):
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
-from typing import Any, Iterator, Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
 
 from .base import utcnow
 from .enums import OrderStatus, OrderType, PositionSide, Side, TimeInForce
@@ -146,7 +147,7 @@ class OrderIntent:
         if self.order_type in (OrderType.STOP, OrderType.STOP_LIMIT) and self.stop_price is None:
             raise ValueError(f"{self.order_type.value} order requires stop_price")
 
-    def to_order(self, order_id: str) -> "Order":
+    def to_order(self, order_id: str) -> Order:
         """Create a PENDING order from this intent."""
         return Order(
             id=order_id,
@@ -205,7 +206,7 @@ class Order:
     def mark_expired(self) -> None:
         self._transition(OrderStatus.EXPIRED)
 
-    def apply_fill(self, fill: "Fill") -> None:
+    def apply_fill(self, fill: Fill) -> None:
         """Accumulate a fill and advance status (OPEN→PARTIAL/FILLED, PARTIAL→…)."""
         if self.status.is_terminal:
             raise InvalidStateError(f"cannot fill a {self.status.value} order")
@@ -282,7 +283,7 @@ class Position:
             return 0.0
         return (mark_price - self.average_entry_price) * self.quantity * self.side.sign
 
-    def apply_fill(self, fill: Fill) -> "Position":
+    def apply_fill(self, fill: Fill) -> Position:
         """Return the position after ``fill`` executes (add / reduce / close / flip)."""
         if fill.symbol != self.symbol:
             raise ValueError("fill symbol does not match position symbol")
@@ -363,7 +364,7 @@ class Portfolio:
         """Cash plus mark-to-market value of open positions."""
         return self.cash + self.market_value(marks or {})
 
-    def apply_fill(self, fill: Fill) -> "Portfolio":
+    def apply_fill(self, fill: Fill) -> Portfolio:
         """Apply a fill: update cash, position, and cumulative realized PnL.
 
         BUY pays price·qty + fee (cash down); SELL receives price·qty − fee
@@ -383,7 +384,7 @@ class Portfolio:
                 realized_pnl=self.realized_pnl + delta_realized,
             )
         return Portfolio(
-            cash=new_cash, positions=others + (new_pos,), currency=self.currency,
+            cash=new_cash, positions=(*others, new_pos), currency=self.currency,
             realized_pnl=self.realized_pnl + delta_realized,
         )
 

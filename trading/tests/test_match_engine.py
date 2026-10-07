@@ -1,7 +1,7 @@
 """Tests for the match engine (commission + slippage models)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -14,7 +14,7 @@ from trading.domain import Bar, OrderIntent, OrderType, Quantity, Side
 
 
 def _bar(open_: float) -> Bar:
-    return Bar(datetime(2024, 1, 1, tzinfo=timezone.utc), open_, open_, open_, open_, 0.0)
+    return Bar(datetime(2024, 1, 1, tzinfo=UTC), open_, open_, open_, open_, 0.0)
 
 
 def test_buy_fill_with_commission_and_slippage():

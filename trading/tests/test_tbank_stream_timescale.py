@@ -1,7 +1,7 @@
 """Tests for the TBANK stream bridge and Timescale storage layer."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
@@ -20,7 +20,7 @@ from trading.domain import Bar, DataFetchError
 
 
 class _Candle:
-    time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    time = datetime(2024, 1, 1, tzinfo=UTC)
     open_price = 1.0
     close_price = 2.0
     highest_price = 3.0
@@ -65,6 +65,6 @@ async def session():
 
 
 async def test_bulk_insert_bars(session):
-    bars = [Bar(datetime(2024, 1, 1, tzinfo=timezone.utc), 1.0, 2.0, 0.5, 1.5, 10.0)]
+    bars = [Bar(datetime(2024, 1, 1, tzinfo=UTC), 1.0, 2.0, 0.5, 1.5, 10.0)]
     n = await bulk_insert_bars(session, "moex", "SBER", "1d", bars)
     assert n == 1

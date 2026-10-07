@@ -1,7 +1,7 @@
 """Redis bar cache: 500 bars per instrument, FIFO eviction, memory fallback."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -17,7 +17,7 @@ from trading.adapters.cache.bar_cache import (
 )
 from trading.domain import Bar
 
-T0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+T0 = datetime(2024, 1, 1, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)

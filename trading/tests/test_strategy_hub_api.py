@@ -6,7 +6,7 @@ request bars; the database is the in-process SQLite the other API tests use.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -214,7 +214,7 @@ async def test_patch_creates_a_new_version(client):
 def _inline_bars(n: int = 120):
     import math
 
-    t0 = datetime(2022, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2022, 1, 1, tzinfo=UTC)
     price = 100.0
     out = []
     for i in range(n):

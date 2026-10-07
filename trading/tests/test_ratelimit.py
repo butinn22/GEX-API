@@ -6,7 +6,7 @@ import pytest
 from trading.adapters.ratelimit import RateLimiter, TokenBucket
 
 
-def _clock_at(store: dict) -> "callable":
+def _clock_at(store: dict) -> callable:
     return lambda: store["t"]
 
 

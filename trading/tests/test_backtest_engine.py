@@ -1,7 +1,7 @@
 """Tests for the event-driven backtest engine (no-lookahead, fees, sizing)."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 import pytest
@@ -13,7 +13,7 @@ from trading.domain import Bar, Side, Signal
 
 
 def bar(i: int, open_: float, close: float) -> Bar:
-    ts = datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i)
+    ts = datetime(2024, 1, 1, tzinfo=UTC) + timedelta(days=i)
     return Bar(
         timestamp=ts,
         open=open_,

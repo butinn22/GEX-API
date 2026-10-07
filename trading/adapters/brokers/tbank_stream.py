@@ -10,8 +10,9 @@ is verified against ``tinkoff-invest`` 1.0.5.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 from trading.domain import Bar, BookLevel, DataFetchError, OrderBook
 

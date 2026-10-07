@@ -12,7 +12,6 @@ from trading.domain import (
     OrderRejectedError,
     OrderType,
     Portfolio,
-    Position,
     Quantity,
     Side,
 )

@@ -13,8 +13,7 @@ already use. What is asserted is the contract the API and the exports rely on:
 from __future__ import annotations
 
 import asyncio
-
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -40,7 +39,7 @@ from trading.application.signal_engine import (
 from trading.domain import Bar, Exchange
 from trading.main import app
 
-_T0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+_T0 = datetime(2024, 1, 1, tzinfo=UTC)
 
 
 class _StubFetcher:

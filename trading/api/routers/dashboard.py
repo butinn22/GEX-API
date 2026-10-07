@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import html
+import itertools
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -103,7 +104,7 @@ def _downsample(times: list[str], values: list[float], cap: int = 400) -> tuple[
     if n <= cap:
         return times, values
     step = (n - 1) / (cap - 1)
-    idx = sorted({int(round(i * step)) for i in range(cap)})
+    idx = sorted({round(i * step) for i in range(cap)})
     return [times[i] for i in idx], [values[i] for i in idx]
 
 
@@ -120,7 +121,7 @@ def _pnl_histogram(pnls: list[float], bins: int = 20):
     if arr.size == 0:
         return [], []
     counts, edges = np.histogram(arr, bins=bins)
-    centers = [(a + b) / 2 for a, b in zip(edges[:-1], edges[1:])]
+    centers = [(a + b) / 2 for a, b in itertools.pairwise(edges)]
     return [int(c) for c in counts], centers
 
 

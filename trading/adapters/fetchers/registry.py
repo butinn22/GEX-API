@@ -107,7 +107,7 @@ def default_registry() -> FetcherRegistry:
 #: the entry dies with the loop instead of pinning it. httpx clients are bound to
 #: the loop that first uses them, so sharing a single registry across loops would
 #: raise ("Event loop is closed") — and Celery runs every task in its own loop.
-_LOOP_REGISTRIES: "weakref.WeakKeyDictionary[Any, FetcherRegistry]" = weakref.WeakKeyDictionary()
+_LOOP_REGISTRIES: weakref.WeakKeyDictionary[Any, FetcherRegistry] = weakref.WeakKeyDictionary()
 
 
 def loop_registry() -> FetcherRegistry:

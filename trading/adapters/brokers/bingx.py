@@ -17,7 +17,8 @@ import hashlib
 import hmac
 import time
 import urllib.parse
-from typing import Any, Mapping, Optional
+from collections.abc import Mapping
+from typing import Any
 
 import httpx
 
@@ -82,7 +83,7 @@ class BingxClient:
         self,
         method: str,
         path: str,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         *,
         signed: bool = True,
         rate_cost: float = 1.0,

@@ -6,7 +6,7 @@ end-to-end without network access.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 
@@ -37,7 +37,7 @@ class SyntheticFetcher(BaseFetcher):
         limit: int = 500,
     ) -> list[Bar]:
         n = max(limit, 1)
-        start_dt = start or datetime(2023, 1, 1, tzinfo=timezone.utc)
+        start_dt = start or datetime(2023, 1, 1, tzinfo=UTC)
         closes = 100.0 * np.exp(np.cumsum(self._rng.normal(self.mu, self.sigma, n)))
         bars: list[Bar] = []
         for i in range(n):

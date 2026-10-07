@@ -6,7 +6,7 @@ DST since 2014) and are normalised to UTC.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import httpx
 
@@ -50,7 +50,7 @@ def _parse_time(s: str | None) -> datetime | None:
         dt = datetime.strptime(s[:19], "%Y-%m-%d %H:%M:%S")
     except ValueError:
         return None
-    return dt.replace(tzinfo=_MOSCOW).astimezone(timezone.utc)
+    return dt.replace(tzinfo=_MOSCOW).astimezone(UTC)
 
 
 class MoexIssFetcher(BaseFetcher):
@@ -86,7 +86,7 @@ class MoexIssFetcher(BaseFetcher):
         limit: int = 500,
     ) -> list[Bar]:
         interval = _INTERVAL.get(timeframe, 24)
-        till = end or datetime.now(timezone.utc)
+        till = end or datetime.now(UTC)
         # Fetch the LATEST window: MOEX returns the oldest history unless a recent
         # `from` is given.
         from_dt = start or (till - timedelta(days=_WINDOW_DAYS.get(timeframe, 700)))

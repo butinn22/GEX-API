@@ -1,7 +1,7 @@
 """Tests for the live strategy engine."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from trading.application.audit import AuditLog
 from trading.application.live_engine import LiveEngine
@@ -11,7 +11,7 @@ from trading.domain import Bar
 
 
 def _bar(i: int, close: float) -> Bar:
-    ts = datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i)
+    ts = datetime(2024, 1, 1, tzinfo=UTC) + timedelta(days=i)
     return Bar(timestamp=ts, open=close, high=close, low=close, close=close, volume=1.0)
 
 

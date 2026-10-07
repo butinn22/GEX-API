@@ -1,7 +1,7 @@
 """Walk-forward analysis and parameter sensitivity scans."""
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from collections.abc import Callable, Sequence
 
 from trading.domain import Bar
 

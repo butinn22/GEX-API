@@ -32,15 +32,17 @@ does this for its own frame).
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from trading.domain import Bar, Price, Side, Signal
 
-from .gex_emf import MIN_BARS as EMF_MIN_BARS, _flag
+from .gex_emf import MIN_BARS as EMF_MIN_BARS
+from .gex_emf import _flag
 from .trend_confluence import (
     OptionsWalls,
     TrendConfluenceParams,
@@ -103,11 +105,11 @@ class UnifiedTrendParams(TrendConfluenceParams):
             )
         if self.momentum_period <= 0:
             raise ValueError("momentum_period must be > 0")
-        if not 0.0 <= self.emf_bonus or not 0.0 <= self.momentum_bonus:
+        if not self.emf_bonus >= 0.0 or not self.momentum_bonus >= 0.0:
             raise ValueError("emf_bonus / momentum_bonus must be >= 0")
 
     @classmethod
-    def from_dict(cls, raw: Mapping[str, Any] | None) -> "UnifiedTrendParams":
+    def from_dict(cls, raw: Mapping[str, Any] | None) -> UnifiedTrendParams:
         if not raw:
             return cls()
         fields = cls.__dataclass_fields__
@@ -121,12 +123,7 @@ class UnifiedTrendParams(TrendConfluenceParams):
 
 #: Parameter names accepted by the unified strategy (registry/UI surface).
 UNIFIED_PARAM_NAMES: list[str] = (
-    list(TrendConfluenceParams.__dataclass_fields__)
-    + [
-        "use_emf", "emf_mode", "emf_bonus", "use_emf_exits", "use_risk_exits",
-        "use_momentum", "momentum_period", "momentum_mode", "momentum_bonus",
-        "emf", "options",
-    ]
+    [*list(TrendConfluenceParams.__dataclass_fields__), "use_emf", "emf_mode", "emf_bonus", "use_emf_exits", "use_risk_exits", "use_momentum", "momentum_period", "momentum_mode", "momentum_bonus", "emf", "options"]
 )
 
 

@@ -6,6 +6,8 @@ values all fail the objective gates must not be silently ranked first.
 """
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 
 from trading.application.backtest.optimize import (
@@ -70,15 +72,15 @@ def test_c_value_restores_types() -> None:
 
 
 def test_optimize_returns_impact_for_pine_defaults() -> None:
-    from datetime import datetime, timedelta, timezone
     import math
+    from datetime import datetime, timedelta
 
     from trading.application.backtest.engine import BacktestConfig
     from trading.domain import Bar
 
     bars: list[Bar] = []
     price = 100.0
-    t0 = datetime(2022, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2022, 1, 1, tzinfo=UTC)
     for i in range(320):
         ret = 0.0015 + 0.012 * math.sin(i / 9.0) - 0.006
         prev = price

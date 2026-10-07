@@ -12,21 +12,21 @@ from __future__ import annotations
 
 import asyncio
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import pytest
 
 from trading.application.backtest.engine import BacktestConfig, run_backtest
-from trading.application.strategy_factory import build_strategy
 from trading.application.strategies.trend_confluence_pine import (
     PINE_PARAM_NAMES,
     PineConfluenceParams,
     PineConfluenceStrategy,
 )
+from trading.application.strategy_factory import build_strategy
 from trading.domain import Bar, Price, StrategyError
 
-TS0 = datetime(2022, 1, 1, tzinfo=timezone.utc)
+TS0 = datetime(2022, 1, 1, tzinfo=UTC)
 
 
 def _trending_bars(n: int = 600, *, start: float = 100.0, drift: float = 0.0015) -> list[Bar]:

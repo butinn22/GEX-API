@@ -19,7 +19,7 @@ the live signal pipeline (``POST /baskets/deploy``). Two guarantees:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from trading.api.schemas import (
@@ -114,7 +114,7 @@ async def validate_and_build(
     }
     return BasketExportResponse(
         schema_version=EXPORT_SCHEMA_VERSION,
-        exported_at=datetime.now(timezone.utc),
+        exported_at=datetime.now(UTC),
         costs=costs,
         tickers=tickers,
     )

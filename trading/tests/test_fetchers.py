@@ -1,6 +1,8 @@
 """Tests for the real data fetchers (offline, mocked HTTP transport)."""
 from __future__ import annotations
 
+from datetime import UTC
+
 import httpx
 import pytest
 
@@ -136,8 +138,8 @@ class _FakeFetcher(BaseFetcher):
 
 
 def bars_timestamp():
-    from datetime import datetime, timezone
-    return datetime(2024, 1, 1, tzinfo=timezone.utc)
+    from datetime import datetime
+    return datetime(2024, 1, 1, tzinfo=UTC)
 
 
 async def test_registry_fallback():
@@ -156,8 +158,8 @@ async def test_registry_fallback():
 
 
 def test_validate_bars_dedup_and_sort():
-    from datetime import datetime, timedelta, timezone
-    ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    from datetime import datetime, timedelta
+    ts = datetime(2024, 1, 1, tzinfo=UTC)
     bars = [
         Bar(ts + timedelta(days=1), 1, 2, 0.5, 1.5, 10),
         Bar(ts, 1, 2, 0.5, 1.5, 10),
@@ -168,11 +170,11 @@ def test_validate_bars_dedup_and_sort():
 
 
 def test_validate_bars_rejects_bad():
-    from datetime import datetime, timezone
+    from datetime import datetime
     with pytest.raises(DataFetchError):
         validate_bars([])
     # Bar itself guards high/low; validate_bars additionally guards negative values
     with pytest.raises(DataFetchError):
-        validate_bars([Bar(datetime(2024, 1, 1, tzinfo=timezone.utc), -1, -1, -1, -1, 10)])  # negative close
+        validate_bars([Bar(datetime(2024, 1, 1, tzinfo=UTC), -1, -1, -1, -1, 10)])  # negative close
     with pytest.raises(DataFetchError):
-        validate_bars([Bar(datetime(2024, 1, 1, tzinfo=timezone.utc), 1, 2, 0.5, 1.5, -5)])  # negative volume
+        validate_bars([Bar(datetime(2024, 1, 1, tzinfo=UTC), 1, 2, 0.5, 1.5, -5)])  # negative volume

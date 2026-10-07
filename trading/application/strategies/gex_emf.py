@@ -26,8 +26,8 @@ the future is genuinely unknown and ``prepare`` is never called.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Sequence
 
 import numpy as np
 import pandas as pd
@@ -178,11 +178,10 @@ class GexEMFStrategy(Strategy):
                     self._close_position()
                     out.append(Signal(self.symbol, Side.SELL, self.name, "long_exit",
                                       strength=1.0, price=price, timestamp=timestamp))
-            elif self._side == "short":
-                if _flag(row, "short_exit_signal"):
-                    self._close_position()
-                    out.append(Signal(self.symbol, Side.BUY, self.name, "short_exit",
-                                      strength=1.0, price=price, timestamp=timestamp))
+            elif self._side == "short" and _flag(row, "short_exit_signal"):
+                self._close_position()
+                out.append(Signal(self.symbol, Side.BUY, self.name, "short_exit",
+                                  strength=1.0, price=price, timestamp=timestamp))
 
         if self._side != "flat":
             # Track the extremes *after* the exit checks, so the stop level tested

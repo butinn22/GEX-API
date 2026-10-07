@@ -15,9 +15,10 @@ from __future__ import annotations
 import csv
 import io
 import zipfile
+from collections.abc import Iterable, Sequence
 from dataclasses import replace
-from datetime import datetime, timezone
-from typing import Any, Iterable, Sequence
+from datetime import UTC, datetime
+from typing import Any
 from xml.sax.saxutils import escape
 
 from trading.application.backtest.trade_log import TradeEvent, events_from_fill
@@ -167,7 +168,7 @@ def events_from_order_rows(rows: Sequence[Any]) -> list[TradeEvent]:
         fill = Fill(
             order_id=str(row.id), symbol=row.symbol, side=Side(row.side),
             price=price, quantity=qty,
-            timestamp=row.created_at or datetime.now(timezone.utc),
+            timestamp=row.created_at or datetime.now(UTC),
         )
         for ev in events_from_fill(pos, fill, strategy=row.strategy, reason=row.reason):
             if not known_price:

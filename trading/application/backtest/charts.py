@@ -14,8 +14,8 @@ Charts
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 __all__ = [
     "Palette",
@@ -122,7 +122,7 @@ def line_chart(
 ) -> str:
     """Multi-series line chart with gridlines, x/y axes and a legend."""
     L, R, T, B = 76, 16, 34, 40
-    pw, ph = width - L - R, height - T - B
+    _pw, ph = width - L - R, height - T - B
     values = [v for _, vals in series for v in vals]
     if not values or not labels:
         return _empty_svg(width, height, title, palette)
@@ -182,7 +182,7 @@ def drawdown_chart(
 ) -> str:
     """Underwater chart: drawdown (negative %) over time."""
     L, R, T, B = 76, 16, 34, 30
-    pw, ph = width - L - R, height - T - B
+    _pw, ph = width - L - R, height - T - B
     eq = list(equity)
     if len(eq) < 2 or not labels:
         return _empty_svg(width, height, title, palette)
@@ -236,7 +236,7 @@ def fan_chart(
 ) -> str:
     """Fan chart from percentile bands (keys ``p5``/``p25``/``p50``/``p75``/``p95``)."""
     L, R, T, B = 76, 16, 34, 30
-    pw, ph = width - L - R, height - T - B
+    _pw, ph = width - L - R, height - T - B
     req = ("p5", "p25", "p50", "p75", "p95")
     if not steps or any(k not in bands or not bands[k] for k in req):
         return _empty_svg(width, height, title, palette)

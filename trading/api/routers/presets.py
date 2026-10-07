@@ -96,7 +96,7 @@ async def _hot_swap(symbol: str, strategy: str) -> None:
         if engine_strategy and engine_strategy != strategy:
             return
         await signal_engine.reload_ticker(symbol)
-    except Exception:  # noqa: BLE001 — hot-swap is explicitly best-effort
+    except Exception:
         logger.warning("hot-swap of %s/%s failed", symbol, strategy, exc_info=True)
 
 

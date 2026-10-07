@@ -7,7 +7,7 @@ through to another source for those).
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -117,7 +117,7 @@ class YFinanceFetcher(BaseFetcher):
                 continue
             bars.append(
                 Bar(
-                    timestamp=datetime.fromtimestamp(t, tz=timezone.utc),
+                    timestamp=datetime.fromtimestamp(t, tz=UTC),
                     open=float(o), high=float(h), low=float(l), close=float(c),
                     volume=float(quote["volume"][i] or 0.0),
                 )

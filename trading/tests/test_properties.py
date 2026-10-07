@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import numpy as np
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from trading.adapters.ratelimit import TokenBucket
 from trading.application.backtest.metrics import max_drawdown

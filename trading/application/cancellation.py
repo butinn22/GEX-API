@@ -73,9 +73,9 @@ class CancelToken:
     cancel has actually been requested, so it is safe to call in a hot loop.
     """
 
-    __slots__ = ("token", "_registry")
+    __slots__ = ("_registry", "token")
 
-    def __init__(self, token: str, registry: "RunRegistry") -> None:
+    def __init__(self, token: str, registry: RunRegistry) -> None:
         self.token = token
         self._registry = registry
 

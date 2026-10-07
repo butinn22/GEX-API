@@ -1,7 +1,7 @@
 """Momentum: long when the rate-of-change is positive, flat when negative."""
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from trading.domain import Bar, Price, Side, Signal, Tick
 from trading.ports import Strategy

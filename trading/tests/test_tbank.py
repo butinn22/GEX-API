@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
 from trading.adapters.brokers.tbank import _STATUS, TbankBroker
 from trading.domain import OrderIntent, OrderStatus, OrderType, Quantity, Side
 

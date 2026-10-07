@@ -5,7 +5,7 @@ import csv
 import io
 import json
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -21,9 +21,9 @@ from trading.application.reporting.trade_export import (
     events_to_csv,
     events_to_xlsx,
 )
-from trading.domain import Fill, Position, PositionSide, Side
+from trading.domain import Fill, Position, Side
 
-T0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+T0 = datetime(2024, 1, 1, tzinfo=UTC)
 
 
 def make_events():
@@ -81,7 +81,7 @@ class TestXlsx:
         assert sheet.count("<row") == 4  # header + 3 events
 
     def test_escapes_xml(self):
-        evs = make_events()
+        make_events()
         evil = event_from_fill(
             Position("X"),
             Fill(order_id="9", symbol="X", side=Side.BUY, price=1.0, quantity=1.0),
@@ -94,12 +94,12 @@ class TestXlsx:
 
 
 def order_row(**kw) -> SimpleNamespace:
-    defaults = dict(
-        id="o1", exchange="bingx", symbol="BTC-USDT", side="buy", quantity=1.0,
-        order_type="limit", status="filled", limit_price=100.0, stop_price=None,
-        filled_quantity=1.0, strategy="emf", reason="r",
-        created_at=T0,
-    )
+    defaults = {
+        "id": "o1", "exchange": "bingx", "symbol": "BTC-USDT", "side": "buy", "quantity": 1.0,
+        "order_type": "limit", "status": "filled", "limit_price": 100.0, "stop_price": None,
+        "filled_quantity": 1.0, "strategy": "emf", "reason": "r",
+        "created_at": T0,
+    }
     defaults.update(kw)
     return SimpleNamespace(**defaults)
 

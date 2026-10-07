@@ -43,7 +43,7 @@ router = APIRouter(tags=["trading"])
 #: first accepted order instead of placing a **duplicate live order**. The cache
 #: is process-local (the deploy ships single-worker — the same assumption the
 #: rate limiter documents) and bounded (LRU + TTL).
-_ORDER_IDEMPOTENCY: "OrderedDict[str, tuple[float, OrderOut]]" = OrderedDict()
+_ORDER_IDEMPOTENCY: OrderedDict[str, tuple[float, OrderOut]] = OrderedDict()
 _ORDER_IDEMPOTENCY_MAX = 10_000
 _ORDER_IDEMPOTENCY_TTL = 24 * 3600.0
 _order_idem_lock = threading.Lock()

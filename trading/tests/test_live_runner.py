@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from trading.application.live_runner import LiveStrategyManager
 from trading.application.signal_hub import signal_hub
@@ -11,7 +11,7 @@ from trading.domain import Bar
 
 
 def _bar(i: int) -> Bar:
-    ts = datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i)
+    ts = datetime(2024, 1, 1, tzinfo=UTC) + timedelta(days=i)
     return Bar(timestamp=ts, open=100.0 + i, high=101.0 + i, low=99.0 + i, close=100.0 + i, volume=1.0)
 
 

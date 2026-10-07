@@ -71,7 +71,7 @@ class TradeEvent:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "TradeEvent":
+    def from_dict(cls, d: dict[str, Any]) -> TradeEvent:
         return cls(
             timestamp=datetime.fromisoformat(d["timestamp"]),
             symbol=d["symbol"],

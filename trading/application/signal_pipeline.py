@@ -6,7 +6,7 @@ reach sizing/execution.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Callable, Sequence
+from collections.abc import Callable, Sequence
 
 from trading.domain import Signal
 

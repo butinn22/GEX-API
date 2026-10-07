@@ -51,6 +51,33 @@ testpaths = ["trading/tests"]
 
 [tool.ruff]
 line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# A pragmatic, high-signal policy for a FastAPI + SQLAlchemy + pandas codebase.
+select = ["E", "F", "W", "I", "B", "C4", "UP", "SIM", "RUF"]
+ignore = [
+    "B008",   # FastAPI: Depends(...) in argument defaults is the documented idiom
+    "B027",   # empty non-abstract hook methods (Strategy.prepare/shutdown) are intentional
+    "B905",   # zip(strict=) is optional; not worth churning every call site
+    "E501",   # line length is a formatting concern (handled separately), not a lint error
+    "E702",   # semicolons group tightly-related statements in tests
+    "E741",   # ambiguous `l`/`O`/`I` names are common in maths-heavy code
+    "RUF001", # ambiguous unicode: the codebase uses em-dashes/arrows in prose
+    "RUF002",
+    "RUF003",
+    "RUF012", # mutable class attrs: SQLAlchemy/Pydantic declarative style
+    "RUF022", # keep __all__ grouped by meaning, not alphabetised
+    "RUF059", # unpacked-but-unused names are sometimes intentional (tuple shapes)
+    "SIM105", # try/except/pass reads clearly at these call sites
+    "UP042",  # class X(str, Enum) is the stable pre-3.12 idiom used across domain/
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately assert broad exception types and use blind excepts for cleanup.
+"trading/tests/*" = ["B017", "SIM117"]
+# conftest sets env vars before importing trading (imports intentionally follow).
+"trading/tests/conftest.py" = ["E402"]
 
 # NOTE: TA-Lib / pandas-ta indicators are an optional enhancement (TA-Lib needs
 # the C library on the host); example strategies use pure-numpy SMAs.

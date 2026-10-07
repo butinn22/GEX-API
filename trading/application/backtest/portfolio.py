@@ -26,15 +26,16 @@ from __future__ import annotations
 import asyncio
 import logging
 import zlib
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from trading.adapters.cache import TtlCache
 from trading.application.instruments import resolve_symbol
 from trading.application.strategy_factory import build_strategy
-from trading.adapters.cache import TtlCache
 from trading.config import settings
 from trading.domain import Bar, DataFetchError, Exchange, StrategyError
 from trading.ports import Strategy
@@ -221,8 +222,10 @@ async def load_bars(spec: TickerSpec, *, refresh: bool = False) -> list[Bar]:
     # windows bypass L2 (it is capped by design).
     from trading.adapters.cache import (
         MAX_BARS_PER_INSTRUMENT,
-        cache_key as bar_cache_key,
         loop_bar_cache,
+    )
+    from trading.adapters.cache import (
+        cache_key as bar_cache_key,
     )
 
     l2 = None
@@ -316,7 +319,7 @@ def _align(
 ) -> tuple[list[datetime], list[np.ndarray]]:
     """Forward-fill each curve onto the sorted union of all timestamps."""
     union = sorted({ts for tss in times for ts in tss})
-    idx = {ts: i for i, ts in enumerate(union)}
+    {ts: i for i, ts in enumerate(union)}
     aligned: list[np.ndarray] = []
     for curve, tss in zip(curves, times):
         out = np.empty(len(union), dtype=float)
@@ -336,7 +339,7 @@ async def run_portfolio_backtest(
     config: PortfolioBacktestConfig | None = None,
     *,
     bars_by_symbol: Mapping[str, Sequence[Bar]] | None = None,
-    cancel: "CancelToken | None" = None,
+    cancel: CancelToken | None = None,
     refresh: bool = False,
 ) -> PortfolioBacktestResult:
     """Backtest every enabled spec and aggregate into one portfolio curve.
@@ -381,7 +384,6 @@ async def run_portfolio_backtest(
             errors.append({"symbol": spec.symbol, "error": str(bars)})
             continue
         try:
-            return_exc = None
             bars = sorted(bars, key=lambda b: b.timestamp)
             if len(bars) < 2:
                 raise DataFetchError(f"need at least 2 bars, got {len(bars)}")

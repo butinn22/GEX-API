@@ -11,10 +11,10 @@ parsers are the stable, tested part.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable
+from datetime import UTC, datetime
+from typing import Any
 
-from trading.application.ws_reconnect import WSReconnectManager
 from trading.domain import Bar, BookLevel, OrderBook, Tick
 
 __all__ = [
@@ -26,7 +26,7 @@ _MARKET_URL = "wss://open-api-ws.bingx.com/market"
 
 
 def _ts_ms(value: Any) -> datetime:
-    return datetime.fromtimestamp(int(value) / 1000, tz=timezone.utc)
+    return datetime.fromtimestamp(int(value) / 1000, tz=UTC)
 
 
 def parse_trade(msg: dict) -> Tick | None:

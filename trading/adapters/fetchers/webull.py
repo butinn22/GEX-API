@@ -6,8 +6,8 @@ marked best-effort because the endpoints may reject unauthenticated requests.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 import httpx
 
@@ -79,7 +79,7 @@ class WebullFetcher(BaseFetcher):
                 continue
             bars.append(
                 Bar(
-                    timestamp=datetime.fromtimestamp(int(row[0]), tz=timezone.utc),
+                    timestamp=datetime.fromtimestamp(int(row[0]), tz=UTC),
                     open=float(row[1]), high=float(row[2]), low=float(row[3]),
                     close=float(row[4]), volume=float(row[5] or 0.0),
                 )

@@ -19,6 +19,8 @@ change and still passes.
 """
 from __future__ import annotations
 
+from datetime import UTC
+
 import numpy as np
 import pytest
 
@@ -32,9 +34,9 @@ def _bars(n: int, seed: int = 0) -> list[Bar]:
     """Deterministic OHLCV bars satisfying the domain invariants."""
     rng = np.random.default_rng(seed)
     close = 100.0 * np.cumprod(1.0 + rng.normal(0.0004, 0.015, n))
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
-    t0 = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2020, 1, 1, tzinfo=UTC)
     out: list[Bar] = []
     for i in range(n):
         c = float(close[i])

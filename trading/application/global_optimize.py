@@ -16,9 +16,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Mapping, Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from trading.application.backtest.engine import BacktestConfig
 from trading.application.backtest.optimize import optimize_strategy
@@ -42,7 +43,7 @@ class GlobalRunState:
     completed: int = 0
     failed: int = 0
     current_symbol: str = ""
-    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     finished_at: datetime | None = None
     results: list[dict[str, Any]] = field(default_factory=list)
     errors: list[dict[str, Any]] = field(default_factory=list)
@@ -230,7 +231,7 @@ class GlobalOptimizeRunner:
                 state._durations.append(time.monotonic() - t0)
             except RunCancelled:
                 state.state = "cancelled"
-                state.finished_at = datetime.now(timezone.utc)
+                state.finished_at = datetime.now(UTC)
                 logger.info("global optimize %s cancelled at %s", state.run_id, symbol)
                 return
             except Exception as exc:  # isolate: one bad ticker never sinks the run
@@ -243,7 +244,7 @@ class GlobalOptimizeRunner:
                                  state.run_id, symbol)
         if state.state == "running":
             state.state = "done"
-            state.finished_at = datetime.now(timezone.utc)
+            state.finished_at = datetime.now(UTC)
         state.current_symbol = ""
         # Release the run token so a later cancel of the same id is a no-op
         # and the token doesn't linger in the registry's cancelled set.

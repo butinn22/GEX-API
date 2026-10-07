@@ -16,8 +16,9 @@ request path and trivially parallelisable in Celery for much larger N.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -126,7 +127,7 @@ def _simulate(
     returns: np.ndarray,
     cfg: MonteCarloConfig,
     n_steps: int,
-    cancel: "CancelToken | None" = None,
+    cancel: CancelToken | None = None,
 ) -> np.ndarray:
     """Return an ``(n_paths, n_steps + 1)`` array of equity multipliers (start 1.0).
 
@@ -197,10 +198,7 @@ def _histogram(values: np.ndarray, bins: int, cap: int) -> Histogram:
     # range and it refuses to build finite bins. Widen the window ourselves,
     # relative to the magnitude of the data, before bucketing.
     scale = max(abs(lo), abs(hi), 1.0)
-    if not np.isfinite(span) or span < scale * 1e-9:
-        pad = scale * 0.05
-    else:
-        pad = span * 0.02
+    pad = scale * 0.05 if not np.isfinite(span) or span < scale * 1e-09 else span * 0.02
     counts, edges = np.histogram(v, bins=bins, range=(lo - pad, hi + pad))
     centers = (edges[:-1] + edges[1:]) / 2.0
     return Histogram(
@@ -218,7 +216,7 @@ def run_monte_carlo(
     returns: Sequence[float] | np.ndarray,
     config: MonteCarloConfig | None = None,
     *,
-    cancel: "CancelToken | None" = None,
+    cancel: CancelToken | None = None,
 ) -> MonteCarloResult:
     """Run a Monte-Carlo simulation over a simple-return series.
 
@@ -296,7 +294,7 @@ def run_monte_carlo_from_equity(
     equity: Sequence[float] | np.ndarray,
     config: MonteCarloConfig | None = None,
     *,
-    cancel: "CancelToken | None" = None,
+    cancel: CancelToken | None = None,
 ) -> MonteCarloResult:
     """Convenience wrapper: derive returns from an equity curve, then simulate."""
     if cancel is not None:

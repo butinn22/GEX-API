@@ -14,12 +14,13 @@ Execution model
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence
 
 import numpy as np
 
+from trading.application.risk import PositionSizer
 from trading.domain import (
     Bar,
     Fill,
@@ -31,7 +32,6 @@ from trading.domain import (
     Side,
     Signal,
 )
-from trading.application.risk import PositionSizer
 from trading.ports import Strategy
 
 from .match_engine import (

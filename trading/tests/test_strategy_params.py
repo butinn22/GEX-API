@@ -7,19 +7,17 @@ different configuration than it shows.
 """
 from __future__ import annotations
 
-import pytest
-
+from gex.strategy.settings import StrategySettings
+from trading.application.strategies.trend_confluence_pine import (
+    PINE_PARAM_NAMES,
+    PineConfluenceParams,
+)
 from trading.application.strategy_params import (
     GROUPS,
     defaults_for,
     grid_for,
     schema_for,
 )
-from trading.application.strategies.trend_confluence_pine import (
-    PINE_PARAM_NAMES,
-    PineConfluenceParams,
-)
-from gex.strategy.settings import StrategySettings
 
 PINE = "trend_confluence_pine"
 

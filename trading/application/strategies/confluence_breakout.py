@@ -63,9 +63,10 @@ from __future__ import annotations
 
 import dataclasses
 import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -161,9 +162,9 @@ class ConfluenceBreakoutParams:
         for name in ("n_break", "pivot_left", "pivot_right", "adl_ema_span"):
             if int(getattr(self, name)) < 1:
                 raise ValueError(f"parameter '{name}' must be >= 1")
-        if not 0 < self.k_sl_atr:
+        if not self.k_sl_atr > 0:
             raise ValueError("k_sl_atr must be > 0")
-        if not 0 < self.k_trail:
+        if not self.k_trail > 0:
             raise ValueError("k_trail must be > 0")
         if self.min_stop_atr > self.max_stop_atr:
             raise ValueError("min_stop_atr must be <= max_stop_atr")
@@ -175,7 +176,7 @@ class ConfluenceBreakoutParams:
             raise ValueError("risk_pct must be in (0, 1]")
 
     @classmethod
-    def from_dict(cls, raw: Mapping[str, Any] | None) -> "ConfluenceBreakoutParams":
+    def from_dict(cls, raw: Mapping[str, Any] | None) -> ConfluenceBreakoutParams:
         data = {k: v for k, v in dict(raw or {}).items() if k in cls.FIELD_NAMES}
         out = dataclasses.replace(cls(), **data)
         out.__post_init__()
@@ -472,7 +473,6 @@ class ConfluenceBreakoutStrategy(Strategy):
         return "", ""
 
     def _try_entry(self, side: str, i: int, f: dict[str, np.ndarray]) -> Signal | None:
-        p = self._p
         close = f["close"][i]
         if not self._trend_filter_ok(f, i, side):
             return None

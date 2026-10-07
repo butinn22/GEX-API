@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -15,7 +15,6 @@ from trading.application.backtest.optimize import (
     metric_value,
     optimize_strategy,
 )
-from trading.application.backtest.portfolio import TickerSpec
 from trading.application.cancellation import run_registry
 from trading.application.global_optimize import GlobalOptimizeRunner
 from trading.application.presets import PresetService
@@ -25,7 +24,7 @@ from trading.domain import Bar
 def _trending_bars(n: int = 400, *, start: float = 100.0, drift: float = 0.0015) -> list[Bar]:
     bars: list[Bar] = []
     price = start
-    t0 = datetime(2022, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2022, 1, 1, tzinfo=UTC)
     for i in range(n):
         ret = drift + 0.012 * math.sin(i / 9.0) - 0.006
         prev = price
@@ -193,6 +192,7 @@ async def test_global_run_completes_and_saves_presets(tmp_path):
 
     async with db._session_factory() as s:
         from sqlalchemy import delete
+
         from trading.adapters.persistence.models import StrategyPresetRow
 
         await s.execute(delete(StrategyPresetRow))

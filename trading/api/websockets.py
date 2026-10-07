@@ -29,7 +29,7 @@ async def _stream(ws: WebSocket, q: asyncio.Queue, heartbeat: float) -> None:
         try:
             message = await asyncio.wait_for(q.get(), timeout=heartbeat)
             await ws.send_json(message)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             await ws.send_json({"type": "heartbeat", "ts": time.time()})
 
 

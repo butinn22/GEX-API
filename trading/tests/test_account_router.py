@@ -5,10 +5,10 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import delete
 
-from trading.adapters.persistence import database as db
-from trading.adapters.persistence.models import ApiKeyRow
 from trading.adapters.brokers.bingx import BingxBroker
 from trading.adapters.brokers.tbank import TbankBroker
+from trading.adapters.persistence import database as db
+from trading.adapters.persistence.models import ApiKeyRow
 from trading.application.account_router import (
     AccountSettings,
     AccountView,
@@ -145,7 +145,7 @@ class FakeBroker:
 class TestApplyRisk:
     def test_scales_down_to_notional_cap(self):
         from trading.application.account_router import apply_risk
-        from trading.domain import OrderIntent, OrderType, Quantity, Side, Price
+        from trading.domain import OrderIntent, OrderType, Price, Quantity, Side
 
         intent = OrderIntent(symbol="BTC-USDT", side=Side.BUY, quantity=Quantity(250),
                             order_type=OrderType.LIMIT, limit_price=Price(100.0))
@@ -155,7 +155,7 @@ class TestApplyRisk:
 
     def test_leaves_small_intent_untouched(self):
         from trading.application.account_router import apply_risk
-        from trading.domain import OrderIntent, OrderType, Quantity, Side, Price
+        from trading.domain import OrderIntent, OrderType, Price, Quantity, Side
 
         intent = OrderIntent(symbol="X", side=Side.BUY, quantity=Quantity(5),
                             order_type=OrderType.LIMIT, limit_price=Price(100.0))
@@ -178,7 +178,8 @@ class TestAccountRouter:
 
     def test_brokers_for_filters_and_caches(self):
         calls = []
-        factory = lambda a: (calls.append(a.key_id), FakeBroker())[1]
+        def factory(a):
+            return (calls.append(a.key_id), FakeBroker())[1]
         router = self.make_router([
             make_account(key_id=1, settings=AccountSettings(instruments=("BTC-USDT",))),
             make_account(key_id=2, settings=AccountSettings(instruments=("SBER",))),
@@ -207,7 +208,7 @@ class TestAccountRouter:
         assert len(b2.placed) == 1
 
     async def test_place_multi_isolates_failures(self):
-        from trading.domain import OrderIntent, OrderType, Price, Quantity, Side
+        from trading.domain import OrderIntent, OrderType, Quantity, Side
 
         a1 = make_account(key_id=1, label="broken")
         a2 = make_account(key_id=2, label="healthy")

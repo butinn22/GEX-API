@@ -9,20 +9,17 @@ import pytest
 from trading.domain import (
     Bar,
     Exchange,
-    Fill,
     Instrument,
     Order,
     OrderBook,
     OrderIntent,
     OrderType,
     Portfolio,
-    Position,
     Quantity,
     Side,
     Tick,
 )
 from trading.ports import BaseFetcher, BrokerAdapter, Strategy
-
 
 # ── Abstractness ──────────────────────────────────────────────────────
 

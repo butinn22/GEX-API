@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,7 +61,7 @@ class TaskResultStore:
         only rows older than that window are removed. Returns the count deleted."""
         stmt = delete(BacktestResultRow)
         if older_than_days is not None:
-            cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+            cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
             stmt = stmt.where(BacktestResultRow.created_at < cutoff)
         result = await self._session.execute(stmt)
         await self._session.commit()

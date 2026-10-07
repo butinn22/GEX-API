@@ -1,7 +1,7 @@
 """Tests for the trading domain ring (pure, no external deps)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -11,7 +11,6 @@ from trading.domain import (
     BookLevel,
     BrokerError,
     DataFetchError,
-    Exchange,
     Fill,
     InsufficientFundsError,
     InvalidStateError,
@@ -31,12 +30,10 @@ from trading.domain import (
     Side,
     Signal,
     StrategyError,
-    Tick,
-    TimeInForce,
     TradingError,
 )
 
-TS = datetime(2024, 1, 1, tzinfo=timezone.utc)
+TS = datetime(2024, 1, 1, tzinfo=UTC)
 
 
 # ── Enums ─────────────────────────────────────────────────────────────
@@ -110,7 +107,7 @@ def test_bar_validation():
 
 
 def test_bar_ts_ms():
-    b = Bar(datetime(1970, 1, 1, tzinfo=timezone.utc), 1, 1, 1, 1)
+    b = Bar(datetime(1970, 1, 1, tzinfo=UTC), 1, 1, 1, 1)
     assert b.ts_ms == 0
 
 

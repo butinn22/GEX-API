@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest_asyncio
 from fastapi.testclient import TestClient
@@ -27,7 +27,7 @@ from trading.adapters.persistence.models import (
     SignalKeyRow,
 )
 from trading.api.routers import portfolio as portfolio_router
-from trading.domain import Order, OrderStatus, Side
+from trading.domain import Order, OrderStatus
 from trading.main import app
 
 
@@ -56,7 +56,7 @@ async def _make_key(session, *, config: dict, revoked: bool = False) -> str:
     await session.commit()
     if revoked:
         row = await _get_row(session, key)
-        row.revoked_at = datetime.now(timezone.utc)
+        row.revoked_at = datetime.now(UTC)
         await session.commit()
     return key
 
@@ -165,7 +165,7 @@ async def test_signal_key_signals_delete_and_cache_purge(session):
     row = await _get_row(session, key)
     session.add(KeySignalRow(key_id=row.id, symbol="BTC", side="buy",
                              state="long_entry", strategy="s", price=1.0,
-                             timestamp=datetime.now(timezone.utc)))
+                             timestamp=datetime.now(UTC)))
     await session.commit()
     with TestClient(app) as client:
         r = client.delete(f"/api/v1/signal-keys/{row.id}/signals")

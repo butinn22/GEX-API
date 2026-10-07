@@ -12,7 +12,7 @@ cache — and asserts the *invariants* that make the port trustworthy:
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -28,11 +28,11 @@ from trading.application.strategy_factory import STRATEGY_NAMES, build_strategy
 from trading.application.strategy_registry import STRATEGY_REGISTRY
 from trading.domain import Bar, Side
 
-_T0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+_T0 = datetime(2024, 1, 1, tzinfo=UTC)
 
 
 def _bars(closes, *, highs=None, lows=None, volumes=None, step_hours=4) -> list[Bar]:
-    n = len(closes)
+    len(closes)
     out: list[Bar] = []
     for i, c in enumerate(closes):
         h = highs[i] if highs else c * 1.001

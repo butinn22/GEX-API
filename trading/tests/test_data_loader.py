@@ -1,7 +1,7 @@
 """Tests for the parallel historical data loader."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from trading.adapters.fetchers.registry import FetcherRegistry
 from trading.application.data_loader import HistoricalDataLoader
@@ -17,7 +17,7 @@ class FakeFetcher(BaseFetcher):
 
     async def get_ohlcv(self, symbol, timeframe, *, start=None, end=None, limit=500):
         return [
-            Bar(datetime(2024, 1, 1 + i, tzinfo=timezone.utc), 1, 2, 0.5, 1.5, 10)
+            Bar(datetime(2024, 1, 1 + i, tzinfo=UTC), 1, 2, 0.5, 1.5, 10)
             for i in range(limit)
         ]
 

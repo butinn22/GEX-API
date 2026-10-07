@@ -1,8 +1,7 @@
 """Tests for the strategy registry and runner."""
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -16,7 +15,7 @@ from trading.domain import Bar
 
 
 def _bar(i: int, close: float) -> Bar:
-    ts = datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i)
+    ts = datetime(2024, 1, 1, tzinfo=UTC) + timedelta(days=i)
     return Bar(timestamp=ts, open=close, high=close, low=close, close=close, volume=1.0)
 
 

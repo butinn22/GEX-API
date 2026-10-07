@@ -11,8 +11,8 @@ from datetime import datetime
 from sqlalchemy import DateTime, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .models import Base
 from .bulk import bulk_insert
+from .models import Base
 
 __all__ = ["BarRow", "TradeRow", "HYPERTABLE_DDL", "create_hypertables", "bulk_insert_bars"]
 

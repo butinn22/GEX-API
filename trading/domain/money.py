@@ -10,11 +10,10 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Union
 
 __all__ = ["Price", "Quantity", "Money"]
 
-_Number = Union[int, float]
+_Number = int | float
 
 
 def _round_to_step(value: float, step: float) -> float:
@@ -49,15 +48,15 @@ class Price:
     def __float__(self) -> float:
         return self.value
 
-    def __add__(self, other: _Number | "Price") -> "Price":
+    def __add__(self, other: _Number | Price) -> Price:
         o = float(other)
         return Price(self.value + o, self.tick_size)
 
-    def __sub__(self, other: _Number | "Price") -> "Price":
+    def __sub__(self, other: _Number | Price) -> Price:
         o = float(other)
         return Price(self.value - o, self.tick_size)
 
-    def __mul__(self, other: _Number) -> "Price":
+    def __mul__(self, other: _Number) -> Price:
         return Price(self.value * float(other), self.tick_size)
 
     __rmul__ = __mul__
@@ -81,15 +80,15 @@ class Quantity:
     def __float__(self) -> float:
         return self.value
 
-    def __add__(self, other: _Number | "Quantity") -> "Quantity":
+    def __add__(self, other: _Number | Quantity) -> Quantity:
         o = float(other)
         return Quantity(self.value + o, self.lot_size)
 
-    def __sub__(self, other: _Number | "Quantity") -> "Quantity":
+    def __sub__(self, other: _Number | Quantity) -> Quantity:
         o = float(other)
         return Quantity(self.value - o, self.lot_size)
 
-    def __mul__(self, other: _Number) -> "Quantity":
+    def __mul__(self, other: _Number) -> Quantity:
         return Quantity(self.value * float(other), self.lot_size)
 
     __rmul__ = __mul__
@@ -105,26 +104,26 @@ class Money:
     def __post_init__(self) -> None:
         object.__setattr__(self, "amount", round(self.amount, 12))
 
-    def _check(self, other: "Money") -> None:
+    def _check(self, other: Money) -> None:
         if self.currency != other.currency:
             raise ValueError(
                 f"currency mismatch: {self.currency} vs {other.currency}"
             )
 
-    def __add__(self, other: "Money") -> "Money":
+    def __add__(self, other: Money) -> Money:
         self._check(other)
         return Money(self.amount + other.amount, self.currency)
 
-    def __sub__(self, other: "Money") -> "Money":
+    def __sub__(self, other: Money) -> Money:
         self._check(other)
         return Money(self.amount - other.amount, self.currency)
 
-    def __mul__(self, factor: _Number) -> "Money":
+    def __mul__(self, factor: _Number) -> Money:
         return Money(self.amount * float(factor), self.currency)
 
     __rmul__ = __mul__
 
-    def __neg__(self) -> "Money":
+    def __neg__(self) -> Money:
         return Money(-self.amount, self.currency)
 
     def __float__(self) -> float:

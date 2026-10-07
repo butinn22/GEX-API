@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -24,7 +24,7 @@ def _trending_bars(n: int = 600, *, start: float = 100.0, drift: float = 0.0015)
     """Deterministic noisy uptrend with pullbacks (no RNG — reproducible)."""
     bars: list[Bar] = []
     price = start
-    t0 = datetime(2022, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2022, 1, 1, tzinfo=UTC)
     for i in range(n):
         # Sine wobble creates the pullbacks the strategy is meant to buy.
         import math
@@ -130,7 +130,7 @@ def test_call_wall_blocks_long_entries() -> None:
 
 
 def _trade(pnl: float, side: PositionSide = PositionSide.LONG) -> Trade:
-    ts = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    ts = datetime(2024, 1, 1, tzinfo=UTC)
     return Trade(symbol="X", side=side, entry_price=100.0, exit_price=100.0 + pnl,
                  quantity=1.0, realized_pnl=pnl, entry_time=ts, exit_time=ts)
 

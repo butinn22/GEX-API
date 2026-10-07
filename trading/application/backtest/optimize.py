@@ -23,10 +23,11 @@ from __future__ import annotations
 import asyncio
 import itertools
 import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any
 
-from trading.application.cancellation import CancelToken, RunCancelled
+from trading.application.cancellation import CancelToken
 from trading.application.strategy_factory import build_strategy
 from trading.domain import Bar
 

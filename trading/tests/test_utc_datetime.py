@@ -8,9 +8,8 @@ from a naive stored row.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-import pytest
 import pytest_asyncio
 from sqlalchemy import delete, select
 
@@ -64,5 +63,5 @@ async def test_subtracting_two_read_back_datetimes_does_not_raise(session):
         await session.execute(select(KeySignalRow).order_by(KeySignalRow.timestamp))
     ).scalars().all()
     # Pre-fix these were naive → ``aware_now - naive_row`` raised TypeError.
-    assert datetime.now(timezone.utc) - rows[0].timestamp > timedelta(0)
+    assert datetime.now(UTC) - rows[0].timestamp > timedelta(0)
     assert rows[1].timestamp - rows[0].timestamp == timedelta(hours=1, minutes=30)

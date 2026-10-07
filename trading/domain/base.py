@@ -7,13 +7,13 @@ numpy/pandas structures from them. Timestamps are timezone-aware UTC.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 __all__ = ["Instrument", "Bar", "Tick", "BookLevel", "OrderBook"]
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,7 @@ class Instrument:
     """A tradable symbol and its trading rules."""
 
     symbol: str
-    exchange: "str"  # Exchange value; kept str to avoid an import cycle in annotations
+    exchange: str  # Exchange value; kept str to avoid an import cycle in annotations
     base_asset: str = ""
     quote_asset: str = ""
     tick_size: float = 0.0  # 0 = exchange does not constrain (crypto quotes)

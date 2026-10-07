@@ -1,7 +1,7 @@
 """Mean-reversion: buy below the lower Bollinger band, exit at the middle band."""
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 

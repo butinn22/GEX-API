@@ -12,8 +12,9 @@ Routing settings live in ``api_keys.extra_json`` — no schema migration.
 """
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any
 
 from trading.domain import BrokerError, Order, OrderIntent, Quantity
 from trading.ports import BrokerAdapter
@@ -43,7 +44,7 @@ class AccountSettings:
     enabled: bool = True
 
     @classmethod
-    def from_extra(cls, extra: Mapping[str, Any] | None) -> "AccountSettings":
+    def from_extra(cls, extra: Mapping[str, Any] | None) -> AccountSettings:
         extra = extra or {}
         return cls(
             instruments=tuple(
@@ -64,7 +65,7 @@ class AccountSettings:
             "enabled": self.enabled,
         }
 
-    def updated(self, patch: Mapping[str, Any]) -> "AccountSettings":
+    def updated(self, patch: Mapping[str, Any]) -> AccountSettings:
         """Return a copy with ``patch`` applied, validating new values."""
         merged = {**self.as_dict(), **{k: v for k, v in patch.items() if v is not None}}
         candidate = AccountSettings.from_extra(merged)

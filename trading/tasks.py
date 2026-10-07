@@ -26,8 +26,8 @@ from typing import Any
 from celery import Celery
 from celery.schedules import crontab
 
-from trading.config import settings
 from trading.application.cancellation import RunCancelled, run_registry
+from trading.config import settings
 from trading.domain import DataFetchError
 
 __all__ = [

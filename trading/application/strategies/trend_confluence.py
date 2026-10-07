@@ -42,8 +42,9 @@ is then an O(1) row lookup with a streaming fallback for live trading.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -203,7 +204,7 @@ class TrendConfluenceParams:
     atr_trail_mult: float = 2.5
 
     @classmethod
-    def from_dict(cls, raw: Mapping[str, Any] | None) -> "TrendConfluenceParams":
+    def from_dict(cls, raw: Mapping[str, Any] | None) -> TrendConfluenceParams:
         if not raw:
             return cls()
         fields = cls.__dataclass_fields__
@@ -517,7 +518,7 @@ class TrendConfluenceStrategy(Strategy):
 
     # ── decision logic ──────────────────────────────────────────────────
     def _signal_at(self, i: int, timestamp) -> list[Signal]:
-        f, p, w = self._frame, self._p, self._walls
+        f, p, _w = self._frame, self._p, self._walls
         assert f is not None
         if i + 1 < self.min_bars:
             # Warm-up: EMAs are defined from bar 0 but are meaningless until
@@ -646,7 +647,7 @@ class TrendConfluenceStrategy(Strategy):
         )
 
     @staticmethod
-    def _risk_size(p: "TrendConfluenceParams", close: float, atr: float,
+    def _risk_size(p: TrendConfluenceParams, close: float, atr: float,
                    strength: float) -> float:
         """Scale position strength so a stopped trade loses ≈ ``risk_pct`` of
         equity instead of a fixed 95% notional.

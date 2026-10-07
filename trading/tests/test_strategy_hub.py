@@ -7,7 +7,7 @@ mirroring ``test_signal_engine.py``.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -32,7 +32,7 @@ from trading.application.signal_engine import (
 )
 from trading.domain import Bar, Exchange
 
-_T0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+_T0 = datetime(2024, 1, 1, tzinfo=UTC)
 
 _METRICS = {
     "total_return": 0.21, "sharpe": 1.42, "max_drawdown": 0.07,
@@ -165,7 +165,7 @@ async def test_gate_code_no_backtest_evidence(session):
     assert [r["code"] for r in reasons] == ["no_backtest_evidence"]
 
     # metrics present but no provenance → also refused (never fabricated)
-    row2 = await svc.save(symbol="BTC", params={"zone_atr": 0.6},
+    await svc.save(symbol="BTC", params={"zone_atr": 0.6},
                           metrics=None)
     with pytest.raises(ValueError):
         await svc.save(symbol="BTC", params={"zone_atr": 0.6}, metrics=_METRICS)

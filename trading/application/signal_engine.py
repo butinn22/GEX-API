@@ -36,13 +36,15 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from trading.adapters.fetchers.registry import FetcherRegistry
 from trading.adapters.persistence.models import KeySignalRow, SignalPositionRow
 from trading.application.audit import AuditLog
 from trading.application.instruments import resolve_symbol
@@ -51,7 +53,6 @@ from trading.application.strategies.confluence_breakout import (
     BREAKOUT_PRESETS,
     DEFAULT_PRESET,
 )
-from trading.adapters.fetchers.registry import FetcherRegistry
 from trading.domain import Bar, Exchange, Signal
 from trading.observability import STRATEGY_SIGNALS
 from trading.ports import Strategy
@@ -108,7 +109,7 @@ class SignalEngineConfig:
     notify_local_clients: bool = True
 
     @classmethod
-    def from_dict(cls, raw: Mapping[str, Any] | None) -> "SignalEngineConfig":
+    def from_dict(cls, raw: Mapping[str, Any] | None) -> SignalEngineConfig:
         raw = dict(raw or {})
         symbols = raw.pop("symbols", None) or raw.pop("tickers", None) or []
         if isinstance(symbols, str):
@@ -181,7 +182,7 @@ class _TickerState:
         self.last_error = ""
         self.polls = 0
         self.signals = 0
-        self.started_at = datetime.now(timezone.utc)
+        self.started_at = datetime.now(UTC)
         self.running = False
         self.position_open = False
         #: The first poll has to replay the whole fetch window so the strategy
@@ -292,7 +293,7 @@ class SignalEngine:
                 raise ValueError(f"{symbol}: {exc}") from exc
             self._tickers[symbol] = state
 
-        self._started_at = datetime.now(timezone.utc)
+        self._started_at = datetime.now(UTC)
         self._stopped_at = None
         self._task = asyncio.create_task(self._supervise())
         return self.status()
@@ -312,7 +313,7 @@ class SignalEngine:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._task
             self._task = None
-        self._stopped_at = datetime.now(timezone.utc)
+        self._stopped_at = datetime.now(UTC)
         return self.status()
 
     def _build_strategy(self, symbol: str) -> Strategy:

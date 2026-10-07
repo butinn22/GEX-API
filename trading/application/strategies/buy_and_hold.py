@@ -1,7 +1,7 @@
 """Buy-and-hold: a single BUY at the first bar, hold to the end."""
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from trading.domain import Bar, Price, Side, Signal, Tick
 from trading.ports import Strategy

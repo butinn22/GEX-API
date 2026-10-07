@@ -5,9 +5,10 @@ Pure stdlib. Handlers may be sync or async; the bus awaits awaitable results.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Any
 
 __all__ = ["DomainEvent", "DomainEventBus"]
 
@@ -18,7 +19,7 @@ Handler = Callable[["DomainEvent"], Awaitable[None] | None]
 class DomainEvent:
     name: str
     payload: dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class DomainEventBus:

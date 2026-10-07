@@ -20,12 +20,12 @@ from trading.adapters.persistence.models import SignalKeyRow
 from trading.application.signal_keys import SignalKeyError, SignalKeyService
 from trading.domain import DataFetchError
 
+from ..deps import require_auth
 from ..schemas import (
     SignalKeyCreate,
     SignalKeyGenerateReport,
     SignalKeyOut,
 )
-from ..deps import require_auth
 
 router = APIRouter(
     prefix="/signal-keys",
@@ -144,7 +144,6 @@ async def generate_signals(
     lookback window on the latest data. The dashboard's Refresh button and
     its auto-refresh both hit this endpoint.
     """
-    from datetime import datetime, timezone
 
     try:
         report = await svc.generate(key=key, refresh=refresh)

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterable
-from typing import Any
 
 from trading.application.audit import AuditLog
 from trading.application.live_engine import LiveEngine

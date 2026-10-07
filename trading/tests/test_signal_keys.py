@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -26,7 +26,7 @@ from trading.main import app
 def _bars(n: int = 400, *, seed: float = 100.0, drift: float = 0.0015) -> list[Bar]:
     bars: list[Bar] = []
     price = seed
-    t0 = datetime(2022, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2022, 1, 1, tzinfo=UTC)
     for i in range(n):
         ret = drift + 0.012 * math.sin(i / 9.0) - 0.006
         prev = price
@@ -55,7 +55,7 @@ async def client():
 
 
 def _auth(client):
-    r = asyncio.get_event_loop()
+    asyncio.get_event_loop()
     # login synchronously via a nested loop is awkward — use the client in async tests
 
 

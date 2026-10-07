@@ -23,10 +23,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from trading.adapters.persistence.models import KeySignalRow, SignalPositionRow
 from trading.application.reporting.signal_export import (
-    signals_to_csv,
-    signals_to_xlsx,
     positions_to_csv,
     positions_to_xlsx,
+    signals_to_csv,
+    signals_to_xlsx,
 )
 from trading.application.signal_engine import SignalEngineConfig, signal_engine
 
@@ -145,7 +145,7 @@ async def export_signals_csv(
     limit: int = Query(default=5000, ge=1, le=100000),
 ) -> Response:
     rows = await signal_engine.list_signals(symbol=symbol, side=side, state=state, limit=limit)
-    name = f"signals{symbol and f'_{symbol}' or ''}.csv"
+    name = f"signals{(symbol and f'_{symbol}') or ''}.csv"
     return _download(signals_to_csv(rows), name, "text/csv")
 
 
@@ -157,7 +157,7 @@ async def export_signals_xlsx(
     limit: int = Query(default=5000, ge=1, le=100000),
 ) -> Response:
     rows = await signal_engine.list_signals(symbol=symbol, side=side, state=state, limit=limit)
-    name = f"signals{symbol and f'_{symbol}' or ''}.xlsx"
+    name = f"signals{(symbol and f'_{symbol}') or ''}.xlsx"
     return _download(signals_to_xlsx(rows), name, _XLSX_MIME)
 
 
@@ -168,7 +168,7 @@ async def export_positions_csv(
     limit: int = Query(default=10000, ge=1, le=100000),
 ) -> Response:
     rows = await signal_engine.list_positions(symbol=symbol, status=status, limit=limit)
-    name = f"positions{symbol and f'_{symbol}' or ''}.csv"
+    name = f"positions{(symbol and f'_{symbol}') or ''}.csv"
     return _download(positions_to_csv(rows), name, "text/csv")
 
 
@@ -179,7 +179,7 @@ async def export_positions_xlsx(
     limit: int = Query(default=10000, ge=1, le=100000),
 ) -> Response:
     rows = await signal_engine.list_positions(symbol=symbol, status=status, limit=limit)
-    name = f"positions{symbol and f'_{symbol}' or ''}.xlsx"
+    name = f"positions{(symbol and f'_{symbol}') or ''}.xlsx"
     return _download(positions_to_xlsx(rows), name, _XLSX_MIME)
 
 

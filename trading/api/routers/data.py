@@ -57,7 +57,7 @@ async def ohlcv(
 
 @router.get("/sources")
 def sources() -> list[str]:
-    return list(_SOURCES) + ["synthetic"]
+    return [*list(_SOURCES), "synthetic"]
 
 
 @router.get("/detect/{symbol}")

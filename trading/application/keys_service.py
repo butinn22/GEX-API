@@ -131,7 +131,7 @@ class KeysService:
             for row in rows
         ]
 
-    async def build_account_router(self, session: AsyncSession) -> "AccountRouter":
+    async def build_account_router(self, session: AsyncSession) -> AccountRouter:
         """An :class:`AccountRouter` over every registered account.
 
         Attach it to an ``ExecutionEngine`` to execute each intent on every

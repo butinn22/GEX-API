@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -46,7 +46,7 @@ PROVENANCE_FIELDS = frozenset({
 def _bars(n: int = 400, *, seed: float = 100.0, drift: float = 0.0015) -> list[Bar]:
     bars: list[Bar] = []
     price = seed
-    t0 = datetime(2022, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2022, 1, 1, tzinfo=UTC)
     for i in range(n):
         ret = drift + 0.012 * math.sin(i / 9.0) - 0.006
         prev = price

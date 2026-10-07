@@ -21,6 +21,8 @@ from trading.api import auth
 from trading.api.deps import require_auth
 from trading.api.local_client_ws import (
     router as local_client_router,
+)
+from trading.api.local_client_ws import (
     start_dispatcher,
     stop_dispatcher,
 )
@@ -39,11 +41,11 @@ from trading.api.routers import (
     strategies,
 )
 from trading.api.websockets import router as ws_router
+from trading.application.signal_engine import signal_engine
 from trading.config import settings
 from trading.domain import RateLimitExceededError, TradingError
 from trading.logging_config import CorrelationIdMiddleware, configure_logging
 from trading.observability import metrics_response
-from trading.application.signal_engine import signal_engine
 
 STATIC_DIR = Path(__file__).parent / "static"
 

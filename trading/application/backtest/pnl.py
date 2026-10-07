@@ -7,7 +7,7 @@ ignored here (gross of fees) — add fees separately at the ledger level.
 from __future__ import annotations
 
 from collections import deque
-from typing import Sequence
+from collections.abc import Sequence
 
 from trading.domain import Fill, Side
 

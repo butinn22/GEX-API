@@ -5,7 +5,7 @@ Produces child-order quantities only; execution + rate-limiting is the
 """
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 

@@ -1,13 +1,12 @@
 """Granular trade-event ledger: per-fill states, direction, PnL, % return."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from trading.application.backtest.engine import BacktestConfig, run_backtest
 from trading.application.backtest.trade_log import (
-    TradeEvent,
     TradeState,
     classify_fill,
     event_from_fill,
@@ -15,7 +14,7 @@ from trading.application.backtest.trade_log import (
 )
 from trading.domain import Bar, Fill, Position, PositionSide, Side, Signal
 
-T0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+T0 = datetime(2024, 1, 1, tzinfo=UTC)
 
 
 def fill(side: Side, price: float, qty: float, symbol: str = "X") -> Fill:
@@ -209,8 +208,9 @@ class TestEngineEvents:
         assert exit_ev.realized_pnl == pytest.approx(result.trades[-1].realized_pnl)
 
     async def test_events_default_empty_for_result_constructed_directly(self):
-        from trading.application.backtest.engine import BacktestResult
         import numpy as np
+
+        from trading.application.backtest.engine import BacktestResult
         from trading.application.backtest.metrics import compute_metrics
 
         res = BacktestResult(

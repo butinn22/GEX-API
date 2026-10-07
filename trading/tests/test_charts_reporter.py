@@ -3,10 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 
 import numpy as np
-import pytest
 
 from trading.application.backtest.charts import (
     DARK,
@@ -30,7 +28,6 @@ from trading.application.backtest.reporter import (
     PortfolioReporter,
 )
 from trading.application.strategies.buy_and_hold import BuyAndHold
-
 
 # ── helpers ────────────────────────────────────────────────────────────
 
@@ -264,7 +261,7 @@ def test_backtest_reporter_json_keeps_legacy_shape():
     data = json.loads(rep.to_json())
     assert data["strategy"] == "buy_and_hold"
     assert data["symbol"] == "X"
-    assert set(data["metrics"]) >= {"sharpe", "calmar", "max_drawdown", "max_drawdown"}
+    assert set(data["metrics"]) >= {"sharpe", "calmar", "max_drawdown"}
     assert data["final_equity"] > 0
 
 

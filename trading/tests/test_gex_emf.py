@@ -1,8 +1,7 @@
 """Tests for the GEX EMF+ADL strategy adapter."""
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 
@@ -15,7 +14,7 @@ def _bars(n: int = 150) -> list[Bar]:
     close = 100.0 * np.exp(np.cumsum(rng.normal(0.0003, 0.015, n)))
     bars = []
     for i in range(n):
-        ts = datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(days=i)
+        ts = datetime(2024, 1, 1, tzinfo=UTC) + timedelta(days=i)
         c = float(close[i])
         o = float(close[i - 1]) if i else c
         hi = max(o, c) * 1.01

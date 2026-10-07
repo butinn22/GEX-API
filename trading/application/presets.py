@@ -28,7 +28,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -344,7 +345,6 @@ class PresetService:
         # Gate 2 — the params build a working strategy instance.
         try:
             from trading.application.strategy_factory import build_strategy
-            from trading.domain import StrategyError
 
             build_strategy(row.strategy, row.symbol, params)
         except Exception as exc:  # StrategyError and friends

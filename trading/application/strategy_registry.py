@@ -6,7 +6,7 @@ strategy bar-by-bar and fans generated signals out to the signal hub.
 """
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from collections.abc import Callable, Sequence
 
 from trading.application.signal_hub import signal_hub
 from trading.application.strategies.buy_and_hold import BuyAndHold

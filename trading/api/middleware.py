@@ -23,7 +23,7 @@ from __future__ import annotations
 import threading
 import time
 from collections import OrderedDict
-from typing import Callable
+from collections.abc import Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -60,7 +60,7 @@ class _LRUBuckets:
         self.refill_rate = refill_rate
         self.max_size = max_size
         self._clock = clock
-        self._buckets: "OrderedDict[str, TokenBucket]" = OrderedDict()
+        self._buckets: OrderedDict[str, TokenBucket] = OrderedDict()
         self._lock = threading.Lock()
 
     def acquire(self, key: str, tokens: float = 1.0) -> tuple[bool, float]:

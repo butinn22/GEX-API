@@ -20,7 +20,6 @@ Scope (task T07-D):
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest_asyncio
@@ -216,7 +215,7 @@ async def test_qa_presetless_complete_params_pass_with_warning(client, session):
 
 
 async def test_qa_contract_four_assignment_shapes(client, session):
-    headers = await _token(client)
+    await _token(client)
     saved = await PresetService(session).save(
         symbol="AAA", strategy="sma_crossover", params={"fast": 7, "slow": 33},
         strategy_name="qa-shape", source="backtest", backtest_ref="backtest:77",

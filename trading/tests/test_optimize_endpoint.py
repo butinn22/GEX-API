@@ -13,12 +13,10 @@ from __future__ import annotations
 import asyncio
 
 import httpx
-import pytest
 
 from trading.adapters.cache import bar_cache as bc
 from trading.adapters.persistence import database as db
 from trading.main import app
-
 
 # ── endpoint regression: a small-grid optimize must always answer ──────
 

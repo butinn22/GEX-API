@@ -194,7 +194,7 @@ def test_large_run_is_chunked_deterministically():
 
 
 def test_different_seeds_still_differ_after_chunking():
-    base = dict(n_paths=10_000, n_steps=40, method="gbm")
+    base = {"n_paths": 10_000, "n_steps": 40, "method": "gbm"}
     a = run_monte_carlo(_returns(), MonteCarloConfig(seed=1, **base))
     b = run_monte_carlo(_returns(), MonteCarloConfig(seed=2, **base))
     assert a.mean_return != b.mean_return

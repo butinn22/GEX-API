@@ -5,14 +5,13 @@ and recent trades.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
 from trading.domain import (
     Bar,
     BookLevel,
-    DataFetchError,
     Exchange,
     Instrument,
     OrderBook,
@@ -78,7 +77,7 @@ class BybitFetcher(BaseFetcher):
             t_ms = int(row[0])
             bars.append(
                 Bar(
-                    timestamp=datetime.fromtimestamp(t_ms / 1000, tz=timezone.utc),
+                    timestamp=datetime.fromtimestamp(t_ms / 1000, tz=UTC),
                     open=float(row[1]), high=float(row[2]), low=float(row[3]),
                     close=float(row[4]), volume=float(row[5]),
                 )
@@ -103,7 +102,7 @@ class BybitFetcher(BaseFetcher):
         for t in data.get("result", {}).get("list", []):
             out.append(
                 Tick(
-                    timestamp=datetime.fromtimestamp(int(t["time"]) / 1000, tz=timezone.utc),
+                    timestamp=datetime.fromtimestamp(int(t["time"]) / 1000, tz=UTC),
                     price=float(t["price"]),
                     volume=float(t["size"]),
                     side="buy" if t.get("side") == "Buy" else "sell",

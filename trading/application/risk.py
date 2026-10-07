@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from trading.domain import OrderIntent, Portfolio, PositionSide
+from trading.domain import OrderIntent, Portfolio
 
 __all__ = [
     "PositionSizer",

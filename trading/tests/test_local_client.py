@@ -120,7 +120,7 @@ class TestRouting:
         assert [s.client_id for s in registry.sessions_for("BTC-USDT")] == ["a"]
 
     def test_inactive_sessions_receive_nothing(self, registry):
-        a = registry.connect()  # never handshakes, no tickers
+        registry.connect()  # never handshakes, no tickers
         assert registry.sessions_for("BTC-USDT") == []
 
     def test_snapshot_reports_state_and_tickers(self, registry):

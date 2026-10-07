@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -22,7 +22,7 @@ def _trending_bars(n: int = 600, *, start: float = 100.0, drift: float = 0.0015)
     """Deterministic noisy uptrend with pullbacks (same shape as TC tests)."""
     bars: list[Bar] = []
     price = start
-    t0 = datetime(2022, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2022, 1, 1, tzinfo=UTC)
     for i in range(n):
         ret = drift + 0.012 * math.sin(i / 9.0) - 0.006
         prev = price

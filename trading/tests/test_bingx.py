@@ -60,6 +60,7 @@ def test_broker_raises_on_api_error():
     client = BingxClient("key", "secret", transport=httpx.MockTransport(handler))
     broker = BingxBroker(client)
     import asyncio
+
     from trading.domain import BrokerError
     with pytest.raises(BrokerError):
         asyncio.run(broker.get_accounts())

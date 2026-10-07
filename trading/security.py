@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from cryptography.fernet import Fernet, InvalidToken
 from jose import JWTError, jwt
@@ -47,7 +47,7 @@ def decrypt(secret: str, token: str) -> str:
 
 
 def create_access_token(secret: str, subject: str, *, expires_minutes: int) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": subject,
         "iat": now,

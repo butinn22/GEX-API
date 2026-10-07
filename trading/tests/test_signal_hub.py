@@ -1,8 +1,6 @@
 """Tests for the pub/sub signal hub."""
 from __future__ import annotations
 
-import pytest
-
 from trading.application.signal_hub import SignalHub
 
 

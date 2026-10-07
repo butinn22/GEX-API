@@ -12,9 +12,9 @@ These lock in the three fixes that made a portfolio backtest fast:
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC
 
 import httpx
-import pytest
 
 from trading.adapters.fetchers import aclose_loop_registry, default_registry, loop_registry
 from trading.adapters.fetchers.yfinance import YFinanceFetcher, _lookback_seconds
@@ -83,9 +83,9 @@ async def test_yahoo_intraday_respects_server_history_cap():
 async def test_yahoo_explicit_start_wins_over_window():
     requests: list[httpx.Request] = []
     fetcher = YFinanceFetcher(transport=httpx.MockTransport(_capture(requests)))
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    start = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    start = datetime(2020, 1, 1, tzinfo=UTC)
     await fetcher.get_ohlcv("AAPL", "1d", start=start, limit=10)
     assert int(dict(requests[0].url.params)["period1"]) == int(start.timestamp())
 

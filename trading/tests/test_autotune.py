@@ -1,7 +1,7 @@
 """Auto-tuning pipeline + volatility-adaptive risk profiles."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 import pytest
@@ -16,7 +16,7 @@ from trading.application.autotune import (
 )
 from trading.domain import Bar, Side
 
-T0 = datetime(2023, 1, 1, tzinfo=timezone.utc)
+T0 = datetime(2023, 1, 1, tzinfo=UTC)
 
 
 def make_bars(closes, range_pct: float = 0.01) -> list[Bar]:

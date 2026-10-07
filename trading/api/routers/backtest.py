@@ -27,10 +27,12 @@ import asyncio
 import logging
 import math
 import time
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 
+from trading.adapters.persistence.models import StrategyPresetRow
 from trading.application.backtest.engine import BacktestConfig, run_backtest
 from trading.application.backtest.metrics import BacktestMetrics
 from trading.application.backtest.monte_carlo import (
@@ -39,6 +41,7 @@ from trading.application.backtest.monte_carlo import (
     run_monte_carlo,
     run_monte_carlo_from_equity,
 )
+from trading.application.backtest.optimize import optimize_strategy
 from trading.application.backtest.portfolio import (
     PortfolioBacktestConfig,
     PortfolioBacktestResult,
@@ -47,9 +50,7 @@ from trading.application.backtest.portfolio import (
     run_portfolio_backtest,
 )
 from trading.application.backtest.reporter import MonteCarloReporter, PortfolioReporter
-from trading.application.backtest.optimize import optimize_strategy
 from trading.application.backtest.trade_analysis import analyze_trades, recommend_adjustments
-from trading.observability import BACKTEST_DURATION
 from trading.application.cancellation import (
     CancelToken,
     RunCancelled,
@@ -60,7 +61,11 @@ from trading.application.instruments import select_universe
 from trading.application.presets import PresetService
 from trading.application.strategy_factory import build_strategy
 from trading.domain import Bar, DataFetchError, StrategyError
+from trading.observability import BACKTEST_DURATION
 from trading.ports import Strategy
+
+if TYPE_CHECKING:
+    from trading.adapters.persistence.models import StrategyPresetRow
 
 from ..schemas import (
     AnalyzeResponse,
@@ -168,7 +173,7 @@ def _sample_indices(n: int, cap: int = MAX_POINTS) -> list[int]:
     if n <= cap:
         return list(range(n))
     step = (n - 1) / (cap - 1)
-    idx = sorted({int(round(i * step)) for i in range(cap)})
+    idx = sorted({round(i * step) for i in range(cap)})
     idx[0], idx[-1] = 0, n - 1
     return idx
 
@@ -467,7 +472,6 @@ async def _load_preset(preset_id: int) -> StrategyPresetRow:
     override convention).
     """
     from trading.adapters.persistence import database
-    from trading.adapters.persistence.models import StrategyPresetRow
 
     async with database._session_factory() as session:
         row = await PresetService(session).get(preset_id)

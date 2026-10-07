@@ -18,9 +18,10 @@ from __future__ import annotations
 import json
 import logging
 import secrets
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Mapping, Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -357,7 +358,7 @@ class SignalKeyService:
         if row is None:
             return None
         row.active = False
-        row.revoked_at = datetime.now(timezone.utc)
+        row.revoked_at = datetime.now(UTC)
         await self._session.commit()
         await self._session.refresh(row)
         # Drop the cached summary so a revoked key can't keep serving a stale
@@ -535,7 +536,7 @@ class SignalKeyService:
                 ))
                 n_trades += 1
 
-        row.last_used_at = datetime.now(timezone.utc)
+        row.last_used_at = datetime.now(UTC)
         await self._session.commit()
 
         m = result.metrics
@@ -554,7 +555,7 @@ class SignalKeyService:
         step = max(1, len(result.times) // 1000)
         summary = KeySummary(
             key_id=row.id,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
             metrics=metrics,
             times=[ts.isoformat() for ts in result.times[::step]],
             equity=[float(x) for x in result.equity_curve[::step]],

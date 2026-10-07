@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 __all__ = [
     "LoginRequest",
@@ -364,7 +364,7 @@ class PortfolioBacktestRequest(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _need_targets(self) -> "PortfolioBacktestRequest":
+    def _need_targets(self) -> PortfolioBacktestRequest:
         if not self.tickers and self.n_tickers < 1:
             raise ValueError("provide either 'tickers' or 'n_tickers' >= 1")
         return self

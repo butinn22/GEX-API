@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from trading.adapters.fetchers.http_util import get_json
 from trading.api.routers import portfolio as portfolio_router
-from trading.domain import DataFetchError, Order, OrderStatus, OrderType, Side
+from trading.domain import DataFetchError, Order, OrderStatus
 from trading.main import app
 from trading.observability import BACKTEST_DURATION, DATA_FETCH_ERRORS, ORDERS_TOTAL
 

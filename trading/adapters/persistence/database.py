@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from trading.config import settings
+
 from .models import Base
 
 __all__ = [
@@ -77,10 +78,11 @@ async def run_migrations() -> None:
     with "table already exists", so such a DB is **stamped** at head instead.
     """
     def _upgrade() -> None:
-        from alembic import command
         from alembic.config import Config
         from sqlalchemy import create_engine, inspect
         from sqlalchemy.pool import NullPool
+
+        from alembic import command
 
         url = _sync_url()
         cfg = Config("alembic.ini")

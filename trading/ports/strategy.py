@@ -12,7 +12,8 @@ this ABC so it can run in the same engine as the example strategies.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import ClassVar, Sequence
+from collections.abc import Sequence
+from typing import ClassVar
 
 from trading.domain import Bar, Signal, Tick
 

@@ -121,7 +121,7 @@ class MemoryBarCache:
 
 #: One cache per event loop (redis.asyncio connections are loop-bound; Celery
 #: runs every task in a fresh loop — same reasoning as ``loop_registry``).
-_LOOP_CACHES: "weakref.WeakKeyDictionary[Any, BarCache]" = weakref.WeakKeyDictionary()
+_LOOP_CACHES: weakref.WeakKeyDictionary[Any, BarCache] = weakref.WeakKeyDictionary()
 
 #: A dead Redis must not cost a TCP timeout *per event loop*: when a probe
 #: fails, wait this long before probing again (see ``_next_probe``). Without

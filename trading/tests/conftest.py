@@ -10,9 +10,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import event
-
 import pytest
+from sqlalchemy import event
 
 _tmp = Path(tempfile.mkdtemp(prefix="gex_trading_test_"))
 _db = _tmp / "test.db"
