@@ -3,8 +3,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Index, String, Text, func
+from sqlalchemy import Index, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from trading.adapters.persistence.types import UTCDateTime
 
 
 class Base(DeclarativeBase):
@@ -21,7 +23,7 @@ class ApiKeyRow(Base):
     api_secret_encrypted: Mapped[str] = mapped_column(String(1024))
     extra_json: Mapped[str] = mapped_column(String(1024), default="{}")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        UTCDateTime(), server_default=func.now()
     )
 
 
@@ -41,7 +43,7 @@ class OrderRow(Base):
     strategy: Mapped[str | None]
     reason: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        UTCDateTime(), server_default=func.now()
     )
 
 
@@ -55,7 +57,7 @@ class BacktestResultRow(Base):
     #: Granular per-fill trade events (see backtest.trade_log), JSON list.
     trades_json: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        UTCDateTime(), server_default=func.now()
     )
 
 
@@ -113,10 +115,10 @@ class StrategyPresetRow(Base):
     is_default: Mapped[bool] = mapped_column(default=False)
     notes: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        UTCDateTime(), server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        UTCDateTime(), server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -140,7 +142,7 @@ class SignalKeyRow(Base):
     config_json: Mapped[str] = mapped_column(Text, default="{}")
     active: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        UTCDateTime(), server_default=func.now()
     )
     last_used_at: Mapped[datetime | None]
     revoked_at: Mapped[datetime | None]
@@ -163,7 +165,7 @@ class KeySignalRow(Base):
     reason: Mapped[str] = mapped_column(String(255), default="")
     strength: Mapped[float] = mapped_column(default=1.0)
     price: Mapped[float] = mapped_column(default=0.0)
-    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    timestamp: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
     strategy: Mapped[str] = mapped_column(String(48))
     strategy_version: Mapped[str] = mapped_column(String(16), default="")
     preset_id: Mapped[int | None]
@@ -181,7 +183,7 @@ class KeySignalRow(Base):
     risk_amount: Mapped[float | None] = mapped_column(default=None)
     #: bar interval the signal was computed on and the closed bar that made it
     timeframe: Mapped[str | None] = mapped_column(String(16), default=None)
-    bar_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    bar_time: Mapped[datetime | None] = mapped_column(UTCDateTime(), default=None)
 
 
 class SignalPositionRow(Base):
@@ -209,7 +211,7 @@ class SignalPositionRow(Base):
     side: Mapped[str] = mapped_column(String(8), default="")       # long | short
     status: Mapped[str] = mapped_column(String(16), default="open", index=True)
     # ── entry ──
-    entry_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    entry_time: Mapped[datetime | None] = mapped_column(UTCDateTime(), default=None)
     entry_price: Mapped[float] = mapped_column(default=0.0)
     quantity: Mapped[float] = mapped_column(default=0.0)
     initial_stop: Mapped[float | None] = mapped_column(default=None)
@@ -222,7 +224,7 @@ class SignalPositionRow(Base):
     mfe_r: Mapped[float] = mapped_column(default=0.0)
     bars_held: Mapped[int] = mapped_column(default=0)
     # ── exit ──
-    exit_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    exit_time: Mapped[datetime | None] = mapped_column(UTCDateTime(), default=None)
     exit_price: Mapped[float | None] = mapped_column(default=None)
     exit_reason: Mapped[str] = mapped_column(String(64), default="")
     # ── PnL ──
@@ -236,10 +238,10 @@ class SignalPositionRow(Base):
     #: last mark seen for an open row (0.0 when never marked)
     mark_price: Mapped[float | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        UTCDateTime(), server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        UTCDateTime(), server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -252,8 +254,8 @@ class KeyTradeRow(Base):
     key_id: Mapped[int] = mapped_column(index=True)
     symbol: Mapped[str] = mapped_column(String(32))
     direction: Mapped[str] = mapped_column(String(8))  # long | short
-    entry_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    exit_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    entry_time: Mapped[datetime] = mapped_column(UTCDateTime())
+    exit_time: Mapped[datetime] = mapped_column(UTCDateTime())
     entry_price: Mapped[float]
     exit_price: Mapped[float]
     quantity: Mapped[float]
@@ -269,5 +271,5 @@ class KeyTradeRow(Base):
     #: live | replay
     source: Mapped[str] = mapped_column(String(16), default="live")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+        UTCDateTime(), server_default=func.now()
     )
