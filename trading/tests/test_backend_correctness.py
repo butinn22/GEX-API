@@ -151,6 +151,9 @@ async def test_backtest_result_delete_and_purge(session):
     await session.commit()
     await session.refresh(row)
     with TestClient(app) as client:
+        listed = client.get("/api/v1/backtest/results?limit=5")
+        assert listed.status_code == 200
+        assert any(x["id"] == row.id and x["symbol"] == "SYNTH" for x in listed.json())
         assert client.delete(f"/api/v1/backtest/results/{row.id}").status_code == 204
         assert client.delete(f"/api/v1/backtest/results/{row.id}").status_code == 404
         r = client.delete("/api/v1/backtest/results")
@@ -173,3 +176,79 @@ async def test_signal_key_signals_delete_and_cache_purge(session):
         assert client.delete("/api/v1/signal-keys/999999/signals").status_code == 404
         purge = client.post("/api/v1/signal-keys/cache/purge")
     assert purge.status_code == 200 and "purged" in purge.json()
+
+
+async def test_credentials_validate_missing_key_404():
+    with TestClient(app) as client:
+        assert client.post("/api/v1/keys/999999/validate").status_code == 404
+
+
+async def test_order_cancel_missing_order_404():
+    with TestClient(app) as client:
+        assert client.post("/api/v1/orders/does-not-exist/cancel").status_code == 404
+
+
+async def test_bulk_delete_orders(session):
+    ids = [f"bd-{uuid.uuid4().hex}" for _ in range(2)]
+    for oid in ids:
+        session.add(OrderRow(id=oid, exchange="bingx", symbol="X", side="buy",
+                             quantity=1.0, order_type="market", status="open",
+                             filled_quantity=0.0))
+    await session.commit()
+    with TestClient(app) as client:
+        r = client.post("/api/v1/orders/bulk-delete", json={"ids": [*ids, "missing-1"]})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["deleted"] == 2 and body["missing"] == ["missing-1"]
+
+
+async def test_bulk_delete_results(session):
+    rows = [BacktestResultRow(strategy="s", symbol="SYNTH", metrics_json="{}", trades_json="[]")
+            for _ in range(2)]
+    for row in rows:
+        session.add(row)
+    await session.commit()
+    for row in rows:
+        await session.refresh(row)
+    with TestClient(app) as client:
+        r = client.post("/api/v1/backtest/results/bulk-delete",
+                        json={"ids": [row.id for row in rows] + [99_999_999]})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["deleted"] == 2 and 99_999_999 in body["missing"]
+
+
+async def test_signal_keys_bulk_disable(session):
+    keys = []
+    for _ in range(2):
+        k = uuid.uuid4().hex
+        session.add(SignalKeyRow(key=k, exchange="bingx", label="x",
+                                 config_json="{}", active=True))
+        keys.append(k)
+    await session.commit()
+    rows = [await _get_row(session, k) for k in keys]
+    with TestClient(app) as client:
+        r = client.post("/api/v1/signal-keys/bulk",
+                        json={"ids": [rows[0].id, rows[1].id, 99_999_999], "action": "disable"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["updated"] == 2 and 99_999_999 in body["missing"]
+
+
+def test_signal_derived_tables_have_non_destructive_fks():
+    """R5-7: derived signal rows carry ON DELETE SET NULL FKs (non-destructive)."""
+    from trading.adapters.persistence.models import (
+        KeySignalRow,
+        KeyTradeRow,
+        SignalPositionRow,
+    )
+
+    for table, col in ((KeySignalRow.__table__, "key_id"),
+                       (SignalPositionRow.__table__, "key_id"),
+                       (KeyTradeRow.__table__, "key_id")):
+        fks = list(table.c[col].foreign_keys)
+        assert fks, f"{table.name}.{col} is missing the FK constraint"
+        assert fks[0].column.table.name == "signal_keys"
+        assert fks[0].ondelete == "SET NULL"
+    # SET NULL is only valid if the column is nullable.
+    assert KeyTradeRow.__table__.c.key_id.nullable is True

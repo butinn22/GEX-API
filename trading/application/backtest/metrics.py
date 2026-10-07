@@ -67,12 +67,14 @@ def sortino(returns: np.ndarray, periods_per_year: int) -> float:
     r = np.asarray(returns, dtype=float)
     if r.size == 0:
         return 0.0
-    downside = r[r < 0]
-    if downside.size == 0:
-        return float("inf") if r.mean() > 0 else 0.0
+    # Semi-deviation is defined over *all* periods, with the positive returns
+    # clipped to zero — not over only the losing observations. Averaging over
+    # just the losers inflates the denominator whenever losses are a small,
+    # severe tail, understating Sortino.
+    downside = np.minimum(r, 0.0)
     dd = float(np.sqrt(np.mean(downside ** 2)))
     if dd < _EPS:
-        return 0.0
+        return float("inf") if r.mean() > 0 else 0.0
     return float(r.mean() / dd * np.sqrt(periods_per_year))
 
 

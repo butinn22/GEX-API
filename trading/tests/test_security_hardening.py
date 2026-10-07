@@ -32,9 +32,33 @@ def test_production_rejects_default_admin_creds():
 
 
 def test_production_accepts_hardened_config():
-    s = Settings(env="production", secret_key="a-strong-key",
-                 admin_username="ops", admin_password="s3cr3t!")
+    s = Settings(env="production", secret_key="S" * 32,
+                 admin_username="ops", admin_password="s3cr3t!x",
+                 broker_key_secret="B" * 32)
     assert s.is_production is True
+
+
+def test_production_rejects_weak_or_empty_secret():
+    for weak in ("", "short", "dev-secret-change-me"):
+        with pytest.raises(RuntimeError):
+            Settings(env="production", secret_key=weak, admin_password="s3cr3t!x",
+                     broker_key_secret="B" * 32)
+
+
+def test_production_rejects_short_or_default_admin_password():
+    for pw in ("", "admin", "short"):
+        with pytest.raises(RuntimeError):
+            Settings(env="production", secret_key="S" * 32, admin_password=pw,
+                     broker_key_secret="B" * 32)
+
+
+def test_production_rejects_missing_or_shared_broker_key():
+    with pytest.raises(RuntimeError):
+        Settings(env="production", secret_key="S" * 32, admin_password="s3cr3t!x",
+                 broker_key_secret="")
+    with pytest.raises(RuntimeError):
+        Settings(env="production", secret_key="S" * 32, admin_password="s3cr3t!x",
+                 broker_key_secret="S" * 32)
 
 
 def test_dev_env_never_fails_fast():

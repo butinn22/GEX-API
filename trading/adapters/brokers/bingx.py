@@ -30,13 +30,26 @@ from trading.domain import (
     Order,
     OrderIntent,
     OrderStatus,
+    OrderType,
     Portfolio,
     Position,
     PositionSide,
+    Side,
 )
 from trading.ports import BrokerAdapter
 
 __all__ = ["sign_hmac_sha256", "build_query", "BingxClient", "BingxBroker"]
+
+#: BingX order status → domain status.
+_ORDER_STATUS: dict[str, OrderStatus] = {
+    "NEW": OrderStatus.OPEN,
+    "PARTIALLY_FILLED": OrderStatus.PARTIAL,
+    "FILLED": OrderStatus.FILLED,
+    "CANCELED": OrderStatus.CANCELLED,
+    "CANCELLED": OrderStatus.CANCELLED,
+    "REJECTED": OrderStatus.REJECTED,
+    "EXPIRED": OrderStatus.EXPIRED,
+}
 
 
 def sign_hmac_sha256(secret: str, message: str) -> str:
@@ -224,11 +237,20 @@ class BingxBroker(BrokerAdapter):
         return Portfolio(cash=cash, positions=tuple(positions), currency="USDT")
 
     async def place_order(self, intent: OrderIntent) -> Order:
+        # Never silently downgrade an unsupported/stop order to MARKET — that
+        # turns a protective stop into an immediate unconditional fill.
         type_ = {
             "market": "MARKET",
             "limit": "LIMIT",
             "stop_market": "STOP_MARKET",
-        }.get(intent.order_type.value, "MARKET")
+            "stop": "STOP_MARKET",
+            "stop_limit": "STOP",
+        }.get(intent.order_type.value)
+        if type_ is None:
+            raise BrokerError(
+                f"bingx: unsupported order type {intent.order_type.value!r} "
+                "(refusing to downgrade to a market order)"
+            )
         resp = await self.client.place_order(
             intent.symbol,
             intent.side.value,
@@ -249,10 +271,31 @@ class BingxBroker(BrokerAdapter):
         )
 
     async def cancel_order(self, order_id: str) -> Order:
-        # Cancellation is symbol-scoped on BingX; keep a best-effort stub that
-        # reflects the terminal state. Symbol must be supplied by the caller via
-        # the order id convention "<symbol>:<orderId>" when known.
-        raise BrokerError("cancel_order requires symbol; use client.cancel_order(symbol, order_id)")
+        # BingX cancellation is symbol-scoped. The order id convention is
+        # "<symbol>:<orderId>" (the engine's fill ids already use "<symbol>:…");
+        # an id without a symbol cannot be cancelled.
+        symbol, sep, oid = order_id.partition(":")
+        if not sep or not symbol or not oid:
+            raise BrokerError(
+                "cancel_order needs '<symbol>:<orderId>'; got " + repr(order_id)
+            )
+        await self.client.cancel_order(symbol, oid)
+        return Order(
+            id=order_id, symbol=symbol, side=Side.BUY, quantity=0.0,
+            order_type=OrderType.MARKET, status=OrderStatus.CANCELLED,
+        )
 
     async def get_order_status(self, order_id: str) -> Order:
-        raise BrokerError("get_order_status requires symbol; use client.get_order(symbol, order_id)")
+        symbol, sep, oid = order_id.partition(":")
+        if not sep or not symbol or not oid:
+            raise BrokerError(
+                "get_order_status needs '<symbol>:<orderId>'; got " + repr(order_id)
+            )
+        data = await self.client.get_order(symbol, oid)
+        status = _ORDER_STATUS.get(str(data.get("status") or "").upper(), OrderStatus.OPEN)
+        return Order(
+            id=order_id, symbol=symbol, side=Side.BUY,
+            quantity=float(data.get("origQty") or 0.0),
+            order_type=OrderType.MARKET, status=status,
+            filled_quantity=float(data.get("executedQty") or 0.0),
+        )

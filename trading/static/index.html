@@ -1162,11 +1162,68 @@ pre.code { background:var(--panel-2); border:1px solid var(--line); border-radiu
             <button class="btn btn-primary" id="dp-create-key">Create API Key</button>
             <div id="dp-key-error" class="note err" hidden></div>
             <div class="hr"></div>
-            <h3 class="eyebrow">Signal keys</h3>
+            <h3 class="eyebrow" style="display:flex;align-items:center;gap:8px">Signal keys
+              <span class="spacer" style="flex:1"></span>
+              <button class="btn btn-ghost btn-sm" id="dp-purge-cache"
+                      title="Drop the in-process signal summary cache; the next dashboard load regenerates it">Purge summary cache</button>
+            </h3>
+            <div id="dp-keys-bulk" role="group" aria-label="Bulk actions for signal keys" style="display:none;gap:8px;align-items:center;margin-top:8px">
+              <span id="dp-keys-count" class="tiny" aria-live="polite"></span>
+              <button class="btn btn-primary btn-sm" id="dp-keys-enable-sel">Enable selected</button>
+              <button class="btn btn-ghost btn-sm" id="dp-keys-disable-sel">Disable selected</button>
+              <button class="btn btn-danger btn-sm" id="dp-keys-revoke-sel" title="Soft-delete: the keys stop working but stay auditable">Revoke selected</button>
+              <button class="btn btn-ghost btn-sm" id="dp-keys-clear-sel">Clear selection</button>
+            </div>
             <table class="data" style="margin-top:8px"><thead><tr>
+              <th style="width:28px"><input type="checkbox" data-sel-all="keys" aria-label="Select all signal keys" title="Select all signal keys" /></th>
               <th>Key</th><th>Broker</th><th>Tickers</th><th>Status</th><th>Last used</th><th></th>
             </tr></thead><tbody id="dp-keys"></tbody></table>
             <p class="muted tiny" id="dp-key-warn"></p>
+
+            <div class="hr"></div>
+            <h3 class="eyebrow" style="display:flex;align-items:center;gap:8px">Stored backtest runs
+              <span class="spacer" style="flex:1"></span>
+              <button class="btn btn-ghost btn-sm" id="dp-runs-refresh" title="Reload the stored-runs list from the server">Refresh</button>
+              <button class="btn btn-danger btn-sm" id="dp-runs-clear" title="Delete every stored backtest run (cannot be undone)">Clear all</button>
+            </h3>
+            <div id="dp-runs-bulk" role="group" aria-label="Bulk actions for stored runs" style="display:none;gap:8px;align-items:center;margin-top:8px">
+              <span id="dp-runs-count" class="tiny" aria-live="polite"></span>
+              <button class="btn btn-danger btn-sm" id="dp-runs-del-sel" title="Delete the selected stored runs (cannot be undone)">Delete selected</button>
+              <button class="btn btn-ghost btn-sm" id="dp-runs-clear-sel">Clear selection</button>
+            </div>
+            <table class="data" style="margin-top:8px"><thead><tr>
+              <th style="width:28px"><input type="checkbox" data-sel-all="runs" aria-label="Select all stored runs" title="Select all stored runs" /></th>
+              <th>#</th><th>Symbol</th><th>Strategy</th><th>Return</th><th>Created</th><th></th>
+            </tr></thead><tbody id="dp-runs"></tbody></table>
+
+            <div class="hr"></div>
+            <h3 class="eyebrow">Live strategy runners</h3>
+            <p class="muted tiny" style="margin:6px 0">Start/stop a live signal runner for any
+              registered strategy. Start feeds it a synthetic demo feed (real orders are never placed here).</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+              <select id="dp-runner-name" aria-label="Strategy to start or stop" style="min-width:200px"></select>
+              <button class="btn btn-primary btn-sm" id="dp-runner-start" title="Start a live signal runner for the selected strategy (synthetic demo feed)">Start</button>
+              <button class="btn btn-danger btn-sm" id="dp-runner-stop" title="Stop the selected strategy's live runner">Stop</button>
+            </div>
+            <div id="dp-runner-status" class="status-line"></div>
+
+            <div class="hr"></div>
+            <h3 class="eyebrow" style="display:flex;align-items:center;gap:8px">Order history
+              <span class="spacer" style="flex:1"></span>
+              <button class="btn btn-ghost btn-sm" id="dp-orders-refresh" title="Reload the order history from the server">Refresh</button>
+              <button class="btn btn-danger btn-sm" id="dp-orders-clear" title="Delete every local order record (does not cancel live broker orders)">Purge all</button>
+            </h3>
+            <p class="muted tiny" style="margin:6px 0">Local order audit records. Deleting an
+              entry here does not cancel a live broker order — use the broker for that.</p>
+            <div id="dp-orders-bulk" role="group" aria-label="Bulk actions for orders" style="display:none;gap:8px;align-items:center;margin-top:8px">
+              <span id="dp-orders-count" class="tiny" aria-live="polite"></span>
+              <button class="btn btn-danger btn-sm" id="dp-orders-del-sel" title="Delete the selected local order records (does not cancel live broker orders)">Delete selected</button>
+              <button class="btn btn-ghost btn-sm" id="dp-orders-clear-sel">Clear selection</button>
+            </div>
+            <table class="data" style="margin-top:8px"><thead><tr>
+              <th style="width:28px"><input type="checkbox" data-sel-all="orders" aria-label="Select all orders" title="Select all orders" /></th>
+              <th>Id</th><th>Exchange</th><th>Symbol</th><th>Side</th><th>Status</th><th></th>
+            </tr></thead><tbody id="dp-orders"></tbody></table>
           </div>
         </div>
       </div>
@@ -1286,7 +1343,14 @@ function apiError(status, detail) {
   return e;
 }
 async function json(path, opts = {}) {
-  if (S.demo) return mock(path, opts);
+  const method = (opts.method || "GET").toUpperCase();
+  if (S.demo) {
+    // Demo mode is READ-ONLY: a mutation must never be served by the mock and
+    // reported as success ("Version deleted" while nothing changed).
+    if (method !== "GET")
+      throw apiError(503, "Demo mode is read-only — reconnect to the server to change saved data.");
+    return mock(path, opts);
+  }
   let res;
   // Optional client-side ceiling. Without it a stalled server or half-open
   // connection leaves the caller (spinner, disabled button) hanging forever —
@@ -1311,6 +1375,11 @@ async function json(path, opts = {}) {
     if (opts.signal && opts.signal.aborted) throw err;  // caller-initiated stop
     if (err && err.name === "AbortError")
       throw apiError(504, "server did not answer in time — try again or use fewer combinations");
+    // A failed MUTATION must never fall through to the mock: that silently
+    // fakes success (the row "reappears" after reload because nothing was
+    // deleted). Surface a real error so the caller reports it.
+    if (method !== "GET")
+      throw apiError(0, "Backend unreachable — the change was NOT saved. Reconnect and retry.");
     enterDemo("Backend unreachable — showing demo data");
     return mock(path, opts);
   } finally {
@@ -1467,6 +1536,11 @@ function demoMonteCarlo(equity) {
   };
 }
 async function mock(path, opts) {
+  const method = ((opts && opts.method) || "GET").toUpperCase();
+  // Defence in depth: the mock is a read-only sample dataset. Fabricating a
+  // success for a mutation is exactly the "silent fake success" bug.
+  if (method !== "GET")
+    throw apiError(503, "Demo mode is read-only — reconnect to the server to change saved data.");
   const body = opts.body || {};
   await new Promise((r) => setTimeout(r, 120 + Math.random() * 220));
   if (path.startsWith("/auth/token")) return { access_token: "demo", token_type: "bearer" };
@@ -2726,7 +2800,10 @@ async function loadKeys() {
         <span class="badge">${esc(k.exchange)}</span>
         <span class="mono tiny muted">${esc(k.api_key_masked)}</span>
         <span class="badge ${enabled ? "ok" : "warn"}">${enabled ? "enabled" : "disabled"}</span>
-        <button class="btn btn-danger btn-sm" data-del="${k.id}">Delete</button>
+        <span style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" data-test="${k.id}" title="Probe the stored credentials with a cheap authenticated call">Test</button>
+          <button class="btn btn-danger btn-sm" data-del="${k.id}">Delete</button>
+        </span>
       </div>
       <div class="grid-4" style="margin-top:10px">
         <div class="field" style="grid-column:span 2"><label>Instruments</label>
@@ -2752,6 +2829,14 @@ async function loadKeys() {
     if (!confirm('Delete broker account "' + label + '"?\n\nThis permanently removes its encrypted API credentials and its routing/risk settings. This cannot be undone.')) return;
     try { await json("/keys/" + b.dataset.del, { method: "DELETE" }); loadKeys(); }
     catch (e) { toast("Delete failed: " + e.message, "err"); }
+  });
+  $$("button[data-test]", host).forEach((b) => b.onclick = async () => {
+    const old = b.textContent; b.disabled = true; b.textContent = "Testing…";
+    try {
+      const d = await json("/keys/" + b.dataset.test + "/validate", { method: "POST", timeoutMs: 15000 });
+      toast(d.ok ? ("Credentials OK — " + d.message) : ("Test failed — " + d.message), d.ok ? "ok" : "warn");
+    } catch (e) { toast("Test failed: " + e.message, "err"); }
+    finally { b.disabled = false; b.textContent = old; }
   });
   $$("button[data-save]", host).forEach((b) => b.onclick = async () => {
     const card = b.closest(".route"), err = card.querySelector("[data-err]");
@@ -3239,11 +3324,15 @@ function pineRenderHub() {
       "<span class='badge " + (live ? "ok" : "") + "'>" + (live ? "● live_enabled" : "○ backtest_only") + "</span>" +
       (r.is_default ? " <span class='badge'>default</span>" : "") + "</div>" +
       "<div style='display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end'>" +
+      "<button class='btn btn-ghost btn-sm' data-validate='" + r.id + "' title='Run the go-live gate without promoting'>Validate</button>" +
       "<button class='btn btn-primary btn-sm' data-promote='" + r.id + "'" + (live ? " disabled" : "") + ">Promote</button>" +
       "<button class='btn btn-ghost btn-sm' data-rollback='" + r.id + "'" + (r.is_default ? " disabled" : "") + ">Rollback</button>" +
       (live ? "<button class='btn btn-ghost btn-sm' data-demote='" + r.id + "'>Demote</button>" : "") +
       "<button class='btn btn-ghost btn-sm' data-open='" + r.id + "'>Open in Lab</button>" +
       "<button class='btn btn-ghost btn-sm' data-history='" + r.id + "'>" + (hist ? "Hide history" : "History") + "</button>" +
+      "<button class='btn btn-ghost btn-sm' data-duplicate='" + r.id + "' title='Create a new named strategy from this version'>Duplicate</button>" +
+      "<button class='btn btn-danger btn-sm' data-delete='" + r.id + "'" +
+      " title='Delete every version of this saved strategy'>Delete</button>" +
       "</div></div>" +
       "<div class='tiny' style='margin-top:4px'>" + pineMetricsLine(r.metrics) +
       " <span class='muted'>· " + esc(r.source || "") +
@@ -3255,6 +3344,62 @@ function pineRenderHub() {
 
 async function pineRefreshStore() {
   await pineLoadHub();   // server-driven badges after every mutation
+}
+
+/* Delete a whole saved strategy (every version of the named group).
+   The hub's unit is the named strategy, so deleting a row must remove the
+   group — not only its latest version, which would leave an older version to
+   "reappear" after the refresh. */
+async function pineDeleteStrategy(id) {
+  const row = (PINE.hub || []).find((r) => r.id === id);
+  if (!row) return toast("Saved strategy not found — refresh the list", "warn");
+  const name = row.strategy_name || "unnamed";
+  if (!confirm('Delete the saved strategy "' + name + '" for ' + row.symbol +
+               ' — all of its versions?\n\nThis cannot be undone.')) return;
+  try {
+    await json("/presets?symbol=" + encodeURIComponent(row.symbol) +
+               "&strategy=" + encodeURIComponent(row.strategy) +
+               "&name=" + encodeURIComponent(row.strategy_name || ""),
+               { method: "DELETE" });
+    // Forget client references BEFORE the refresh (the stale rows are needed to
+    // resolve which tickers were bound to this now-deleted group).
+    pineForgetDeleted([id], { symbol: row.symbol, strategy: row.strategy,
+                              strategy_name: row.strategy_name || "" });
+    await pineRefreshStore();
+    toast('Deleted saved strategy "' + name + '"', "ok");
+  } catch (err) {
+    if (err && err.status === 404) {          // a concurrent delete won the race
+      await pineRefreshStore();
+      toast('Saved strategy "' + name + '" was already deleted', "warn");
+      return;
+    }
+    pineErr("pine-preset-error", err);        // surface the real failure (never fake success)
+  }
+}
+
+/* Drop client-side references to presets that no longer exist: cached
+   history / version rows and any ticker still bound to a deleted version.
+   Call BEFORE pineRefreshStore so the stale hub/versionCache rows are still
+   available to resolve which bound tickers must be unbound. */
+function pineForgetDeleted(ids, group) {
+  const gone = new Set((ids || []).map(Number));
+  const rowKey = (r) => (r && r.symbol != null)
+    ? r.symbol + "|" + r.strategy + "|" + (r.strategy_name || "") : null;
+  if (group) {
+    const key = group.symbol + "|" + group.strategy + "|" + (group.strategy_name || "");
+    const known = [];
+    (PINE.hub || []).forEach((r) => known.push(r));
+    Object.values(PINE.versionCache || {}).forEach((vs) => (vs || []).forEach((v) => known.push(v)));
+    (btPresetState.rows || []).forEach((r) => known.push(r));
+    known.forEach((r) => { if (rowKey(r) === key) gone.add(Number(r.id)); });
+  }
+  Object.keys(PINE.historyOpen || {}).forEach((k) => { if (gone.has(Number(k))) delete PINE.historyOpen[k]; });
+  Object.keys(PINE.versionCache || {}).forEach((k) => { if (gone.has(Number(k))) delete PINE.versionCache[k]; });
+  let unbound = 0;
+  (S.tickers || []).forEach((t) => {
+    if (t.presetId && gone.has(Number(t.presetId))) { t.presetId = null; t.presetLabel = ""; unbound++; }
+  });
+  if (unbound) { renderRoutes(); markStale(); }
 }
 
 function pineGateToast(err) {
@@ -3347,7 +3492,13 @@ async function pineTabInit() {
   $("pine-hub").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
-    if (b.dataset.promote) {
+    if (b.dataset.validate) {
+      json("/presets/" + b.dataset.validate + "/validate")
+        .then((d) => toast(d.ok ? "Validated — OK to promote" :
+          "Validation failed: " + ((d.reasons || []).map((x) => x.message || x.code || x).join("; ") || "see details"),
+          d.ok ? "ok" : "warn"))
+        .catch((err) => pineErr("pine-error", err));
+    } else if (b.dataset.promote) {
       json("/presets/" + b.dataset.promote + "/promote", { method: "POST" })
         .then((r) => { toast((r.strategy_name || "unnamed") + " v" + r.version + " promoted to live", "ok"); pineRefreshStore(); })
         .catch((err) => pineGateToast(err));
@@ -3364,6 +3515,22 @@ async function pineTabInit() {
       pineOpenVersion(Number(b.dataset.open));
     } else if (b.dataset.history) {
       pineToggleHistory(Number(b.dataset.history));
+    } else if (b.dataset.duplicate) {
+      const id = Number(b.dataset.duplicate);
+      const row = (PINE.hub || []).find((r) => r.id === id);
+      if (!row) { toast("Version not found — refresh the list", "warn"); return; }
+      const name = prompt("Name for the copy:", (row.strategy_name || "unnamed") + " copy");
+      if (!name || !name.trim()) return;
+      json("/presets", { method: "POST", body: {
+        symbol: row.symbol, strategy: row.strategy,
+        strategy_version: row.strategy_version, strategy_name: name.trim(),
+        params: row.params || {}, timeframe: row.timeframe || "",
+        metrics: row.metrics || {}, source: "manual", is_default: false,
+        notes: "copy of v" + (row.version || 1),
+      }}).then(() => { toast('Duplicated as "' + name.trim() + '"', "ok"); pineRefreshStore(); })
+        .catch((err) => pineErr("pine-error", err));
+    } else if (b.dataset.delete) {
+      pineDeleteStrategy(Number(b.dataset.delete));
     }
   });
 }
@@ -3424,7 +3591,8 @@ $("pine-delete").onclick = async () => {
   if (!confirm("Delete this version permanently?")) return;
   try {
     await json("/presets/" + id, { method: "DELETE" });
-    PINE.currentId = null;
+    pineForgetDeleted([id]);   // clear caches + unbind tickers bound to this version
+    PINE.currentId = null; PINE.currentName = "";
     await pineRefreshStore();
     toast("Version deleted", "ok");
   } catch (err) { pineErr("pine-preset-error", err); }
@@ -3750,11 +3918,12 @@ async function dpCreateKey() {
 }
 
 async function loadSignalKeys() {
+  bulkClear("keys");
   let keys = [];
   let failed = false;
   try { keys = await json("/signal-keys"); } catch (err) { failed = true; }
   if (failed) {
-    $("dp-keys").innerHTML = "<tr><td colspan='6' class='neg'>Couldn't load signal keys. " +
+    $("dp-keys").innerHTML = "<tr><td colspan='7' class='neg'>Couldn't load signal keys. " +
       "<button class='btn btn-ghost btn-sm' data-retry-keys>Retry</button></td></tr>";
     const b = $("dp-keys").querySelector("[data-retry-keys]");
     if (b) b.onclick = () => loadSignalKeys();
@@ -3764,15 +3933,21 @@ async function loadSignalKeys() {
     const tickers = (k.config && k.config.tickers || []).map((t) => t.symbol).join(", ");
     const status = k.revoked_at ? "<span class='neg'>revoked</span>"
       : k.active ? "<span class='pos'>active</span>" : "<span class='neg'>disabled</span>";
-    return "<tr><td class='txt mono'>" + esc(k.key) + "</td><td class='txt'>" + esc(k.exchange) +
+    return "<tr><td><input type='checkbox' data-sel='keys:" + k.id + "' aria-label='select signal key'></td>" +
+      "<td class='txt mono'>" + esc(k.key) + "</td><td class='txt'>" + esc(k.exchange) +
       "</td><td class='txt'>" + esc(tickers) + "</td><td class='txt'>" + status + "</td><td class='txt'>" +
       (k.last_used_at ? new Date(k.last_used_at).toLocaleString() : "—") + "</td>" +
       "<td><div style='display:flex;gap:6px'>" +
-      (k.active && !k.revoked_at
-        ? "<button class='btn btn-ghost btn-sm' data-open-dash='" + esc(k.key) + "'>Open Live Dashboard</button>" +
+      (k.revoked_at
+        ? "<span class='muted tiny'>revoked — no actions</span>"
+        : "<button class='btn btn-ghost btn-sm' data-open-dash='" + esc(k.key) + "'>Dashboard</button>" +
+          "<button class='btn btn-ghost btn-sm' data-toggle-key='" + k.id + "' data-active='" + (k.active ? "1" : "0") + "'>" +
+            (k.active ? "Disable" : "Enable") + "</button>" +
+          "<button class='btn btn-ghost btn-sm' data-regen-key='" + esc(k.key) + "'>Regenerate</button>" +
+          "<button class='btn btn-ghost btn-sm' data-purge-key='" + k.id + "'>Purge signals</button>" +
           "<button class='btn btn-danger btn-sm' data-revoke-key='" + k.id + "'>Revoke</button>"
-        : "") + "</div></td></tr>";
-  }).join("") || "<tr><td colspan='6' class='muted'>no signal keys yet</td></tr>";
+        ) + "</div></td></tr>";
+  }).join("") || "<tr><td colspan='7' class='muted'>no signal keys yet</td></tr>";
 }
 
 async function loadDeployPresets() {
@@ -3794,9 +3969,87 @@ async function loadDeployPresets() {
   ).join("") || "<tr><td colspan='5' class='muted'>no presets yet — optimize a ticker or generate one from a backtest</td></tr>";
 }
 
+/* ── bulk selection (runs / orders / signal keys) ─────────────────────── */
+const BULK = { runs: new Set(), orders: new Set(), keys: new Set() };
+let _bulkWired = false;
+
+function bulkRender(scope) {
+  const bar = document.getElementById("dp-" + scope + "-bulk");
+  const cnt = document.getElementById("dp-" + scope + "-count");
+  const n = BULK[scope].size;
+  if (bar) bar.style.display = n ? "flex" : "none";
+  if (cnt) cnt.textContent = n + " selected";
+}
+function bulkSet(scope, id, on) { if (on) BULK[scope].add(id); else BULK[scope].delete(id); bulkRender(scope); }
+function bulkIds(scope) { return Array.from(BULK[scope]); }
+function bulkClear(scope) {
+  BULK[scope].clear();
+  document.querySelectorAll("[data-sel]").forEach((cb) => {
+    if (cb.dataset.sel.startsWith(scope + ":")) cb.checked = false;
+  });
+  const all = document.querySelector("[data-sel-all='" + scope + "']");
+  if (all) all.checked = false;
+  bulkRender(scope);
+}
+function _bulkWireOne(scope, tbodyId) {
+  const body = document.getElementById(tbodyId);
+  if (!body) return;
+  body.addEventListener("change", (e) => {
+    const cb = e.target.closest("[data-sel]"); if (!cb) return;
+    bulkSet(scope, cb.dataset.sel.slice(scope.length + 1), cb.checked);
+  });
+  const all = document.querySelector("[data-sel-all='" + scope + "']");
+  if (all) all.addEventListener("change", () => {
+    body.querySelectorAll("[data-sel]").forEach((cb) => {
+      cb.checked = all.checked;
+      bulkSet(scope, cb.dataset.sel.slice(scope.length + 1), all.checked);
+    });
+  });
+}
+function bulkWire() {
+  if (_bulkWired) return;
+  _bulkWired = true;
+  _bulkWireOne("runs", "dp-runs");
+  _bulkWireOne("orders", "dp-orders");
+  _bulkWireOne("keys", "dp-keys");
+}
+async function bulkDelete(scope, path) {
+  const ids = bulkIds(scope).map((x) => (scope === "runs" ? Number(x) : x));
+  if (!ids.length) return;
+  if (!confirm("Delete " + ids.length + " selected item(s)? This cannot be undone.")) return;
+  try {
+    const d = await json(path, { method: "POST", body: { ids } });
+    const miss = (d.missing || []).length;
+    toast("Deleted " + d.deleted + (miss ? " (" + miss + " missing)" : ""), miss ? "warn" : "ok");
+    bulkClear(scope);
+    if (scope === "runs") loadStoredRuns(); else loadOrders();
+  } catch (err) { toast("Bulk delete failed: " + err.message, "err"); }
+}
+async function bulkKeys(action) {
+  const ids = bulkIds("keys").map(Number);
+  if (!ids.length) return;
+  if (action === "revoke" &&
+      !confirm("Revoke " + ids.length + " selected key(s)?\n\nLive generation stops immediately; the keys stay auditable.")) return;
+  try {
+    const d = await json("/signal-keys/bulk", { method: "POST", body: { ids, action } });
+    const miss = (d.missing || []).length;
+    toast(action + ": " + d.updated + " key(s)" + (miss ? " (" + miss + " missing)" : ""), miss ? "warn" : "ok");
+    bulkClear("keys"); loadSignalKeys();
+  } catch (err) { toast("Bulk action failed: " + err.message, "err"); }
+}
+$("dp-runs-del-sel").onclick = () => bulkDelete("runs", "/backtest/results/bulk-delete");
+$("dp-runs-clear-sel").onclick = () => bulkClear("runs");
+$("dp-orders-del-sel").onclick = () => bulkDelete("orders", "/orders/bulk-delete");
+$("dp-orders-clear-sel").onclick = () => bulkClear("orders");
+$("dp-keys-enable-sel").onclick = () => bulkKeys("enable");
+$("dp-keys-disable-sel").onclick = () => bulkKeys("disable");
+$("dp-keys-revoke-sel").onclick = () => bulkKeys("revoke");
+$("dp-keys-clear-sel").onclick = () => bulkClear("keys");
+
 function deployTabInit() {
   if (!dpState.loaded) dpState.loaded = true;
-  loadDeployPresets(); loadSignalKeys();
+  bulkWire();
+  loadDeployPresets(); loadSignalKeys(); loadStoredRuns(); loadRunners(); loadOrders();
 }
 
 $("dp-fill").onclick = () => {
@@ -3809,6 +4062,37 @@ $("dp-create-key").onclick = dpCreateKey;
 $("dp-keys").addEventListener("click", async (e) => {
   const open = e.target.closest("[data-open-dash]");
   if (open) { window.open("/API_KEY/" + open.dataset.openDash, "_blank"); return; }
+  const tog = e.target.closest("[data-toggle-key]");
+  if (tog) {
+    const next = tog.dataset.active === "1" ? "false" : "true";
+    tog.disabled = true;
+    try {
+      await json("/signal-keys/" + tog.dataset.toggleKey + "?active=" + next, { method: "PATCH" });
+      toast(next === "true" ? "Key enabled" : "Key disabled", "ok"); loadSignalKeys();
+    } catch (err) { toast("Update failed: " + err.message, "err"); tog.disabled = false; }
+    return;
+  }
+  const regen = e.target.closest("[data-regen-key]");
+  if (regen) {
+    regen.disabled = true; regen.textContent = "Regenerating…";
+    try {
+      const d = await json("/signal-keys/" + encodeURIComponent(regen.dataset.regenKey) + "/generate", { method: "POST", timeoutMs: 600000 });
+      toast("Regenerated — " + (d.n_signals ?? 0) + " signal(s), " + (d.n_trades ?? 0) + " trade(s)", "ok");
+    } catch (err) { toast("Regenerate failed: " + err.message, "err"); }
+    finally { regen.disabled = false; regen.textContent = "Regenerate"; }
+    return;
+  }
+  const purge = e.target.closest("[data-purge-key]");
+  if (purge) {
+    if (!confirm("Purge this key's stored signals?\n\nThe generated signals/trades are hard-deleted (the key itself is kept). The next generation rebuilds them.")) return;
+    purge.disabled = true;
+    try {
+      const d = await json("/signal-keys/" + purge.dataset.purgeKey + "/signals", { method: "DELETE" });
+      toast("Purged " + (d.deleted ?? 0) + " signal(s)", "ok");
+    } catch (err) { toast("Purge failed: " + err.message, "err"); }
+    finally { purge.disabled = false; }
+    return;
+  }
   const rev = e.target.closest("[data-revoke-key]");
   if (rev) {
     const key = rev.dataset.revokeKey;
@@ -3818,6 +4102,118 @@ $("dp-keys").addEventListener("click", async (e) => {
       toast("Key revoked", "ok"); loadSignalKeys();
     } catch (err) { toast("Revoke failed: " + err.message, "err"); }
   }
+});
+
+async function loadStoredRuns() {
+  bulkClear("runs");
+  const host = $("dp-runs");
+  try {
+    const rows = await json("/backtest/results?limit=100");
+    host.innerHTML = rows.map((r) => {
+      const m = r.metrics || {};
+      return "<tr><td><input type='checkbox' data-sel='runs:" + r.id + "' aria-label='select run " + r.id + "'></td>" +
+        "<td class='mono'>" + r.id + "</td><td class='txt'>" + esc(r.symbol) +
+        "</td><td class='txt'>" + esc(r.strategy) + "</td><td>" + pct(m.total_return) +
+        "</td><td class='txt'>" + (r.created_at ? new Date(r.created_at).toLocaleString() : "—") +
+        "</td><td><button class='btn btn-danger btn-sm' data-del-run='" + r.id +
+        "' title='Delete this stored backtest run'>Delete</button></td></tr>";
+    }).join("") || "<tr><td colspan='7' class='muted'>no stored runs yet</td></tr>";
+  } catch (err) {
+    host.innerHTML = "<tr><td colspan='7' class='neg'>Couldn't load stored runs: " + esc(err.message) +
+      " <button class='btn btn-ghost btn-sm' data-retry-runs>Retry</button></td></tr>";
+    const b = host.querySelector("[data-retry-runs]"); if (b) b.onclick = loadStoredRuns;
+  }
+}
+
+async function loadRunners() {
+  try {
+    const names = await json("/strategies");
+    $("dp-runner-name").innerHTML = (names || []).map((s) =>
+      "<option value='" + esc(s.name) + "'>" + esc(s.name) + "</option>").join("");
+  } catch (err) { /* non-fatal: leave the select empty */ }
+}
+
+async function runRunner(action) {
+  const name = $("dp-runner-name").value;
+  if (!name) return toast("No strategy selected", "warn");
+  const btn = action === "start" ? $("dp-runner-start") : $("dp-runner-stop");
+  btn.disabled = true;
+  try {
+    const d = await json("/strategies/" + encodeURIComponent(name) + "/" + action, { method: "POST", body: {} });
+    $("dp-runner-status").textContent = name + ": " + d.status;
+    toast(name + " — " + d.status, "ok");
+  } catch (err) { toast(action + " failed: " + err.message, "err"); }
+  finally { btn.disabled = false; }
+}
+
+$("dp-purge-cache").onclick = async () => {
+  try { const d = await json("/signal-keys/cache/purge", { method: "POST", body: {} });
+    toast("Summary cache purged (" + (d.purged ?? 0) + " entries)", "ok"); }
+  catch (err) { toast("Purge failed: " + err.message, "err"); }
+};
+$("dp-runs-refresh").onclick = loadStoredRuns;
+$("dp-runs-clear").onclick = async () => {
+  if (!confirm("Delete ALL stored backtest runs?\n\nThis permanently removes every saved run. This cannot be undone.")) return;
+  try { const d = await json("/backtest/results", { method: "DELETE" });
+    toast("Cleared " + (d.deleted ?? 0) + " run(s)", "ok"); loadStoredRuns(); }
+  catch (err) { toast("Clear failed: " + err.message, "err"); }
+};
+$("dp-runs").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-del-run]"); if (!b) return;
+  if (!confirm("Delete stored run #" + b.dataset.delRun + "?\n\nThis cannot be undone.")) return;
+  b.disabled = true;
+  try { await json("/backtest/results/" + b.dataset.delRun, { method: "DELETE" });
+    toast("Run deleted", "ok"); loadStoredRuns(); }
+  catch (err) { toast("Delete failed: " + err.message, "err"); b.disabled = false; }
+});
+$("dp-runner-start").onclick = () => runRunner("start");
+$("dp-runner-stop").onclick = () => runRunner("stop");
+
+async function loadOrders() {
+  bulkClear("orders");
+  const host = $("dp-orders");
+  try {
+    const rows = await json("/orders");
+    host.innerHTML = rows.slice(0, 100).map((o) =>
+      "<tr><td><input type='checkbox' data-sel='orders:" + esc(o.id) + "' aria-label='select order'></td>" +
+      "<td class='mono'>" + esc(o.id) + "</td><td class='txt'>" + esc(o.exchange) +
+      "</td><td class='txt'>" + esc(o.symbol) + "</td><td class='txt'>" + esc(o.side) +
+      "</td><td class='txt'>" + esc(o.status) +
+      "</td><td>" + (["open", "partial", "pending"].includes(String(o.status).toLowerCase())
+        ? "<button class='btn btn-ghost btn-sm' data-cancel-order='" + esc(o.id) + "'>Cancel</button> " : "") +
+      "<button class='btn btn-danger btn-sm' data-del-order='" + esc(o.id) +
+      "'>Delete</button></td></tr>").join("") ||
+      "<tr><td colspan='7' class='muted'>no orders yet</td></tr>";
+  } catch (err) {
+    host.innerHTML = "<tr><td colspan='7' class='neg'>Couldn't load orders: " + esc(err.message) +
+      " <button class='btn btn-ghost btn-sm' data-retry-orders>Retry</button></td></tr>";
+    const b = host.querySelector("[data-retry-orders]"); if (b) b.onclick = loadOrders;
+  }
+}
+
+$("dp-orders-refresh").onclick = loadOrders;
+$("dp-orders-clear").onclick = async () => {
+  if (!confirm("Purge ALL persisted order records?\n\nThis removes the local audit history; it does not cancel live broker orders. This cannot be undone.")) return;
+  try { const d = await json("/orders", { method: "DELETE" });
+    toast("Purged " + (d.deleted ?? 0) + " order(s)", "ok"); loadOrders(); }
+  catch (err) { toast("Purge failed: " + err.message, "err"); }
+};
+$("dp-orders").addEventListener("click", async (e) => {
+  const cancel = e.target.closest("[data-cancel-order]");
+  if (cancel) {
+    if (!confirm("Cancel live broker order " + cancel.dataset.cancelOrder + "?\n\nThis sends a cancel request to the exchange.")) return;
+    cancel.disabled = true;
+    try { const d = await json("/orders/" + encodeURIComponent(cancel.dataset.cancelOrder) + "/cancel", { method: "POST" });
+      toast("Order " + d.status, "ok"); loadOrders(); }
+    catch (err) { toast("Cancel failed: " + err.message, "err"); cancel.disabled = false; }
+    return;
+  }
+  const b = e.target.closest("[data-del-order]"); if (!b) return;
+  if (!confirm("Delete order record " + b.dataset.delOrder + "?")) return;
+  b.disabled = true;
+  try { await json("/orders/" + encodeURIComponent(b.dataset.delOrder), { method: "DELETE" });
+    toast("Order deleted", "ok"); loadOrders(); }
+  catch (err) { toast("Delete failed: " + err.message, "err"); b.disabled = false; }
 });
 
 $("tabs").addEventListener("click", (e) => {

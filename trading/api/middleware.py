@@ -89,11 +89,13 @@ class _LoginLockout:
         failures: int,
         lock_seconds: float,
         clock: Callable[[], float] | None = None,
+        max_size: int = DEFAULT_MAX_BUCKETS,
     ) -> None:
         self.failures = failures
         self.lock_seconds = lock_seconds
+        self.max_size = max_size
         self._clock = clock or time.monotonic
-        self._hits: dict[str, list[float]] = {}
+        self._hits: OrderedDict[str, list[float]] = OrderedDict()
         self._locked_until: dict[str, float] = {}
         self._lock = threading.Lock()
 
@@ -115,11 +117,17 @@ class _LoginLockout:
             now = self._clock()
             recent = [t for t in self._hits.get(key, []) if now - t <= self.lock_seconds]
             recent.append(now)
+            self._hits[key] = recent
+            self._hits.move_to_end(key)
+            # Bound the registry so distinct spoofed/rotating IPs cannot grow it
+            # without limit. Evict the least-recently-seen key (and its lock).
+            while len(self._hits) > self.max_size:
+                evicted, _ = self._hits.popitem(last=False)
+                self._locked_until.pop(evicted, None)
             if len(recent) >= self.failures:
                 self._hits.pop(key, None)
                 self._locked_until[key] = now + self.lock_seconds
                 return True
-            self._hits[key] = recent
             return False
 
     def record_success(self, key: str) -> None:

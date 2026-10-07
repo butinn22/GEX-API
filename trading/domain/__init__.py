@@ -19,6 +19,7 @@ from .errors import (
     InvalidStateError,
     OrderRejectedError,
     RateLimitExceededError,
+    RiskLimitError,
     StrategyError,
     TradingError,
 )
@@ -46,6 +47,7 @@ __all__ = [
     "InvalidStateError",
     "OrderRejectedError",
     "RateLimitExceededError",
+    "RiskLimitError",
     "StrategyError",
     "TradingError",
     # money

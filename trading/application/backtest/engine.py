@@ -44,7 +44,16 @@ from .match_engine import (
 from .metrics import BacktestMetrics, compute_metrics
 from .trade_log import TradeEvent, events_from_fill
 
-__all__ = ["BacktestConfig", "Trade", "BacktestResult", "run_backtest"]
+__all__ = ["ENGINE_VERSION", "BacktestConfig", "Trade", "BacktestResult", "run_backtest"]
+
+#: Semantic version of the backtest engine's **execution + statistics** rules.
+#: Bumped whenever a change alters fills, position sizing, fee accounting or the
+#: metric definitions, so results produced under different rules are
+#: distinguishable (see ADR-16). 2.0.0: exits now close the held quantity
+#: instead of being re-sized from equity; block-bootstrap drift restored; GBM
+#: Itô correction fixed; Sortino semi-deviation fixed; optimizer no longer
+#: treats a perfect (``+inf``) objective as the worst score.
+ENGINE_VERSION = "2.0.0"
 
 
 @dataclass
@@ -79,6 +88,8 @@ class BacktestResult:
     metrics: BacktestMetrics
     #: Per-fill ledger (entry/add/exit states) for granular trade reporting.
     events: tuple[TradeEvent, ...] = ()
+    #: Which execution/statistics rules produced this result (see ``ENGINE_VERSION``).
+    engine_version: str = ENGINE_VERSION
 
     @property
     def trade_pnls(self) -> tuple[float, ...]:
@@ -97,12 +108,29 @@ def _closed_quantity(pos_side: PositionSide, pos_qty: float, fill: Fill) -> floa
 def _size_signal(sig: Signal, portfolio: Portfolio, price: float, cfg: BacktestConfig) -> OrderIntent | None:
     if sig.strength < cfg.min_signal_strength:
         return None
-    equity = max(portfolio.equity({sig.symbol: price}), 0.0)
-    if cfg.sizer is not None:
-        qty = cfg.sizer.size(equity=equity, price=price, signal_strength=sig.strength)
+    if price <= 0:
+        return None
+    pos = portfolio.position_for(sig.symbol)
+    # An explicit close (``reduce_only``) on an open position trades the *held*
+    # quantity. Re-sizing it from equity would leave a residual — and after a
+    # loss, a flipped — position while the strategy believed it was flat,
+    # corrupting the ledger and every metric derived from it. Signals without
+    # this flag keep the target-position semantics (an opposing signal flips).
+    if (
+        sig.reduce_only
+        and pos.side is not PositionSide.FLAT
+        and pos.side.sign != sig.side.sign
+    ):
+        qty = pos.quantity
+    elif sig.quantity is not None and sig.quantity.value > 0:
+        qty = sig.quantity.value
     else:
-        qty = equity * cfg.position_fraction * sig.strength / price
-    if qty <= 0 or price <= 0:
+        equity = max(portfolio.equity({sig.symbol: price}), 0.0)
+        if cfg.sizer is not None:
+            qty = cfg.sizer.size(equity=equity, price=price, signal_strength=sig.strength)
+        else:
+            qty = equity * cfg.position_fraction * sig.strength / price
+    if qty <= 0:
         return None
     return OrderIntent(
         symbol=sig.symbol,

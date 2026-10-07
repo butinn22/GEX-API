@@ -146,6 +146,37 @@ async def list_presets(
     return [_to_out(r) for r in rows]
 
 
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_preset_group(
+    symbol: str = "",
+    strategy: str = "",
+    name: str = "",
+    svc=Depends(_svc),
+) -> None:
+    """Delete a whole named saved strategy — **every** version of its group.
+
+    The console's "Saved strategies" hub lists one row per named strategy (a
+    group), so deleting the row must remove the group, not only its latest
+    version (which would leave an older version to "reappear"). Atomic and
+    concurrency-safe: 409 while any version is ``live_enabled`` (demote first),
+    404 when the group is already empty (a concurrent delete won the race).
+    """
+    if not symbol or not strategy:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "both 'symbol' and 'strategy' query parameters are required",
+        )
+    try:
+        deleted = await svc.delete_group(symbol, strategy, name)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    if not deleted:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"no saved strategy {symbol}/{strategy}/{name or 'unnamed'}",
+        )
+
+
 @router.get("/latest", response_model=list[PresetOut])
 async def latest_presets(
     symbol: str | None = None,

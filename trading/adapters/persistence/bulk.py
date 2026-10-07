@@ -56,6 +56,20 @@ class TaskResultStore:
         await self._session.commit()
         return True
 
+    async def delete_many(self, ids: list[int]) -> tuple[int, list[int]]:
+        """Delete several results in one transaction; returns (deleted, missing)."""
+        deleted = 0
+        missing: list[int] = []
+        for result_id in ids:
+            row = await self._session.get(BacktestResultRow, result_id)
+            if row is None:
+                missing.append(result_id)
+                continue
+            await self._session.delete(row)
+            deleted += 1
+        await self._session.commit()
+        return deleted, missing
+
     async def purge(self, older_than_days: int | None = None) -> int:
         """Delete stored backtest results; when ``older_than_days`` is given,
         only rows older than that window are removed. Returns the count deleted."""

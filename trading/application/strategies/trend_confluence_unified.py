@@ -375,7 +375,7 @@ class UnifiedTrendStrategy(TrendConfluenceStrategy):
             if _flag(row, "long_exit_signal" if long else "short_exit_signal"):
                 self._close_position()
                 return Signal(self.symbol, exit_side, self.name, "emf_indicator_exit",
-                              strength=s, price=price, timestamp=timestamp)
+                              strength=s, price=price, timestamp=timestamp, reduce_only=True)
 
         # 5. EMF+ADL take-profit / trailing-stop risk exit (same maths as the
         #    standalone gex_emf adapter; ATR frozen at entry).
@@ -401,12 +401,14 @@ class UnifiedTrendStrategy(TrendConfluenceStrategy):
             if settings.use_trailing and stop is not None and close <= stop:
                 self._close_position()
                 return Signal(self.symbol, exit_side, self.name, "trailing_stop",
-                              strength=self._entry_strength, price=price, timestamp=timestamp)
+                              strength=self._entry_strength, price=price, timestamp=timestamp,
+                              reduce_only=True)
             tp = self._gex.take_profit_price(entry, direction, atr)
             if settings.use_take_profit and close >= tp:
                 self._close_position()
                 return Signal(self.symbol, exit_side, self.name, "take_profit",
-                              strength=self._entry_strength, price=price, timestamp=timestamp)
+                              strength=self._entry_strength, price=price, timestamp=timestamp,
+                              reduce_only=True)
         else:
             stop = self._gex.trailing_stop_price(
                 entry, direction, lowest_price=self._best, atr_value=atr
@@ -414,12 +416,14 @@ class UnifiedTrendStrategy(TrendConfluenceStrategy):
             if settings.use_trailing and stop is not None and close >= stop:
                 self._close_position()
                 return Signal(self.symbol, exit_side, self.name, "trailing_stop",
-                              strength=self._entry_strength, price=price, timestamp=timestamp)
+                              strength=self._entry_strength, price=price, timestamp=timestamp,
+                              reduce_only=True)
             tp = self._gex.take_profit_price(entry, direction, atr)
             if settings.use_take_profit and close <= tp:
                 self._close_position()
                 return Signal(self.symbol, exit_side, self.name, "take_profit",
-                              strength=self._entry_strength, price=price, timestamp=timestamp)
+                              strength=self._entry_strength, price=price, timestamp=timestamp,
+                              reduce_only=True)
         return None
 
     # ── position bookkeeping ────────────────────────────────────────────

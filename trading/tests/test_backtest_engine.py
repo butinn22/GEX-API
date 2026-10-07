@@ -134,6 +134,34 @@ def test_sma_crossover_produces_trades():
     assert len(result.trades) == result.metrics.n_trades
 
 
+def test_reduce_only_signal_closes_the_held_quantity():
+    """Regression: an explicit close must trade the *held* quantity.
+
+    Sizing a close from current equity made it over-shoot when cash was still on
+    the books (``position_fraction < 1`` or after fees), leaving a residual —
+    and after a loss, a flipped — position while the strategy believed it was
+    flat. Plain signals (no ``reduce_only``) keep the flip contract.
+    """
+    from trading.application.backtest.engine import _size_signal
+    from trading.domain import Portfolio, Position, PositionSide
+
+    pf = Portfolio(
+        cash=500.0,
+        positions=(Position("AAPL", PositionSide.LONG, 5.0, 100.0),),
+    )
+    exit_sig = Signal(symbol="AAPL", side=Side.SELL, strategy="x", reason="exit",
+                      reduce_only=True)
+    intent = _size_signal(exit_sig, pf, price=80.0, cfg=BacktestConfig(position_fraction=0.5))
+    assert intent is not None
+    assert intent.quantity.value == pytest.approx(5.0)  # held quantity, not 900*0.5/80
+
+    # A same-direction (adding) signal still sizes from equity as before.
+    add_sig = Signal(symbol="AAPL", side=Side.BUY, strategy="x", reason="add")
+    add_intent = _size_signal(add_sig, pf, price=80.0, cfg=BacktestConfig(position_fraction=0.5))
+    assert add_intent is not None
+    assert add_intent.quantity.value == pytest.approx(900.0 * 0.5 / 80.0)
+
+
 def test_empty_bars_raises():
     with pytest.raises(ValueError):
         asyncio_run(BuyAndHold("AAPL"), [], BacktestConfig())

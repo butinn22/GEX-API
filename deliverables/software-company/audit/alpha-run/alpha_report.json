@@ -1,0 +1,171 @@
+{
+  "stage1_resample": {
+    "chronological_rows": 11497,
+    "volume_bars": 1493,
+    "bucket_size": 12437.117,
+    "bucket_selection": "adaptive: total_flow / target_bars=1500.0",
+    "total_flow": 18655675,
+    "compression": 7.701,
+    "entropy_window_bars": 373
+  },
+  "stage2_transform": {
+    "fractional_d": 0.2,
+    "warmup_bars": 148,
+    "usable_bars": 1345,
+    "df_tau_after": -3.6196,
+    "df_decision": "p < 0.01",
+    "dfa_alpha_raw_price": 1.508,
+    "dfa_alpha_fractional": 1.3307,
+    "dfa_alpha_log_returns": 0.557
+  },
+  "stage3_denoise": {
+    "kalman_q": 3033211.538203,
+    "kalman_r": 0.0,
+    "kalman_signal_to_noise": 3.033211538202866e+20,
+    "kalman_loglik": -13224.016,
+    "kalman_moments_init_q": 3033211.538203,
+    "kalman_moments_init_r": 0.0,
+    "kalman_grid_inner_solution": false,
+    "kalman_resid_std": 0.0,
+    "kalman_innov_lag1_autocorr": 0.02468
+  },
+  "stage3_rmt": {
+    "n_assets": 10,
+    "n_observations": 10009,
+    "mp_upper_bound": 1.0642,
+    "mp_lower_bound": 0.9378,
+    "eigenvalues": [
+      7.2213,
+      0.5112,
+      0.3829,
+      0.3775,
+      0.3558,
+      0.3233,
+      0.2663,
+      0.217,
+      0.1904,
+      0.1543
+    ],
+    "n_real_factors": 1,
+    "noise_fraction": 0.9
+  },
+  "stage4_extract": {
+    "perm_entropy_baseline": 0.9626,
+    "perm_entropy_recent": 0.9507,
+    "perm_entropy_drop": 0.0119,
+    "te_A2_to_A0_lead": 0.74093,
+    "te_A0_to_A2_reverse": 0.70052,
+    "te_A2_leads_significant": true,
+    "te_A0_to_A2_significant": true,
+    "te_input_transform": "volatility-standardised first differences",
+    "te_A2_lag_selected": 1,
+    "te_A0_A1_control": 1.18489,
+    "te_A1_A0_control": 1.21835,
+    "te_control_significant": true,
+    "vpin_mean": 0.4845,
+    "vpin_p95": 0.6047,
+    "vpin_final": 0.5782,
+    "kyle_lambda_mean": 0.20137395627157093,
+    "kyle_lambda_final": 0.24629935864213787,
+    "kyle_lambda_trend_ratio": 1.4615
+  },
+  "stage5_model": {
+    "hmm_n_states": 2,
+    "hmm_state_counts": [
+      924,
+      421
+    ],
+    "hmm_state_means": [
+      -0.54265,
+      1.17443
+    ],
+    "hmm_state_vols": [
+      0.65999,
+      0.45273
+    ],
+    "hmm_transition_matrix": [
+      [
+        0.99541,
+        0.00459
+      ],
+      [
+        0.0076,
+        0.9924
+      ]
+    ],
+    "hmm_current_state": 1,
+    "hmm_state_0_is_low_vol": false,
+    "hmm_loglik": -1222.86,
+    "hmm_high_vol_share_first_60pct": 0.8265,
+    "hmm_high_vol_share_last_40pct": 0.4777,
+    "hmm_regime_separation": 1.4578,
+    "ou_theta": 0.0002,
+    "ou_half_life_bars": 3468.509,
+    "ou_mu": -162430.669,
+    "ou_stationary_std": 62843.56241,
+    "ou_half_life_is_exploitable": false,
+    "ou_spread_unit_root_rejected": false,
+    "statarb_zscore_now": -0.071,
+    "statarb_zscore_abs_p95": 1.995,
+    "tail_dependence_upper": 0.642,
+    "tail_dependence_lower": 0.6327,
+    "tail_dependence_independent_ref": 0.050000000000000044,
+    "mahalanobis_latest_joint_move": 1.0095,
+    "mahalanobis_p95": 5.7702,
+    "mahalanobis_theoretical_rms": 3.1623
+  },
+  "stage6_validation": {
+    "cv": "purged_kfold",
+    "n_splits": 5,
+    "label_span": 5,
+    "embargo_rows": 13,
+    "fold_train_sizes": [
+      1063,
+      1058,
+      1058,
+      1058,
+      1071
+    ],
+    "fold_test_sizes": [
+      269,
+      269,
+      269,
+      269,
+      269
+    ],
+    "train_test_overlap_rows": 0,
+    "naive_kfold_would_leak_rows": 1370
+  },
+  "diagnostics": [
+    {
+      "phenomenon": "no order-flow toxicity",
+      "evidence": "VPIN p95 = 0.6047 <= 0.70",
+      "read": "flow is balanced; no evidence of informed accumulation/distribution"
+    },
+    {
+      "phenomenon": "no significant directed flow between the tested assets",
+      "evidence": "TE(forward)=0.74093 vs TE(reverse)=0.70052, lead significant = True",
+      "read": "no exploitable timing edge found; do not build a lead-lag rule on this pair"
+    },
+    {
+      "phenomenon": "symmetric bidirectional coupling (cointegration channel)",
+      "evidence": "TE(A0->A1)=1.18489 vs TE(A1->A0)=1.21835, asymmetry=0.027",
+      "read": "this is error correction, not a lead-lag: trade the spread's deviation, not the direction of information flow"
+    },
+    {
+      "phenomenon": "correlation matrix dominated by noise",
+      "evidence": "1 eigenvalue(s) above the Marchenko-Pastur bound 1.0642",
+      "read": "use only the real factors; naive PCA keeps spurious structure"
+    },
+    {
+      "phenomenon": "no exploitable mean reversion in the test spread",
+      "evidence": "OU half-life 3468.5 bars over 1345 usable bars",
+      "read": "half-life at or beyond sample length; do not trade as stat-arb"
+    },
+    {
+      "phenomenon": "hidden tail dependence",
+      "evidence": "lambda_U=0.6420 vs independent reference 0.0500",
+      "read": "assets co-crash far more than their linear correlation implies; size joint risk off the copula, not the correlation matrix"
+    }
+  ]
+}

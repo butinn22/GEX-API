@@ -16,6 +16,8 @@ from trading.application.account_router import (
     AccountRouter,
     apply_risk,
 )
+from trading.application.risk import RiskManager
+from trading.config import settings
 from trading.domain import (
     BrokerError,
     Exchange,
@@ -25,6 +27,7 @@ from trading.domain import (
     OrderRejectedError,
     Portfolio,
     Position,
+    RiskLimitError,
 )
 from trading.ports import BrokerAdapter
 
@@ -77,6 +80,8 @@ class ExecutionEngine:
         max_delay: float = 2.0,
         kill_switch: KillSwitch | None = None,
         account_router: AccountRouter | None = None,
+        risk_manager: RiskManager | None = None,
+        enforce_risk: bool | None = None,
     ) -> None:
         self.router = router
         self.max_retries = max_retries
@@ -84,6 +89,37 @@ class ExecutionEngine:
         self.max_delay = max_delay
         self.kill_switch = kill_switch or KillSwitch()
         self.account_router = account_router
+        self.risk_manager = risk_manager or RiskManager()
+        # Fail closed in production: a live order is refused unless the caller
+        # supplies equity + mark so the kill switch and position limit can be
+        # evaluated. Dev/tests keep the previous permissive behaviour unless the
+        # flag is set explicitly.
+        self.enforce_risk = settings.is_production if enforce_risk is None else enforce_risk
+
+    def _check_risk(
+        self,
+        intent: OrderIntent,
+        *,
+        equity: float | None,
+        mark: float | None,
+        portfolio: Portfolio | None,
+    ) -> None:
+        if not self.enforce_risk:
+            return
+        if equity is None or mark is None:
+            raise RiskLimitError(
+                "risk check requires current equity and mark price; refusing to "
+                "place an unchecked live order"
+            )
+        if self.kill_switch.update(equity):
+            raise RiskLimitError(
+                f"kill switch tripped: drawdown >= {self.kill_switch.max_drawdown:.0%}"
+            )
+        ok, reason = self.risk_manager.approve(
+            intent, portfolio or Portfolio(), mark=mark, current_equity=equity
+        )
+        if not ok:
+            raise RiskLimitError(f"risk limit: {reason}")
 
     async def _retry_on(self, broker: BrokerAdapter, action):
         """Exponential-backoff retry against one already-resolved broker."""
@@ -105,7 +141,16 @@ class ExecutionEngine:
     async def _with_retry(self, exchange: Exchange, action):
         return await self._retry_on(self.router.get(exchange), action)
 
-    async def place_order(self, exchange: Exchange, intent: OrderIntent) -> Order:
+    async def place_order(
+        self,
+        exchange: Exchange,
+        intent: OrderIntent,
+        *,
+        equity: float | None = None,
+        mark: float | None = None,
+        portfolio: Portfolio | None = None,
+    ) -> Order:
+        self._check_risk(intent, equity=equity, mark=mark, portfolio=portfolio)
         return await self._with_retry(exchange, lambda b: b.place_order(intent))
 
     async def place_multi(
@@ -126,9 +171,24 @@ class ExecutionEngine:
         equities = equities or {}
         results: list[AccountOrderResult] = []
         for account, broker in self.account_router.brokers_for(intent.symbol):
+            account_equity = equities.get(account.key_id)
+            if self.enforce_risk and account_equity is None:
+                results.append(AccountOrderResult(
+                    account.key_id, account.label,
+                    error="RiskLimitError: no equity supplied for account; refusing "
+                          "to place an unchecked live order",
+                ))
+                continue
+            if self.enforce_risk and account_equity is not None and self.kill_switch.update(account_equity):
+                results.append(AccountOrderResult(
+                    account.key_id, account.label,
+                    error=f"RiskLimitError: kill switch tripped (drawdown >= "
+                          f"{self.kill_switch.max_drawdown:.0%})",
+                ))
+                continue
             sized = apply_risk(
                 intent, account.settings,
-                equity=equities.get(account.key_id, 0.0), price=price,
+                equity=account_equity or 0.0, price=price,
             )
             try:
                 order = await self._retry_on(

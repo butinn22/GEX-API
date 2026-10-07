@@ -651,6 +651,7 @@ class ConfluenceBreakoutStrategy(Strategy):
             risk_pct=float(p.risk_pct),
             risk_amount=float(risk_amount),
             position_size=float(pos.strength * ENGINE_POSITION_FRACTION),
+            reduce_only=True,
             bar_time=self._ts[i],
             meta={
                 "preset": self.preset,

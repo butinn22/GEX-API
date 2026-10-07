@@ -44,6 +44,15 @@ class OrderRepository:
     async def get(self, order_id: str) -> OrderRow | None:
         return await self._session.get(OrderRow, order_id)
 
+    async def update_status(self, order_id: str, status: str) -> bool:
+        """Persist a new status on an existing order; ``False`` when absent."""
+        row = await self._session.get(OrderRow, order_id)
+        if row is None:
+            return False
+        row.status = status
+        await self._session.commit()
+        return True
+
     async def delete(self, order_id: str) -> bool:
         """Delete one order row; ``False`` when it does not exist."""
         row = await self._session.get(OrderRow, order_id)
@@ -52,6 +61,24 @@ class OrderRepository:
         await self._session.delete(row)
         await self._session.commit()
         return True
+
+    async def delete_many(self, ids: list[str]) -> tuple[int, list[str]]:
+        """Delete several order rows in one transaction.
+
+        Returns ``(deleted, missing_ids)``. Unknown ids are reported, not an
+        error, so a bulk delete is idempotent and never fails the whole batch.
+        """
+        deleted = 0
+        missing: list[str] = []
+        for order_id in ids:
+            row = await self._session.get(OrderRow, order_id)
+            if row is None:
+                missing.append(order_id)
+                continue
+            await self._session.delete(row)
+            deleted += 1
+        await self._session.commit()
+        return deleted, missing
 
     async def delete_all(self) -> int:
         """Purge every order row; returns the count removed."""

@@ -1,0 +1,12 @@
+{
+  "name": "gex-console-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "jsdom regression harnesses for trading/static/index.html console flows.",
+  "scripts": {
+    "test": "node run_all.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0"
+  }
+}

@@ -88,7 +88,11 @@ def _handle_message(session: ClientSession, msg: dict[str, Any]) -> dict[str, An
             "max_tickers": MAX_TICKERS_PER_CLIENT,
         }
     if mtype == "ping":
-        registry.touch(session.session_id)
+        # Only an authenticated (ACTIVE) session refreshes liveness. Otherwise a
+        # socket that never completes the handshake could be kept alive forever
+        # by pinging; now it goes stale and the watchdog closes it.
+        if session.state.value == "active":
+            registry.touch(session.session_id)
         return {"type": "pong", "ts": msg.get("ts", time.time())}
     if mtype == "subscribe":
         tickers = registry.subscribe(session.session_id, msg.get("tickers") or [])

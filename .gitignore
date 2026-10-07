@@ -3,6 +3,14 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Node (console jsdom test harnesses)
+node_modules/
+trading/tests/console/package-lock.json
+
+# Regenerable alpha-pipeline inputs (rebuilt from quant/cache)
+deliverables/software-company/audit/alpha-run/panel.csv
+deliverables/software-company/audit/alpha-run/ohlcv.csv
+
 # C extensions
 *.so
 

@@ -24,6 +24,7 @@ run then raises :class:`RunCancelled`, which this layer maps to **HTTP 499**
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import time
@@ -73,6 +74,7 @@ from ..schemas import (
     BacktestMetricsOut,
     BacktestRequest,
     BacktestResponse,
+    BulkIntIdsRequest,
     CancelOut,
     CorrelationOut,
     GlobalOptimizeRequest,
@@ -1006,6 +1008,49 @@ async def active_runs() -> list[str]:
 
 
 # ── stored-result management (audit §4: create → purge) ────────────────
+
+
+@router.get("/results")
+async def list_results(limit: int = Query(default=50, ge=1, le=500)) -> list[dict]:
+    """List stored backtest results, newest first (management list for the console).
+
+    Complements ``DELETE /results`` / ``DELETE /results/{id}`` so the console can
+    show, delete and bulk-clear saved runs instead of being download-only.
+    """
+    from trading.adapters.persistence.bulk import TaskResultStore
+    from trading.adapters.persistence.database import _session_factory
+
+    async with _session_factory() as session:
+        rows = await TaskResultStore(session).recent(limit)
+    out: list[dict] = []
+    for r in rows:
+        try:
+            metrics = json.loads(r.metrics_json or "{}")
+        except (TypeError, ValueError):
+            metrics = {}
+        out.append({
+            "id": r.id,
+            "strategy": r.strategy,
+            "symbol": r.symbol,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "metrics": metrics if isinstance(metrics, dict) else {},
+        })
+    return out
+
+
+@router.post("/results/bulk-delete")
+async def bulk_delete_results(body: BulkIntIdsRequest) -> dict:
+    """Delete several stored backtest results in one transaction (bulk action).
+
+    Unknown ids are reported in ``missing`` rather than failing the batch, so a
+    repeated bulk delete is idempotent.
+    """
+    from trading.adapters.persistence.bulk import TaskResultStore
+    from trading.adapters.persistence.database import _session_factory
+
+    async with _session_factory() as session:
+        deleted, missing = await TaskResultStore(session).delete_many(body.ids)
+    return {"deleted": deleted, "missing": missing}
 
 
 @router.delete("/results")

@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import secrets
+from collections import OrderedDict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -98,8 +99,10 @@ class KeySummary:
 
 
 #: In-memory summaries, keyed by key id (single-worker deployment; a cold
-#: cache simply regenerates on the next dashboard load).
-_summary_cache: dict[int, KeySummary] = {}
+#: cache simply regenerates on the next dashboard load). Bounded LRU: each entry
+#: can hold a full equity curve, so an unbounded dict was a memory leak.
+_SUMMARY_CACHE_MAX = 256
+_summary_cache: OrderedDict[int, KeySummary] = OrderedDict()
 
 
 def _pair_trades(events: Sequence[TradeEvent]) -> list[dict[str, Any]]:
@@ -376,12 +379,19 @@ class SignalKeyService:
         """
         if await self.get(key_id) is None:
             return -1
+        # Purge child rows in the same transaction so a hard delete cannot leave
+        # orphaned trades (no DB-level FK enforces this — see the migration note
+        # in the production-readiness report).
+        await self._session.execute(
+            delete(KeyTradeRow).where(KeyTradeRow.key_id == key_id)
+        )
         result = await self._session.execute(
             delete(KeySignalRow).where(KeySignalRow.key_id == key_id)
         )
         await self._session.commit()
+        # Return the signal count (the documented contract); orphaned trades are
+        # purged in the same transaction.
         return int(result.rowcount or 0)
-
     def purge_cache(self, key_id: int | None = None) -> int:
         """Drop the in-process summary cache (one key, or every key when None)."""
         if key_id is None:
@@ -389,6 +399,26 @@ class SignalKeyService:
             _summary_cache.clear()
             return count
         return 1 if _summary_cache.pop(key_id, None) is not None else 0
+
+    async def bulk(self, ids: list[int], action: str) -> tuple[int, list[int]]:
+        """Apply ``enable`` / ``disable`` / ``revoke`` to several keys.
+
+        Returns ``(updated, missing)``. Unknown ids are reported, not errors, so
+        a bulk action is idempotent and never fails the whole batch.
+        """
+        updated = 0
+        missing: list[int] = []
+        for key_id in ids:
+            row = await self.get(key_id)
+            if row is None:
+                missing.append(key_id)
+                continue
+            if action == "revoke":
+                await self.revoke(key_id)
+            else:
+                await self.set_active(key_id, action == "enable")
+            updated += 1
+        return updated, missing
 
     async def set_active(self, key_id: int, active: bool) -> SignalKeyRow | None:
         row = await self.get(key_id)
@@ -572,6 +602,9 @@ class SignalKeyService:
             errors=[dict(e) for e in result.errors],
         )
         _summary_cache[row.id] = summary
+        _summary_cache.move_to_end(row.id)
+        while len(_summary_cache) > _SUMMARY_CACHE_MAX:
+            _summary_cache.popitem(last=False)
 
         return {
             "key": row.key,
@@ -585,7 +618,10 @@ class SignalKeyService:
 
     # ── dashboard reads ────────────────────────────────────────────────
     def summary(self, key_id: int) -> KeySummary | None:
-        return _summary_cache.get(key_id)
+        summary = _summary_cache.get(key_id)
+        if summary is not None:
+            _summary_cache.move_to_end(key_id)
+        return summary
 
     async def signals(self, key_id: int, *, limit: int = 100) -> list[KeySignalRow]:
         result = await self._session.execute(

@@ -110,3 +110,35 @@ def test_kill_switch_threshold():
     assert ks.update(50.0) is True
     with pytest.raises(ValueError):
         KillSwitch(max_drawdown=1.5)
+
+
+async def test_risk_gate_refuses_order_without_equity():
+    from trading.domain import RiskLimitError
+    router = BrokerRouter()
+    router.register(FakeBroker())
+    engine = ExecutionEngine(router, enforce_risk=True)
+    with pytest.raises(RiskLimitError):
+        await engine.place_order(Exchange.BINGX, _intent())
+
+
+async def test_risk_gate_blocks_after_drawdown():
+    from trading.domain import RiskLimitError
+    router = BrokerRouter()
+    b = FakeBroker()
+    router.register(b)
+    engine = ExecutionEngine(router, enforce_risk=True)
+    # First order at peak equity is allowed.
+    await engine.place_order(Exchange.BINGX, _intent(), equity=100.0, mark=100.0)
+    # A 50% drawdown trips the default 25% kill switch before the broker is hit.
+    with pytest.raises(RiskLimitError):
+        await engine.place_order(Exchange.BINGX, _intent(), equity=50.0, mark=100.0)
+    assert b.calls == 1
+
+
+async def test_risk_gate_off_by_default_in_dev():
+    router = BrokerRouter()
+    b = FakeBroker()
+    router.register(b)
+    engine = ExecutionEngine(router)
+    await engine.place_order(Exchange.BINGX, _intent())
+    assert b.calls == 1

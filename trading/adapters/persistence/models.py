@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Index, String, Text, func
+from sqlalchemy import ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from trading.adapters.persistence.types import UTCDateTime
@@ -155,8 +155,12 @@ class KeySignalRow(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     #: NULL for signals produced directly by the live engine (no subscription
-    #: key); a signal key's generated signals carry its id.
-    key_id: Mapped[int | None] = mapped_column(index=True, default=None)
+    #: key); a signal key's generated signals carry its id. Non-destructive FK:
+    #: deleting a key nulls the link instead of dropping derived signal history.
+    key_id: Mapped[int | None] = mapped_column(
+        ForeignKey("signal_keys.id", ondelete="SET NULL", name="fk_key_signals_key_id"),
+        index=True, default=None,
+    )
     symbol: Mapped[str] = mapped_column(String(32))
     #: buy | sell
     side: Mapped[str] = mapped_column(String(8))
@@ -168,7 +172,10 @@ class KeySignalRow(Base):
     timestamp: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
     strategy: Mapped[str] = mapped_column(String(48))
     strategy_version: Mapped[str] = mapped_column(String(16), default="")
-    preset_id: Mapped[int | None]
+    preset_id: Mapped[int | None] = mapped_column(
+        ForeignKey("strategy_presets.id", ondelete="SET NULL", name="fk_key_signals_preset_id"),
+        default=None,
+    )
     #: live | replay
     source: Mapped[str] = mapped_column(String(16), default="live")
     indicators_json: Mapped[str] = mapped_column(Text, default="{}")
@@ -200,7 +207,10 @@ class SignalPositionRow(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     #: optional link to the signal key that owns the subscription
-    key_id: Mapped[int | None] = mapped_column(index=True, default=None)
+    key_id: Mapped[int | None] = mapped_column(
+        ForeignKey("signal_keys.id", ondelete="SET NULL", name="fk_signal_positions_key_id"),
+        index=True, default=None,
+    )
     symbol: Mapped[str] = mapped_column(String(32), index=True)
     strategy: Mapped[str] = mapped_column(String(48), default="")
     strategy_version: Mapped[str] = mapped_column(String(16), default="")
@@ -251,7 +261,10 @@ class KeyTradeRow(Base):
     __tablename__ = "key_trades"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    key_id: Mapped[int] = mapped_column(index=True)
+    key_id: Mapped[int | None] = mapped_column(
+        ForeignKey("signal_keys.id", ondelete="SET NULL", name="fk_key_trades_key_id"),
+        index=True, default=None,
+    )
     symbol: Mapped[str] = mapped_column(String(32))
     direction: Mapped[str] = mapped_column(String(8))  # long | short
     entry_time: Mapped[datetime] = mapped_column(UTCDateTime())
@@ -267,7 +280,10 @@ class KeyTradeRow(Base):
     exit_reason: Mapped[str] = mapped_column(String(64), default="")
     strategy: Mapped[str] = mapped_column(String(48))
     strategy_version: Mapped[str] = mapped_column(String(16), default="")
-    preset_id: Mapped[int | None]
+    preset_id: Mapped[int | None] = mapped_column(
+        ForeignKey("strategy_presets.id", ondelete="SET NULL", name="fk_key_trades_preset_id"),
+        default=None,
+    )
     #: live | replay
     source: Mapped[str] = mapped_column(String(16), default="live")
     created_at: Mapped[datetime] = mapped_column(

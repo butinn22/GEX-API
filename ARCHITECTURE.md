@@ -104,7 +104,7 @@ never stops the run. Reads and exports go through
 | 5 | JWT auth, rate limiting, Swagger | ✅ exists | `trading/api/auth.py`, `trading/api/middleware.py`, `/docs` |
 | 6 | Celery + Redis tasks | ✅ exists | `trading/tasks.py` (`celery_app`) — see ADR-2 |
 | 6 | Postgres + TimescaleDB (OHLCV/trades hypertables) | ⚠️ partial | DDL/`trading/adapters/persistence/timescale.py`, async sessions; needs a Docker/Postgres host |
-| 6 | Docker, Alembic, Pytest>85%, Prometheus/Grafana, structured logging | ✅ exists | `Dockerfile`, `docker-compose.yml`, `alembic/versions/0001-0007`, `trading/observability.py`, `.github/workflows/ci.yml` |
+| 6 | Docker, Alembic, Pytest>85%, Prometheus/Grafana, structured logging | ✅ exists | `Dockerfile`, `docker-compose.yml`, `alembic/versions/0001-0008`, `trading/observability.py`, `.github/workflows/ci.yml` |
 
 ## 4. Key decisions (ADRs)
 

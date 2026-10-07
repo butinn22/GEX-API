@@ -126,6 +126,7 @@ _GUARDED_ANON_REQUESTS = [
     ("GET", "/api/v1/presets"),
     ("POST", "/api/v1/presets/1/promote"),
     ("DELETE", "/api/v1/presets/999999"),
+    ("DELETE", "/api/v1/presets"),           # group delete (saved-strategy bugfix)
     ("POST", "/api/v1/backtest"),
     ("POST", "/api/v1/backtest/optimize/global"),
     ("GET", "/api/v1/backtest/cancel"),

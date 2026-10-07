@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from trading.adapters.persistence.database import get_session
 from trading.adapters.persistence.models import ApiKeyRow
 from trading.application.account_router import AccountSettings
+from trading.application.credential_check import build_broker, check_broker
 from trading.application.keys_service import mask_secret
 from trading.config import settings
 from trading.security import decrypt
@@ -94,6 +96,38 @@ async def update_key_settings(
         code = status.HTTP_404_NOT_FOUND if "not found" in detail else status.HTTP_400_BAD_REQUEST
         raise HTTPException(code, detail) from exc
     return _to_out(row)
+
+
+@router.post("/{key_id}/validate")
+async def validate_key(
+    key_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Probe a stored credential with a cheap authenticated broker call.
+
+    Powers the console's "Test" action. The decrypted secret is used only to
+    build the adapter and is never returned or logged; the response is a short,
+    safe status message.
+    """
+    row = await session.get(ApiKeyRow, key_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "key not found")
+    api_key = decrypt(settings.encryption_secret, row.api_key_encrypted)
+    api_secret = decrypt(settings.encryption_secret, row.api_secret_encrypted)
+    try:
+        extra = json.loads(row.extra_json or "{}")
+    except (TypeError, ValueError):
+        extra = {}
+    broker = build_broker(row.exchange, api_key, api_secret, extra)
+    if broker is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported exchange: {row.exchange}")
+    ok, message = await check_broker(broker)
+    return {
+        "ok": ok,
+        "message": message,
+        "exchange": row.exchange,
+        "checked_at": datetime.now(UTC).isoformat(),
+    }
 
 
 @router.get("/routing", response_model=list[AccountRouteOut])

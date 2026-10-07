@@ -177,11 +177,13 @@ class GexEMFStrategy(Strategy):
                 if _flag(row, "long_exit_signal"):
                     self._close_position()
                     out.append(Signal(self.symbol, Side.SELL, self.name, "long_exit",
-                                      strength=1.0, price=price, timestamp=timestamp))
+                                      strength=1.0, price=price, timestamp=timestamp,
+                                      reduce_only=True))
             elif self._side == "short" and _flag(row, "short_exit_signal"):
                 self._close_position()
                 out.append(Signal(self.symbol, Side.BUY, self.name, "short_exit",
-                                  strength=1.0, price=price, timestamp=timestamp))
+                                  strength=1.0, price=price, timestamp=timestamp,
+                                  reduce_only=True))
 
         if self._side != "flat":
             # Track the extremes *after* the exit checks, so the stop level tested
@@ -237,22 +239,22 @@ class GexEMFStrategy(Strategy):
             )
             if settings.use_trailing and stop is not None and close <= stop:
                 return Signal(self.symbol, Side.SELL, self.name, "trailing_stop",
-                              strength=1.0, price=price, timestamp=timestamp)
+                              strength=1.0, price=price, timestamp=timestamp, reduce_only=True)
             tp = self._gex.take_profit_price(entry, direction, atr)
             if settings.use_take_profit and close >= tp:
                 return Signal(self.symbol, Side.SELL, self.name, "take_profit",
-                              strength=1.0, price=price, timestamp=timestamp)
+                              strength=1.0, price=price, timestamp=timestamp, reduce_only=True)
         else:
             stop = self._gex.trailing_stop_price(
                 entry, direction, lowest_price=self._best, atr_value=atr
             )
             if settings.use_trailing and stop is not None and close >= stop:
                 return Signal(self.symbol, Side.BUY, self.name, "trailing_stop",
-                              strength=1.0, price=price, timestamp=timestamp)
+                              strength=1.0, price=price, timestamp=timestamp, reduce_only=True)
             tp = self._gex.take_profit_price(entry, direction, atr)
             if settings.use_take_profit and close <= tp:
                 return Signal(self.symbol, Side.BUY, self.name, "take_profit",
-                              strength=1.0, price=price, timestamp=timestamp)
+                              strength=1.0, price=price, timestamp=timestamp, reduce_only=True)
         return None
 
     # ── streaming path ──────────────────────────────────────────────────

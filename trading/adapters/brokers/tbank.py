@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 
+from trading.config import settings
 from trading.domain import (
     Account,
     BrokerError,
@@ -59,6 +60,14 @@ class TbankBroker(BrokerAdapter):
         self.account_id = account_id
         self.sandbox = sandbox
         self._dry_run = not token or not _sdk_available()
+        # A configured token with an unimportable SDK is a masked outage in
+        # production: orders would be "placed" locally and never reach the
+        # exchange. Refuse loudly instead of silently dry-running.
+        if token and not _sdk_available() and settings.is_production:
+            raise BrokerError(
+                "tbank: a token is configured but the tinkoff-invest SDK is not "
+                "importable; refusing to start in production with a silent dry-run"
+            )
         self._session = None
 
     def _get_session(self):

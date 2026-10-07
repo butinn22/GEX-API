@@ -1,0 +1,917 @@
+{
+  "engine_version": "2.0.0",
+  "generated": "2026-10-07T12:06:48.840640+00:00",
+  "presets": {
+    "alligator_4h": {
+      "preset": "alligator_4h",
+      "timeframe": "4h",
+      "params": {
+        "entry_mode": "breakout",
+        "n_break": 30,
+        "risk_pct": 0.005,
+        "k_sl_atr": 2.5,
+        "k_struct_buf": 0.5,
+        "k_trail": 5.0,
+        "exit_level": "jaw",
+        "max_hold_bars": 45,
+        "min_mfe_r": 1.0,
+        "cooldown_bars": 3,
+        "warmup": 250,
+        "allow_short": false,
+        "timeframe": "4h"
+      },
+      "universe": {
+        "n": 21,
+        "symbols": [
+          "ADA",
+          "ALGO",
+          "ATOM",
+          "AVAX",
+          "BNB",
+          "BTC",
+          "CRV",
+          "DOGE",
+          "DOT",
+          "ETC",
+          "ETH",
+          "FIL",
+          "LINK",
+          "LTC",
+          "NEAR",
+          "SAND",
+          "SOL",
+          "TRX",
+          "UNI",
+          "XLM",
+          "XRP"
+        ]
+      },
+      "manifest": [
+        {
+          "symbol": "ADA",
+          "timeframe": "4h",
+          "n_bars": 10851,
+          "first": "2021-10-21T04:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "0aa75ea6fb6b40d183f0330eafaaa7031fba39c307fb867853eba8b2aa084be5"
+        },
+        {
+          "symbol": "ALGO",
+          "timeframe": "4h",
+          "n_bars": 10718,
+          "first": "2021-11-12T08:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "53fb2032b105931ac43184b469d84e50c76ef8e9301f7826c8d475fecd2c45ad"
+        },
+        {
+          "symbol": "ATOM",
+          "timeframe": "4h",
+          "n_bars": 10718,
+          "first": "2021-11-12T08:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "0a380e0acfe5d9b4e1804b631b8f1787c1610d96f5369d07eb6876e3315c4be4"
+        },
+        {
+          "symbol": "AVAX",
+          "timeframe": "4h",
+          "n_bars": 10718,
+          "first": "2021-11-12T08:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "b674c9dfe5114380e8ee0498b19fe9164576924e5934d4e59edd306f9068829c"
+        },
+        {
+          "symbol": "BNB",
+          "timeframe": "4h",
+          "n_bars": 10010,
+          "first": "2022-03-10T08:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "1a2c8163cd51d81bc6d6cfc9123b486fd83f2548f64391ecc027692edd1db58e"
+        },
+        {
+          "symbol": "BTC",
+          "timeframe": "4h",
+          "n_bars": 11497,
+          "first": "2021-07-05T12:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "4eecf3b7da8d776919e741c8d2726d828c26207dd2e3fc1b750a9b7caf0cc30d"
+        },
+        {
+          "symbol": "CRV",
+          "timeframe": "4h",
+          "n_bars": 10882,
+          "first": "2021-10-16T00:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "752ad1cb8d118b0a6d6cd87b85649225c275080027ece3d85ca0707c8c90cfd0"
+        },
+        {
+          "symbol": "DOGE",
+          "timeframe": "4h",
+          "n_bars": 11157,
+          "first": "2021-08-31T04:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "5d48a5d78391c443900ec82c47f30a591094e409cb6528bef45053b2823ef173"
+        },
+        {
+          "symbol": "DOT",
+          "timeframe": "4h",
+          "n_bars": 11157,
+          "first": "2021-08-31T04:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "5ade178d16d158cd904823dce5deb7e3cb219888d477d6a309c26f52a8c4528b"
+        },
+        {
+          "symbol": "ETC",
+          "timeframe": "4h",
+          "n_bars": 9170,
+          "first": "2022-07-28T08:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "94fd2316a927ed6acd85dd8f41749090430c456c9ce4d20d59a72a6152f9a95f"
+        },
+        {
+          "symbol": "ETH",
+          "timeframe": "4h",
+          "n_bars": 11497,
+          "first": "2021-07-05T12:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "8fe8012938375c3218dd9907e28380593d1d027ef1fa8d832b7e87abd12f25eb"
+        },
+        {
+          "symbol": "FIL",
+          "timeframe": "4h",
+          "n_bars": 10851,
+          "first": "2021-10-21T04:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "0eb2789236ccfa91d5d3c0c4fd2b79f102695f0e02338cdc2bef0f33b0b0945b"
+        },
+        {
+          "symbol": "LINK",
+          "timeframe": "4h",
+          "n_bars": 11023,
+          "first": "2021-09-22T12:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "2be635412634d7d554f8bfeff5b101d5b6ec0dd1cc929b116b9c37caac74dad2"
+        },
+        {
+          "symbol": "LTC",
+          "timeframe": "4h",
+          "n_bars": 11157,
+          "first": "2021-08-31T04:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "865858077a043e392c6fa5cd3c96d6ae671a2a416cab1afa0d8b8c32b5ef059d"
+        },
+        {
+          "symbol": "NEAR",
+          "timeframe": "4h",
+          "n_bars": 10004,
+          "first": "2022-03-11T08:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "5f9f892d90bbfdfac72859c23b577ad9ec4d2309ef81fa4ec54d05c2e9a924e8"
+        },
+        {
+          "symbol": "SAND",
+          "timeframe": "4h",
+          "n_bars": 10779,
+          "first": "2021-11-02T04:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "418c7d51f5cfc8794485064c49c439e781f95c5a62ce69480b1889d4e31c7101"
+        },
+        {
+          "symbol": "SOL",
+          "timeframe": "4h",
+          "n_bars": 10851,
+          "first": "2021-10-21T04:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "e17ee566029323d14c45548bcdca292645f0f4d599857f205665c1e8335e4415"
+        },
+        {
+          "symbol": "TRX",
+          "timeframe": "4h",
+          "n_bars": 10112,
+          "first": "2022-02-21T08:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "49a3552c9b5096c4a70d127a222649bf0126cd518009a041f00b4e43f3dd8e2f"
+        },
+        {
+          "symbol": "UNI",
+          "timeframe": "4h",
+          "n_bars": 11023,
+          "first": "2021-09-22T12:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "9bbd1424b587e8ad3b5aa1f6fbb61c4b5b6e92b9fe9fc9223da20102f1e4ba81"
+        },
+        {
+          "symbol": "XLM",
+          "timeframe": "4h",
+          "n_bars": 11122,
+          "first": "2021-09-06T00:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "7ad4ef2c2f03b6717e02719b57da4c8d1517f6a3e49edd136ecfa277184e388f"
+        },
+        {
+          "symbol": "XRP",
+          "timeframe": "4h",
+          "n_bars": 11410,
+          "first": "2021-07-20T00:00:00+00:00",
+          "last": "2026-10-03T12:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "9296aca084c71180fd68c8bc8a4bf069475b57e0c9a191b6ff809a8db059095e"
+        }
+      ],
+      "correctness": {
+        "name": "alligator_4h",
+        "cut_bar": 6510,
+        "prefix_signals": 58,
+        "full_signals_before_cut": 58,
+        "identical": true
+      },
+      "full": {
+        "total_return": 0.03526571334232864,
+        "sharpe": 0.5986379971294016,
+        "sortino": 0.8583360113795058,
+        "max_drawdown": 0.015016150597233952,
+        "calmar": 0.4411418393802276,
+        "profit_factor": 1.3977590216126827,
+        "win_rate": 0.3234524847428073,
+        "n_trades": 1147,
+        "n_tickers": 21,
+        "median_ticker_sharpe": 0.21911130052190006,
+        "live_ticker_min": 0,
+        "live_ticker_max": 21
+      },
+      "windows": [
+        {
+          "window": 1,
+          "start": "2021-07-05T12:00:00+00:00",
+          "end": "2022-07-23T16:48:00+00:00",
+          "return": -0.007705979488308312,
+          "max_drawdown": 0.008797277865622545,
+          "trades": 127,
+          "live_tickers": 20,
+          "breadth": 0.35
+        },
+        {
+          "window": 2,
+          "start": "2022-07-23T16:48:00+00:00",
+          "end": "2023-08-10T21:36:00+00:00",
+          "return": 0.003561939666115288,
+          "max_drawdown": 0.013009341075194015,
+          "trades": 234,
+          "live_tickers": 21,
+          "breadth": 0.47619047619047616
+        },
+        {
+          "window": 3,
+          "start": "2023-08-10T21:36:00+00:00",
+          "end": "2024-08-28T02:24:00+00:00",
+          "return": 0.017217149170952517,
+          "max_drawdown": 0.01084068798522351,
+          "trades": 282,
+          "live_tickers": 21,
+          "breadth": 0.7142857142857143
+        },
+        {
+          "window": 4,
+          "start": "2024-08-28T02:24:00+00:00",
+          "end": "2025-09-15T07:12:00+00:00",
+          "return": 0.022458988127294077,
+          "max_drawdown": 0.01191795006876471,
+          "trades": 295,
+          "live_tickers": 21,
+          "breadth": 0.47619047619047616
+        },
+        {
+          "window": 5,
+          "start": "2025-09-15T07:12:00+00:00",
+          "end": "2026-10-03T12:00:00+00:00",
+          "return": -0.00021842151776751972,
+          "max_drawdown": 0.0070355270223994475,
+          "trades": 209,
+          "live_tickers": 21,
+          "breadth": 0.38095238095238093
+        }
+      ],
+      "worst_window": {
+        "window": 1,
+        "start": "2021-07-05T12:00:00+00:00",
+        "end": "2022-07-23T16:48:00+00:00",
+        "return": -0.007705979488308312,
+        "max_drawdown": 0.008797277865622545,
+        "trades": 127,
+        "live_tickers": 20,
+        "breadth": 0.35
+      },
+      "holdout_last_window": {
+        "window": 5,
+        "start": "2025-09-15T07:12:00+00:00",
+        "end": "2026-10-03T12:00:00+00:00",
+        "return": -0.00021842151776751972,
+        "max_drawdown": 0.0070355270223994475,
+        "trades": 209,
+        "live_tickers": 21,
+        "breadth": 0.38095238095238093
+      },
+      "cost_stress": {
+        "base": {
+          "sharpe": 0.5986379971294016,
+          "total_return": 0.03526571334232864
+        },
+        "slippage_2x": {
+          "sharpe": 0.5229379037706592,
+          "total_return": 0.030695241559819397
+        },
+        "slippage_4x": {
+          "sharpe": 0.3714738259432258,
+          "total_return": 0.021613956080628327
+        },
+        "fees_2x": {
+          "sharpe": 0.4472135111277946,
+          "total_return": 0.02614466626212586
+        },
+        "harsh": {
+          "sharpe": 0.21997981959277776,
+          "total_return": 0.012611681248696938
+        }
+      },
+      "adversarial": {
+        "remove_best_ticker": {
+          "total_return": 0.027905886300391147,
+          "sharpe": 0.4738577409482382,
+          "sortino": 0.6698373035981193,
+          "max_drawdown": 0.0147565252270697,
+          "calmar": 0.3562523611001412,
+          "profit_factor": 1.3224332518408504,
+          "win_rate": 0.3215940685820204,
+          "n_trades": 1079,
+          "n_tickers": 20,
+          "median_ticker_sharpe": 0.20313612653604923,
+          "live_ticker_min": 0,
+          "live_ticker_max": 20,
+          "removed": "TRX"
+        },
+        "remove_best_trade_ledger": {
+          "pf_before": 1.3977590216126827,
+          "pf_after": 1.3319471153105154,
+          "n_before": 1147,
+          "n_after": 1146
+        },
+        "remove_best_trade_engine": {
+          "trades_before": 1147,
+          "trades_after": 1147,
+          "count_delta": 0,
+          "holding_window": [
+            "2024-11-12T00:00:00+00:00",
+            "2024-11-26T20:00:00+00:00"
+          ],
+          "specific_trade_before": 1,
+          "specific_trade_after": 0,
+          "specific_trade_removed": true,
+          "dropped_exactly_one": false
+        },
+        "concentration": {
+          "net_pnl": 84779.89696296603,
+          "best_symbol": "XLM",
+          "best_trade_currency_share": 0.16545672813488493,
+          "top5_currency_share": 0.644800138441151,
+          "best_trade_return_share": 0.5004201457410361
+        },
+        "holdings_available": 45
+      },
+      "per_year": {
+        "2021": -0.006168186855632474,
+        "2022": -0.0014894633014587155,
+        "2023": 0.016422717114878083,
+        "2024": 0.025912977741073817,
+        "2025": -0.0021089503725711944,
+        "2026": 0.0026141797916807707
+      },
+      "verdict": {
+        "positive_windows": 3,
+        "total_windows": 5,
+        "mean_breadth": 0.4795238095238095,
+        "harsh_sharpe": 0.21997981959277776,
+        "no_lookahead_ok": true,
+        "remove_best_trade_engine_ok": true,
+        "robust": false
+      }
+    },
+    "donchian_1d": {
+      "preset": "donchian_1d",
+      "timeframe": "1d",
+      "params": {
+        "entry_mode": "breakout",
+        "n_break": 40,
+        "use_trend_filter": true,
+        "sma_period": 200,
+        "k_sl_atr": 2.5,
+        "k_trail": 4.0,
+        "ma_exit": 100,
+        "max_hold_bars": 240,
+        "min_mfe_r": 0.5,
+        "cooldown_bars": 1,
+        "warmup": 260,
+        "allow_short": false,
+        "timeframe": "1d",
+        "sizing": "fraction",
+        "position_fraction": 0.95,
+        "risk_pct": 0.05
+      },
+      "universe": {
+        "n": 21,
+        "symbols": [
+          "ADA",
+          "ALGO",
+          "ATOM",
+          "AVAX",
+          "BNB",
+          "BTC",
+          "CRV",
+          "DOGE",
+          "DOT",
+          "ETC",
+          "ETH",
+          "FIL",
+          "LINK",
+          "LTC",
+          "NEAR",
+          "SAND",
+          "SOL",
+          "TRX",
+          "UNI",
+          "XLM",
+          "XRP"
+        ]
+      },
+      "manifest": [
+        {
+          "symbol": "ADA",
+          "timeframe": "1d",
+          "n_bars": 1809,
+          "first": "2021-10-21T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "b8c486c5386859497c06de9fe70c8e590ffce0a575dd17086d604e96fd7daa87"
+        },
+        {
+          "symbol": "ALGO",
+          "timeframe": "1d",
+          "n_bars": 1787,
+          "first": "2021-11-12T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "afad5346890607c726d60d875e4adaa94afc48a012690523ab3739f080be4369"
+        },
+        {
+          "symbol": "ATOM",
+          "timeframe": "1d",
+          "n_bars": 1787,
+          "first": "2021-11-12T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "cdb3e1148187e6a0e0aa0ab40a4f0de965e152093672ec9a997c7a550e9c8e97"
+        },
+        {
+          "symbol": "AVAX",
+          "timeframe": "1d",
+          "n_bars": 1787,
+          "first": "2021-11-12T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "8ac44f79d722bae74af917e65ee86e7f3fbc5c5fd66ab3018def230ff3bb72c9"
+        },
+        {
+          "symbol": "BNB",
+          "timeframe": "1d",
+          "n_bars": 1669,
+          "first": "2022-03-10T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "4cbfd56f990bbbe17988038807d25ce558e97f3fe6f2bb8d2ccd22984369ccc9"
+        },
+        {
+          "symbol": "BTC",
+          "timeframe": "1d",
+          "n_bars": 1917,
+          "first": "2021-07-05T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "6ed62e7f42e61a6df95495e243f1f9ecb572ffba6d2b686901fb6df433102ffc"
+        },
+        {
+          "symbol": "CRV",
+          "timeframe": "1d",
+          "n_bars": 1814,
+          "first": "2021-10-16T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "654c8efcb0864eb3d886e2f06a7d1253910c98ee1d5a537be58323caa0753161"
+        },
+        {
+          "symbol": "DOGE",
+          "timeframe": "1d",
+          "n_bars": 1860,
+          "first": "2021-08-31T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "423993dce86dc0bb859d187ecbb57e6e38aa365c8f3c62b13e72eab628005ebb"
+        },
+        {
+          "symbol": "DOT",
+          "timeframe": "1d",
+          "n_bars": 1860,
+          "first": "2021-08-31T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "b8bb8d597bbddad204335b142b66c398e54ce3b4be55a02566a578b08f7c2c55"
+        },
+        {
+          "symbol": "ETC",
+          "timeframe": "1d",
+          "n_bars": 1529,
+          "first": "2022-07-28T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "e5403b327b869fc74b022b640c04d535c7ce89803f0c54bcb5ad8be2703dcd2a"
+        },
+        {
+          "symbol": "ETH",
+          "timeframe": "1d",
+          "n_bars": 1917,
+          "first": "2021-07-05T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "88d76c93562fd17be5d25377bf6464f8288264210beb34c05652c4ef9a8d4bbb"
+        },
+        {
+          "symbol": "FIL",
+          "timeframe": "1d",
+          "n_bars": 1809,
+          "first": "2021-10-21T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "285931757c6bfe7333b2fbe33e352098d009fb82b80a2a6acb31ff2ce01416ff"
+        },
+        {
+          "symbol": "LINK",
+          "timeframe": "1d",
+          "n_bars": 1838,
+          "first": "2021-09-22T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "17c15d1535fe2301d1b9effbe35a01e8c455742ee692f7f3e3a7f98249bb6425"
+        },
+        {
+          "symbol": "LTC",
+          "timeframe": "1d",
+          "n_bars": 1860,
+          "first": "2021-08-31T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "cdd736e1c4b8bac770c5338a2394cc15eaf19db5faa264c98678fb4c902a5761"
+        },
+        {
+          "symbol": "NEAR",
+          "timeframe": "1d",
+          "n_bars": 1668,
+          "first": "2022-03-11T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "e05fd65bd0e3825fcb4d0766438a8d34c3b59ed8c35a05a29245a08ebf214be4"
+        },
+        {
+          "symbol": "SAND",
+          "timeframe": "1d",
+          "n_bars": 1797,
+          "first": "2021-11-02T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "8721ed19fd5abbba694a6dc6a533a540f1bf10d653af3f43e4f40056bcb38fe8"
+        },
+        {
+          "symbol": "SOL",
+          "timeframe": "1d",
+          "n_bars": 1809,
+          "first": "2021-10-21T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "dec882d6a5c8a3bd299b8f26b0895d5544b05901bd0c92e6694f6891a061da76"
+        },
+        {
+          "symbol": "TRX",
+          "timeframe": "1d",
+          "n_bars": 1686,
+          "first": "2022-02-21T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "a2aa07b7037f41632d410add0d1dfc63f2e866c0184019e94d670d62d2ab8221"
+        },
+        {
+          "symbol": "UNI",
+          "timeframe": "1d",
+          "n_bars": 1838,
+          "first": "2021-09-22T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "9c0f25052d28a81c1a479c80099e88da1eaa24012062b0a39bbfca7681f93e6e"
+        },
+        {
+          "symbol": "XLM",
+          "timeframe": "1d",
+          "n_bars": 1854,
+          "first": "2021-09-06T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "4361c84805e42092196cfae3823e06fd7e528a950aaebc9280852515b36c0697"
+        },
+        {
+          "symbol": "XRP",
+          "timeframe": "1d",
+          "n_bars": 1902,
+          "first": "2021-07-20T00:00:00+00:00",
+          "last": "2026-10-03T00:00:00+00:00",
+          "bad_ohlc": 0,
+          "zero_volume": 0,
+          "non_monotonic_or_dup": 0,
+          "sha256": "19eaf32d5aa70d05ef1364e0f3152bdd363f6401b493db48346bada257ff51d1"
+        }
+      ],
+      "correctness": {
+        "name": "donchian_1d",
+        "cut_bar": 1085,
+        "prefix_signals": 8,
+        "full_signals_before_cut": 8,
+        "identical": true
+      },
+      "full": {
+        "total_return": 0.31894455152151124,
+        "sharpe": 0.49115437340073165,
+        "sortino": 0.6773333282645583,
+        "max_drawdown": 0.17847583622984162,
+        "calmar": 0.30341422029829523,
+        "profit_factor": 1.655252741653746,
+        "win_rate": 0.4523809523809524,
+        "n_trades": 126,
+        "n_tickers": 21,
+        "median_ticker_sharpe": 0.18806264174768567,
+        "live_ticker_min": 0,
+        "live_ticker_max": 21
+      },
+      "windows": [
+        {
+          "window": 1,
+          "start": "2021-07-05T00:00:00+00:00",
+          "end": "2022-07-23T04:48:00+00:00",
+          "return": 0.0,
+          "max_drawdown": 0.0,
+          "trades": 0,
+          "live_tickers": 20,
+          "breadth": 0.0
+        },
+        {
+          "window": 2,
+          "start": "2022-07-23T04:48:00+00:00",
+          "end": "2023-08-10T09:36:00+00:00",
+          "return": -0.10683664922989766,
+          "max_drawdown": 0.1103773110870105,
+          "trades": 27,
+          "live_tickers": 21,
+          "breadth": 0.047619047619047616
+        },
+        {
+          "window": 3,
+          "start": "2023-08-10T09:36:00+00:00",
+          "end": "2024-08-27T14:24:00+00:00",
+          "return": 0.2250017870607277,
+          "max_drawdown": 0.1211511529982628,
+          "trades": 49,
+          "live_tickers": 21,
+          "breadth": 0.7142857142857143
+        },
+        {
+          "window": 4,
+          "start": "2024-08-27T14:24:00+00:00",
+          "end": "2025-09-14T19:12:00+00:00",
+          "return": 0.15848653249930722,
+          "max_drawdown": 0.16879737235888218,
+          "trades": 38,
+          "live_tickers": 21,
+          "breadth": 0.5714285714285714
+        },
+        {
+          "window": 5,
+          "start": "2025-09-14T19:12:00+00:00",
+          "end": "2026-10-03T00:00:00+00:00",
+          "return": 0.04166618083688811,
+          "max_drawdown": 0.026630771001298667,
+          "trades": 12,
+          "live_tickers": 21,
+          "breadth": 0.3333333333333333
+        }
+      ],
+      "worst_window": {
+        "window": 2,
+        "start": "2022-07-23T04:48:00+00:00",
+        "end": "2023-08-10T09:36:00+00:00",
+        "return": -0.10683664922989766,
+        "max_drawdown": 0.1103773110870105,
+        "trades": 27,
+        "live_tickers": 21,
+        "breadth": 0.047619047619047616
+      },
+      "holdout_last_window": {
+        "window": 5,
+        "start": "2025-09-14T19:12:00+00:00",
+        "end": "2026-10-03T00:00:00+00:00",
+        "return": 0.04166618083688811,
+        "max_drawdown": 0.026630771001298667,
+        "trades": 12,
+        "live_tickers": 21,
+        "breadth": 0.3333333333333333
+      },
+      "cost_stress": {
+        "base": {
+          "sharpe": 0.49115437340073165,
+          "total_return": 0.31894455152151124
+        },
+        "slippage_2x": {
+          "sharpe": 0.48225463575939004,
+          "total_return": 0.3114426343854668
+        },
+        "slippage_4x": {
+          "sharpe": 0.4644471427748864,
+          "total_return": 0.2965551739103507
+        },
+        "fees_2x": {
+          "sharpe": 0.4733523721241874,
+          "total_return": 0.3039795876256579
+        },
+        "harsh": {
+          "sharpe": 0.44662931137478,
+          "total_return": 0.2818216263186033
+        }
+      },
+      "adversarial": {
+        "remove_best_ticker": {
+          "total_return": 0.22622414693806014,
+          "sharpe": 0.38651674173553785,
+          "sortino": 0.5247834719088496,
+          "max_drawdown": 0.17232285356338592,
+          "calmar": 0.22988984493683254,
+          "profit_factor": 1.5754108486983895,
+          "win_rate": 0.45454545454545453,
+          "n_trades": 121,
+          "n_tickers": 20,
+          "median_ticker_sharpe": 0.17331980211583906,
+          "live_ticker_min": 0,
+          "live_ticker_max": 20,
+          "removed": "NEAR"
+        },
+        "remove_best_trade_ledger": {
+          "pf_before": 1.655252741653746,
+          "pf_after": 1.4035324922992032,
+          "n_before": 126,
+          "n_after": 125
+        },
+        "remove_best_trade_engine": {
+          "trades_before": 126,
+          "trades_after": 126,
+          "count_delta": 0,
+          "holding_window": [
+            "2024-10-29T00:00:00+00:00",
+            "2024-12-11T00:00:00+00:00"
+          ],
+          "specific_trade_before": 1,
+          "specific_trade_after": 0,
+          "specific_trade_removed": true,
+          "dropped_exactly_one": false
+        },
+        "concentration": {
+          "net_pnl": 471700.71571692923,
+          "best_symbol": "DOGE",
+          "best_trade_currency_share": 0.3841574912288713,
+          "top5_currency_share": 1.035225787855742,
+          "best_trade_return_share": 0.27112208488117917
+        },
+        "holdings_available": 6
+      },
+      "per_year": {
+        "2021": 0.0,
+        "2022": -0.03798703984010143,
+        "2023": 0.08050784269708022,
+        "2024": 0.1872780401744567,
+        "2025": -0.014780472715615334,
+        "2026": 0.05741913027121548
+      },
+      "verdict": {
+        "positive_windows": 3,
+        "total_windows": 5,
+        "mean_breadth": 0.3333333333333333,
+        "harsh_sharpe": 0.44662931137478,
+        "no_lookahead_ok": true,
+        "remove_best_trade_engine_ok": true,
+        "robust": false
+      }
+    }
+  }
+}

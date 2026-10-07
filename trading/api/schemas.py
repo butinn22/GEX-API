@@ -229,6 +229,25 @@ class OrderOut(BaseModel):
     reason: str | None = None
 
 
+class BulkIdsRequest(BaseModel):
+    """Bulk operation over a list of string ids (orders)."""
+
+    ids: list[str] = Field(min_length=1, max_length=1000)
+
+
+class BulkIntIdsRequest(BaseModel):
+    """Bulk operation over a list of integer ids (stored runs, signal keys)."""
+
+    ids: list[int] = Field(min_length=1, max_length=1000)
+
+
+class SignalKeyBulkRequest(BaseModel):
+    """Bulk enable/disable/revoke over signal-key ids."""
+
+    ids: list[int] = Field(min_length=1, max_length=1000)
+    action: Literal["enable", "disable", "revoke"]
+
+
 class MonteCarloRequest(BaseModel):
     """Monte-Carlo simulation over a strategy's realised returns on one symbol."""
 

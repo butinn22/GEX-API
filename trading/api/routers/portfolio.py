@@ -34,7 +34,7 @@ from trading.observability import ORDERS_TOTAL
 from trading.ports import BrokerAdapter
 
 from ..deps import get_keys_service, require_auth
-from ..schemas import OrderCreate, OrderOut
+from ..schemas import BulkIdsRequest, OrderCreate, OrderOut
 
 router = APIRouter(tags=["trading"])
 
@@ -47,7 +47,27 @@ _ORDER_IDEMPOTENCY: OrderedDict[str, tuple[float, OrderOut]] = OrderedDict()
 _ORDER_IDEMPOTENCY_MAX = 10_000
 _ORDER_IDEMPOTENCY_TTL = 24 * 3600.0
 _order_idem_lock = threading.Lock()
+#: Per-idempotency-key serialisation locks. Bounded: the key is a caller-supplied
+#: header, so without a cap a client could grow this dict without limit. Only
+#: unlocked entries are evicted, so an in-flight request is never de-duplicated
+#: away mid-flight.
 _order_idem_locks: dict[str, asyncio.Lock] = {}
+_ORDER_IDEM_LOCKS_MAX = 10_000
+
+
+def _idem_lock(key: str) -> asyncio.Lock:
+    lock = _order_idem_locks.get(key)
+    if lock is not None:
+        return lock
+    lock = asyncio.Lock()
+    _order_idem_locks[key] = lock
+    if len(_order_idem_locks) > _ORDER_IDEM_LOCKS_MAX:
+        for old_key in list(_order_idem_locks):
+            if old_key != key and not _order_idem_locks[old_key].locked():
+                _order_idem_locks.pop(old_key, None)
+                if len(_order_idem_locks) <= _ORDER_IDEM_LOCKS_MAX:
+                    break
+    return lock
 
 
 def _idem_get(key: str) -> OrderOut | None:
@@ -191,7 +211,7 @@ async def place_order(
     cached = _idem_get(idempotency_key)
     if cached is not None:
         return cached
-    lock = _order_idem_locks.setdefault(idempotency_key, asyncio.Lock())
+    lock = _idem_lock(idempotency_key)
     async with lock:
         cached = _idem_get(idempotency_key)  # re-check: a concurrent twin may win
         if cached is not None:
@@ -199,6 +219,57 @@ async def place_order(
         out = await _place_order(body, session, svc)
         _idem_put(idempotency_key, out)
         return out
+
+
+@router.post(
+    "/orders/{order_id}/cancel", response_model=OrderOut,
+    dependencies=[Depends(require_auth)],
+)
+async def cancel_order(
+    order_id: str,
+    session: AsyncSession = Depends(get_session),
+    svc: KeysService = Depends(get_keys_service),
+) -> OrderOut:
+    """Cancel a live broker order (BingX is symbol-scoped).
+
+    Distinct from ``DELETE /orders/{id}``, which only removes the local audit
+    record. The order's stored symbol is combined with its id as
+    ``"<symbol>:<orderId>"`` — the adapter's documented convention.
+    """
+    repo = OrderRepository(session)
+    row = await repo.get(order_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "order not found")
+    broker = await _broker(row.exchange, session, svc)
+    if broker is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"no {row.exchange} credentials configured",
+        )
+    try:
+        cancelled = await broker.cancel_order(f"{row.symbol}:{row.id}")
+    except BrokerError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+    await repo.update_status(row.id, cancelled.status.value)
+    return OrderOut(
+        id=row.id, exchange=row.exchange, symbol=row.symbol, side=row.side,
+        quantity=row.quantity, order_type=row.order_type,
+        status=cancelled.status.value, strategy=row.strategy, reason=row.reason,
+    )
+
+
+@router.post("/orders/bulk-delete", dependencies=[Depends(require_auth)])
+async def bulk_delete_orders(
+    body: BulkIdsRequest,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Delete several local order records in one transaction (bulk action).
+
+    Does not cancel live broker orders (use the per-order Cancel for that).
+    Unknown ids are returned in ``missing``; the batch is idempotent.
+    """
+    deleted, missing = await OrderRepository(session).delete_many(body.ids)
+    return {"deleted": deleted, "missing": missing}
 
 
 async def _place_order(

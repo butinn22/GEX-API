@@ -22,6 +22,7 @@ from trading.domain import DataFetchError
 
 from ..deps import require_auth
 from ..schemas import (
+    SignalKeyBulkRequest,
     SignalKeyCreate,
     SignalKeyGenerateReport,
     SignalKeyOut,
@@ -98,6 +99,20 @@ async def list_keys(svc=Depends(_svc)) -> list[SignalKeyOut]:
 async def purge_summary_cache(svc=Depends(_svc)) -> dict:
     """Drop the in-process signal-summary cache (forces a regenerate on next load)."""
     return {"purged": svc.purge_cache()}
+
+
+@router.post("/bulk")
+async def bulk_action(body: SignalKeyBulkRequest, svc=Depends(_svc)) -> dict:
+    """Bulk enable / disable / revoke several signal keys (idempotent).
+
+    Unknown ids are returned in ``missing``. ``disable`` keeps the key (and its
+    history) but stops generation; ``revoke`` is the soft delete.
+    """
+    try:
+        updated, missing = await svc.bulk(body.ids, body.action)
+    except SignalKeyError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    return {"updated": updated, "missing": missing, "action": body.action}
 
 
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)

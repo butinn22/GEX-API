@@ -106,8 +106,12 @@ def _simulate_block(
         logret = np.log1p(r)
         mu = float(logret.mean()) if logret.size else 0.0
         sigma = float(logret.std(ddof=1)) if logret.size > 1 else 0.0
+        # ``mu`` here is the mean *log* return, i.e. the drift of log(S). The GBM
+        # simulator applies the Itô correction internally (drift = mu_in − ½σ²),
+        # so passing ``mu`` directly subtracted ½σ² twice and biased every path
+        # low. Invert the correction so the simulated log-drift is ``mu``.
         return geometric_brownian_motion(
-            1.0, mu, sigma, n_steps, cfg.dt, n_paths=n_paths, seed=seed
+            1.0, mu + 0.5 * sigma**2, sigma, n_steps, cfg.dt, n_paths=n_paths, seed=seed
         )
     raise ValueError(f"unknown Monte-Carlo method '{method}' (known: {', '.join(MC_METHODS)})")
 

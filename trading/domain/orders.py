@@ -87,6 +87,13 @@ class Signal:
     risk_amount: float | None = None
     position_size: float | None = None
     bar_time: datetime | None = None
+    #: True when this signal is meant to *close* an existing position rather than
+    #: set a new exposure of its own size. The engine then trades the held
+    #: quantity instead of re-sizing from equity (which could leave a residual,
+    #: or flip, when cash/fees make ``equity/price`` differ from the held size).
+    #: Position-managed strategies set this on their exit signals; leave it False
+    #: for target-position strategies where an opposing signal is a real flip.
+    reduce_only: bool = False
     #: Free-form extras (indicator snapshot, exit cause, trail level, …).
     meta: Mapping[str, Any] = field(default_factory=dict)
 
@@ -144,7 +151,12 @@ class OrderIntent:
             raise ValueError("order quantity must be > 0")
         if self.order_type is OrderType.LIMIT and self.limit_price is None:
             raise ValueError("LIMIT order requires limit_price")
-        if self.order_type in (OrderType.STOP, OrderType.STOP_LIMIT) and self.stop_price is None:
+        if self.order_type in (
+            OrderType.STOP,
+            OrderType.STOP_MARKET,
+            OrderType.STOP_LIMIT,
+            OrderType.TRAILING_STOP,
+        ) and self.stop_price is None:
             raise ValueError(f"{self.order_type.value} order requires stop_price")
 
     def to_order(self, order_id: str) -> Order:
@@ -212,15 +224,27 @@ class Order:
             raise InvalidStateError(f"cannot fill a {self.status.value} order")
         if fill.quantity <= 0:
             raise ValueError("fill quantity must be > 0")
-        prev_notional = (self.average_fill_price or 0.0) * self.filled_quantity
-        self.filled_quantity += fill.quantity
-        if self.filled_quantity > self.quantity + 1e-12:
+        if fill.symbol != self.symbol:
+            raise InvalidStateError("fill symbol does not match order symbol")
+        if fill.side is not self.side:
+            raise InvalidStateError("fill side does not match order side")
+        # Validate *before* mutating, so a rejected over-fill leaves the order
+        # untouched (previously it rejected after adding the quantity, stranding
+        # ``filled_quantity > quantity`` with no way to clear it).
+        new_filled = self.filled_quantity + fill.quantity
+        if new_filled > self.quantity + 1e-12:
             raise InvalidStateError("fills exceed order quantity")
+        # A fill implies the order is live: advance PENDING → OPEN first, so the
+        # documented state machine (PENDING never fills directly) is honoured.
+        if self.status is OrderStatus.PENDING:
+            self._transition(OrderStatus.OPEN)
+        prev_notional = (self.average_fill_price or 0.0) * self.filled_quantity
+        self.filled_quantity = new_filled
         self.average_fill_price = (prev_notional + fill.price * fill.quantity) / self.filled_quantity
         if self.filled_quantity >= self.quantity - 1e-12:
-            self.status = OrderStatus.FILLED
+            self._transition(OrderStatus.FILLED)
         else:
-            self.status = OrderStatus.PARTIAL
+            self._transition(OrderStatus.PARTIAL)
         self.updated_at = utcnow()
 
     @property

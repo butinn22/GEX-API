@@ -269,6 +269,16 @@ class PresetService:
         """Delete a version; refuses (``ValueError``) while it is live_enabled."""
         return await self._repo.delete(preset_id)
 
+    async def delete_group(
+        self, symbol: str, strategy: str, strategy_name: str = ""
+    ) -> int:
+        """Delete a whole saved strategy (every version of one named group).
+
+        Returns the number of versions removed (``0`` when the group is already
+        empty); refuses (``ValueError``) while any version is live_enabled.
+        """
+        return await self._repo.delete_group(symbol, strategy, strategy_name)
+
     # ── params helpers ──────────────────────────────────────────────────
     @staticmethod
     def params_of(row: StrategyPresetRow) -> dict[str, Any]:

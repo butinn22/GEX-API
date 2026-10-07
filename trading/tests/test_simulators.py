@@ -67,6 +67,17 @@ def test_block_bootstrap_shape():
     assert np.all(np.isfinite(paths))
 
 
+def test_block_bootstrap_preserves_historical_drift():
+    # Regression: the mean was removed to build residuals and never added back,
+    # so every block-bootstrap path was driftless even for a strongly positive
+    # strategy. The resampled per-step returns must track the historical mean.
+    rng = np.random.default_rng(3)
+    returns = rng.normal(0.01, 0.02, 400)
+    paths = block_bootstrap(returns, 300, block_size=20, n_paths=200, seed=0)
+    per_step = paths[:, 1:] / paths[:, :-1] - 1.0
+    assert per_step.mean() == pytest.approx(returns.mean(), abs=0.005)
+
+
 def test_historical_resampling_alias():
     returns = np.array([0.01, -0.02, 0.03, 0.0])
     assert np.allclose(

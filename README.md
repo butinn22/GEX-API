@@ -168,6 +168,14 @@ out-of-sample validation** in the research harness, behind one parameter set:
 Both are frozen research artefacts — the documented disable conditions
 (rolling Sharpe < 0, drawdown > 50%, cost regime > 2× validated costs) apply.
 
+> **Engine-v2 re-validation (2026-10).** Re-running these frozen presets on the corrected
+> engine over a real 21-symbol USDT-perp panel (2021-07 → 2026-10) with a calendar
+> walk-forward found them **NOT ROBUST**: 3/5 positive OOS windows and mean breadth **48%**
+> (`alligator_4h`) / **33%** (`donchian_1d`) — returns are carried by a minority of tickers;
+> `donchian_1d` has a −10.7% OOS window. The figures in the table above are pre-fix **v1**
+> artefacts (engine `ENGINE_VERSION` 2.0.0 changed sizing/stat rules); treat them as
+> historical. Full evidence: [`deliverables/software-company/audit/walkforward/REPORT.md`](deliverables/software-company/audit/walkforward/REPORT.md).
+
 Entry: Alligator aligned + jaw rising, confirmed HH/HL structure, ADL above its
 EMA, EMF > 0, and a Donchian breakout (or a pullback to the lips) — optionally
 gated by an SMA trend filter. Exits, in priority order: resting intrabar stop,
@@ -210,6 +218,35 @@ async def main():
 asyncio.run(main())
 PY
 ```
+
+## Managing configurations & strategies
+
+Every user-manageable object exposes create / update / refresh / validate / delete controls
+where it makes sense, and each maps to an authenticated API endpoint. Destructive console
+actions ask for confirmation; secrets are masked and never echoed.
+
+| Object | Create | Update | Refresh / validate | Delete |
+| --- | --- | --- | --- | --- |
+| Broker API key | Accounts tab · `POST /keys` | `PATCH /keys/{id}/settings` | `POST /keys/{id}/validate` (Test connection) | `DELETE /keys/{id}` (confirm) |
+| Signal key | Deploy tab · `POST /signal-keys` | `PATCH /signal-keys/{id}?active=` (Enable/Disable) | `POST /signal-keys/{key}/generate` (Regenerate) · `POST /signal-keys/cache/purge` (Purge summary cache) | `DELETE /signal-keys/{id}` (Revoke, confirm) · `DELETE /signal-keys/{id}/signals` (Purge signals, confirm) |
+| Strategy preset / version | Strategy Lab “Save as new version” · **Duplicate** · `POST /presets` | `PATCH /presets/{id}` | `GET /presets/{id}/validate` (Validate) | `DELETE /presets/{id}` (one version) · `DELETE /presets` (whole named group, confirm) |
+| Live strategy runner | — | — | `POST /strategies/{name}/start` · `POST /strategies/{name}/stop` | (Stop) |
+| Stored backtest run | `POST /backtest` | — | `GET /backtest/results` (Refresh) | `DELETE /backtest/results/{id}` · `DELETE /backtest/results` (Clear all, confirm) |
+| Order record | `POST /orders` | — | `GET /orders` (Refresh) | `POST /orders/{id}/cancel` (live cancel) · `DELETE /orders/{id}` · `DELETE /orders` (Purge all, confirm) |
+| Signal-position ledger | live engine | — | `GET /signals/positions` | `DELETE /signals/positions` (confirm) |
+
+**Deletion semantics.** Signal keys are **soft-revoked** (kept auditable). Presets are
+versioned: deleting a row removes exactly one version, while deleting a saved strategy
+removes the whole named group atomically (refused with 409 while `live_enabled`). Stored
+runs and orders are hard deletes of **local** records only (deleting an order record does
+not cancel a live broker order). Purging a signal key’s generated rows hard-deletes them;
+the next generate rebuilds them.
+
+**Bulk actions.** The same tables support multi-select: `POST /orders/bulk-delete`,
+`POST /backtest/results/bulk-delete`, and `POST /signal-keys/bulk`
+(`{"ids": [...], "action": "enable"|"disable"|"revoke"}`). Bulk operations are idempotent —
+unknown ids come back in `missing` instead of failing the batch — and each returns a
+succeeded/missing summary.
 
 ## Performance
 
@@ -324,7 +361,7 @@ positions); encrypted API-key storage + JWT + vanilla-JS key manager; token-buck
 rate limiter (in-memory `TokenBucket` + optional `RedisTokenBucket`) + **in-memory, per-IP API rate-limit middleware**, CORS,
 exception handlers; Celery tasks + beat; **TTL cache**; **bulk insert + task-result
 store**; Prometheus `/metrics` + **alert rules** + Grafana dashboards + structlog +
-correlation IDs; Alembic migrations (verified vs SQLite); **property-based tests**
+correlation IDs; Alembic migrations `0001`–`0008` (verified vs SQLite; `0008` adds non-destructive `SET NULL` FKs + orphan report); **property-based tests**
 (hypothesis); `fetch_data` CLI; **BingX WebSocket streams** (market + user-data
 parsers/stream); **live signal engine** (per-ticker polling tasks, full trade-plan
 signals persisted with a position ledger, `WS /ws/signals` + local-client fan-out,

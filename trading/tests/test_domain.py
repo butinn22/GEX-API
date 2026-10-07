@@ -204,6 +204,32 @@ def test_order_fills_cannot_exceed_quantity():
         o.apply_fill(Fill("o1", "AAPL", Side.BUY, 100, 11))
 
 
+def test_order_overfill_does_not_corrupt_filled_quantity():
+    """A rejected over-fill must leave the order exactly as it was."""
+    o = _mk_order()
+    o.mark_open()
+    o.apply_fill(Fill("o1", "AAPL", Side.BUY, 100, 4))
+    with pytest.raises(InvalidStateError):
+        o.apply_fill(Fill("o1", "AAPL", Side.BUY, 100, 11))
+    assert o.filled_quantity == pytest.approx(4)
+    assert o.status is OrderStatus.PARTIAL
+
+
+def test_order_fill_requires_matching_symbol_and_side():
+    o = _mk_order()
+    o.mark_open()
+    with pytest.raises(InvalidStateError):
+        o.apply_fill(Fill("o1", "MSFT", Side.BUY, 100, 1))
+    with pytest.raises(InvalidStateError):
+        o.apply_fill(Fill("o1", "AAPL", Side.SELL, 100, 1))
+
+
+def test_order_fill_from_pending_advances_through_open():
+    o = _mk_order()  # PENDING, never marked open
+    o.apply_fill(Fill("o1", "AAPL", Side.BUY, 100, 10))
+    assert o.status is OrderStatus.FILLED
+
+
 # ── Position ──────────────────────────────────────────────────────────
 
 

@@ -149,7 +149,17 @@ def metric_value(m, objective: str) -> float:
             raise ValueError(
                 f"unknown objective '{objective}' (known: {', '.join(OPTIMIZATION_OBJECTIVES)})"
             ) from exc
-    return value if math.isfinite(value) else -1e18
+    if math.isnan(value):
+        return -1e18
+    if value == float("inf"):
+        # A perfect validation split (profit_factor/sortino/calmar with no losses
+        # or no drawdown) is the *best* possible score, not the worst. Mapping it
+        # to -1e18 made ``_score_with_breakdown`` read it as "no trades" and
+        # disqualify the optimizer's strongest candidates.
+        return 1e18
+    if value == float("-inf"):
+        return -1e18
+    return value
 
 
 @dataclass

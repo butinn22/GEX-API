@@ -45,7 +45,25 @@ TRADE_EXPORT_COLUMNS = [
 ]
 
 #: One generation at a time per key (auto-refresh + manual click can race).
+#: Bounded: only unlocked locks are evicted, so an in-flight regeneration keeps
+#: its lock.
 _generate_locks: dict[int, asyncio.Lock] = {}
+_GENERATE_LOCKS_MAX = 10_000
+
+
+def _generation_lock(key_id: int) -> asyncio.Lock:
+    lock = _generate_locks.get(key_id)
+    if lock is not None:
+        return lock
+    lock = asyncio.Lock()
+    _generate_locks[key_id] = lock
+    if len(_generate_locks) > _GENERATE_LOCKS_MAX:
+        for old_id in list(_generate_locks):
+            if old_id != key_id and not _generate_locks[old_id].locked():
+                _generate_locks.pop(old_id, None)
+                if len(_generate_locks) <= _GENERATE_LOCKS_MAX:
+                    break
+    return lock
 
 
 def _session_factory_value():
@@ -82,7 +100,7 @@ async def _ensure_generated(key: str, row, svc) -> None:
     """Regenerate when the in-memory summary is cold (e.g. after a restart)."""
     if svc.summary(row.id) is not None:
         return
-    lock = _generate_locks.setdefault(row.id, asyncio.Lock())
+    lock = _generation_lock(row.id)
     if lock.locked():  # another request is already regenerating
         return
     async with lock:
@@ -151,54 +169,59 @@ async def dashboard(key: str) -> HTMLResponse:
 @router.get("/API_KEY/{key}/data", include_in_schema=False)
 async def dashboard_data(key: str) -> JSONResponse:
     row, svc, session = await _load_key(key)
-    _key_guard(row)
-    await _ensure_generated(key, row, svc)
-    summary = svc.summary(row.id)
-    trades = await svc.trades(row.id)
-    signals = await svc.signals(row.id, limit=50)
-    wins = [t for t in trades if t.net_pnl > 0]
-    losses = [t for t in trades if t.net_pnl <= 0]
-    gross = sum(t.gross_pnl for t in trades)
-    data = {
-        "key": row.key,
-        "exchange": row.exchange,
-        "active": bool(row.active),
-        "last_updated": (summary.generated_at.isoformat() if summary else None),
-        "metrics": (summary.metrics if summary else {}),
-        "per_ticker": (summary.per_ticker if summary else []),
-        "generation_errors": (summary.errors if summary else []),
-        "totals": {
-            "n_trades": len(trades),
-            "wins": len(wins),
-            "losses": len(losses),
-            "win_rate": round(len(wins) / len(trades), 4) if trades else 0.0,
-            "total_pnl": round(sum(t.net_pnl for t in trades), 2),
-            "avg_pnl": round(sum(t.net_pnl for t in trades) / len(trades), 2) if trades else 0.0,
-            "gross_pnl": round(gross, 2),
-            "last_trade_at": trades[-1].exit_time.isoformat() if trades else None,
-        },
-        "trades": [
-            {
-                "id": t.id, "symbol": t.symbol, "direction": t.direction,
-                "entry_time": t.entry_time.isoformat(), "exit_time": t.exit_time.isoformat(),
-                "entry_price": t.entry_price, "exit_price": t.exit_price,
-                "quantity": t.quantity, "net_pnl": round(t.net_pnl, 2),
-                "return_pct": round(t.pct_return, 4),
-                "exit_reason": t.exit_reason, "source": t.source,
-            }
-            for t in trades[-25:]
-        ],
-        "signals": [
-            {
-                "timestamp": s.timestamp.isoformat(), "symbol": s.symbol,
-                "side": s.side, "state": s.state, "reason": s.reason,
-                "price": s.price, "strategy": s.strategy,
-            }
-            for s in signals
-        ],
-    }
-    await session.close()
-    return JSONResponse(data)
+    try:
+        _key_guard(row)
+        await _ensure_generated(key, row, svc)
+        summary = svc.summary(row.id)
+        trades = await svc.trades(row.id)
+        signals = await svc.signals(row.id, limit=50)
+        wins = [t for t in trades if t.net_pnl > 0]
+        losses = [t for t in trades if t.net_pnl <= 0]
+        gross = sum(t.gross_pnl for t in trades)
+        data = {
+            "key": row.key,
+            "exchange": row.exchange,
+            "active": bool(row.active),
+            "last_updated": (summary.generated_at.isoformat() if summary else None),
+            "metrics": (summary.metrics if summary else {}),
+            "per_ticker": (summary.per_ticker if summary else []),
+            "generation_errors": (summary.errors if summary else []),
+            "totals": {
+                "n_trades": len(trades),
+                "wins": len(wins),
+                "losses": len(losses),
+                "win_rate": round(len(wins) / len(trades), 4) if trades else 0.0,
+                "total_pnl": round(sum(t.net_pnl for t in trades), 2),
+                "avg_pnl": round(sum(t.net_pnl for t in trades) / len(trades), 2) if trades else 0.0,
+                "gross_pnl": round(gross, 2),
+                "last_trade_at": trades[-1].exit_time.isoformat() if trades else None,
+            },
+            "trades": [
+                {
+                    "id": t.id, "symbol": t.symbol, "direction": t.direction,
+                    "entry_time": t.entry_time.isoformat(), "exit_time": t.exit_time.isoformat(),
+                    "entry_price": t.entry_price, "exit_price": t.exit_price,
+                    "quantity": t.quantity, "net_pnl": round(t.net_pnl, 2),
+                    "return_pct": round(t.pct_return, 4),
+                    "exit_reason": t.exit_reason, "source": t.source,
+                }
+                for t in trades[-25:]
+            ],
+            "signals": [
+                {
+                    "timestamp": s.timestamp.isoformat(), "symbol": s.symbol,
+                    "side": s.side, "state": s.state, "reason": s.reason,
+                    "price": s.price, "strategy": s.strategy,
+                }
+                for s in signals
+            ],
+        }
+        return JSONResponse(data)
+    finally:
+        # The session is opened directly from the factory (not the request
+        # dependency), so it must be released on *every* path — a generation
+        # failure used to leak a pooled connection per request.
+        await session.close()
 
 
 # ── charts (same SVG functions as the backtest report) ─────────────────
@@ -207,28 +230,29 @@ async def dashboard_data(key: str) -> JSONResponse:
 @router.get("/API_KEY/{key}/charts", include_in_schema=False)
 async def dashboard_charts(key: str) -> JSONResponse:
     row, svc, session = await _load_key(key)
-    _key_guard(row)
-    await _ensure_generated(key, row, svc)
-    summary = svc.summary(row.id)
-    if summary is None or not summary.equity:
+    try:
+        _key_guard(row)
+        await _ensure_generated(key, row, svc)
+        summary = svc.summary(row.id)
+        if summary is None or not summary.equity:
+            return JSONResponse({"equity": "", "drawdown": "", "histogram": ""})
+        times, equity = _downsample(summary.times, summary.equity)
+        trades = await svc.trades(row.id)
+        _, dd_values = _downsample(summary.times, _drawdown(summary.equity))
+        counts, centers = _pnl_histogram([t.net_pnl for t in trades])
+        charts = {
+            "equity": line_chart(
+                times, [("equity", equity)], title="Live equity",
+                palette=DARK,
+            ),
+            "drawdown": drawdown_chart(times, equity, title="Live drawdown", palette=DARK),
+            "histogram": histogram_chart(
+                counts, centers, title="Trade PnL distribution", palette=DARK,
+            ) if counts else "",
+        }
+        return JSONResponse(charts)
+    finally:
         await session.close()
-        return JSONResponse({"equity": "", "drawdown": "", "histogram": ""})
-    times, equity = _downsample(summary.times, summary.equity)
-    trades = await svc.trades(row.id)
-    await session.close()
-    _, dd_values = _downsample(summary.times, _drawdown(summary.equity))
-    counts, centers = _pnl_histogram([t.net_pnl for t in trades])
-    charts = {
-        "equity": line_chart(
-            times, [("equity", equity)], title="Live equity",
-            palette=DARK,
-        ),
-        "drawdown": drawdown_chart(times, equity, title="Live drawdown", palette=DARK),
-        "histogram": histogram_chart(
-            counts, centers, title="Trade PnL distribution", palette=DARK,
-        ) if counts else "",
-    }
-    return JSONResponse(charts)
 
 
 # ── exports ───────────────────────────────────────────────────────────
@@ -236,24 +260,26 @@ async def dashboard_charts(key: str) -> JSONResponse:
 
 async def _export_rows(key: str) -> tuple[str, list[list[Any]], dict[str, Any]]:
     row, svc, session = await _load_key(key)
-    _key_guard(row)
-    config = json.loads(row.config_json or "{}")
-    trades = await svc.trades(row.id)
-    await session.close()
-    rows: list[list[Any]] = []
-    for t in trades:
-        rows.append([
-            t.id, key, row.exchange, t.symbol, t.strategy, t.strategy_version,
-            t.preset_id,
-            t.entry_time.isoformat() if t.entry_time else "",
-            t.exit_time.isoformat() if t.exit_time else "",
-            t.direction, t.entry_price, t.exit_price, t.quantity,
-            round(t.fee, 6), round(t.gross_pnl, 6), round(t.net_pnl, 6),
-            round(t.pct_return, 6),
-            round(t.holding_seconds / 3600.0, 3) if t.holding_seconds else 0.0,
-            t.exit_reason, t.source,
-        ])
-    return row.exchange, rows, config
+    try:
+        _key_guard(row)
+        config = json.loads(row.config_json or "{}")
+        trades = await svc.trades(row.id)
+        rows: list[list[Any]] = []
+        for t in trades:
+            rows.append([
+                t.id, key, row.exchange, t.symbol, t.strategy, t.strategy_version,
+                t.preset_id,
+                t.entry_time.isoformat() if t.entry_time else "",
+                t.exit_time.isoformat() if t.exit_time else "",
+                t.direction, t.entry_price, t.exit_price, t.quantity,
+                round(t.fee, 6), round(t.gross_pnl, 6), round(t.net_pnl, 6),
+                round(t.pct_return, 6),
+                round(t.holding_seconds / 3600.0, 3) if t.holding_seconds else 0.0,
+                t.exit_reason, t.source,
+            ])
+        return row.exchange, rows, config
+    finally:
+        await session.close()
 
 
 @router.get("/API_KEY/{key}/trades.csv", include_in_schema=False)
@@ -284,7 +310,7 @@ async def export_xlsx(key: str) -> Response:
 @router.post("/API_KEY/{key}/refresh", include_in_schema=False)
 async def dashboard_refresh(key: str) -> JSONResponse:
     row, svc, session = await _load_key(key)
-    lock = _generate_locks.setdefault(row.id, asyncio.Lock())
+    lock = _generation_lock(row.id)
     async with lock:
         try:
             report = await svc.generate(key=row, refresh=True)

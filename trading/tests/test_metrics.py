@@ -12,6 +12,7 @@ from trading.application.backtest.metrics import (
     max_drawdown,
     profit_factor,
     returns_from_equity,
+    sortino,
     total_return,
     value_at_risk,
     win_rate,
@@ -44,12 +45,18 @@ def test_profit_factor_no_losses():
 def test_sharpe_and_sortino_match_reference():
     r = np.array([0.01, -0.02, 0.03, -0.01, 0.02])
     exp_sharpe = r.mean() / r.std(ddof=1) * np.sqrt(1)
-    downside = r[r < 0]
+    # Semi-deviation is taken over *all* periods with positives clipped to zero
+    # (the standard Sortino definition), not over only the losing observations.
+    downside = np.minimum(r, 0.0)
     exp_sortino = r.mean() / np.sqrt(np.mean(downside**2)) * np.sqrt(1)
     m = compute_metrics(np.concatenate([[100.0], 100.0 * np.cumprod(1 + r)]),
                         [1.0, -2.0], periods_per_year=1)
     assert m.sharpe == pytest.approx(exp_sharpe)
     assert m.sortino == pytest.approx(exp_sortino)
+
+
+def test_sortino_all_positive_returns_is_infinite():
+    assert sortino(np.array([0.01, 0.02, 0.03]), periods_per_year=1) == float("inf")
 
 
 def test_returns_from_equity():

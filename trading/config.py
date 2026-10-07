@@ -80,17 +80,37 @@ class Settings:
         return self.broker_key_secret or self.secret_key
 
     def __post_init__(self) -> None:
-        # Fail fast in production if any default/dev secret is still present.
+        # Fail fast in production if the security posture is unsafe. Weak or
+        # empty signing keys, a default admin password, or a Fernet key that is
+        # missing/shared with the JWT key are all refused rather than logged.
         if not self.is_production:
             return
         problems: list[str] = []
-        if self.secret_key == _DEV_SECRET:
-            problems.append("TRADING_SECRET_KEY is still the dev default")
-        if self.admin_username == _DEV_USER and self.admin_password == _DEV_PASSWORD:
-            problems.append("TRADING_ADMIN_USERNAME/PASSWORD are still 'admin'/'admin'")
+        secret = (self.secret_key or "").strip()
+        if secret in ("", _DEV_SECRET) or len(secret) < 32:
+            problems.append(
+                "TRADING_SECRET_KEY must be a random value of >= 32 characters "
+                "(not empty and not the dev default)"
+            )
+        password = self.admin_password or ""
+        if password in ("", _DEV_PASSWORD) or len(password) < 8:
+            problems.append(
+                "TRADING_ADMIN_PASSWORD must be set to a non-default value of "
+                ">= 8 characters"
+            )
+        broker = (self.broker_key_secret or "").strip()
+        if len(broker) < 32:
+            problems.append(
+                "TRADING_BROKER_KEY_SECRET must be set to a random value of >= 32 "
+                "characters (broker credentials must not share the JWT key)"
+            )
+        elif broker == secret:
+            problems.append(
+                "TRADING_BROKER_KEY_SECRET must differ from TRADING_SECRET_KEY"
+            )
         if problems:
             raise RuntimeError(
-                "Refusing to start in production with insecure defaults: "
+                "Refusing to start in production with insecure configuration: "
                 + "; ".join(problems)
             )
 

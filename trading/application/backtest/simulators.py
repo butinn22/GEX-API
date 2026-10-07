@@ -80,7 +80,8 @@ def block_bootstrap(
     r = np.asarray(returns, dtype=float)
     if r.size == 0 or n_steps < 0 or n_paths < 1 or block_size < 1:
         raise ValueError("invalid block-bootstrap parameters")
-    residuals = r - r.mean()
+    mean = float(r.mean())
+    residuals = r - mean
     n = residuals.size
     rng = np.random.default_rng(seed)
 
@@ -92,6 +93,11 @@ def block_bootstrap(
         return np.asarray(sample[:n_steps], dtype=float)
 
     sampled = np.stack([_one_path() for _ in range(n_paths)])
+    # Re-add the historical mean that was removed to build the residuals; without
+    # this every block-bootstrap path was driftless regardless of the strategy's
+    # realised return (mean-removing must be paired with mean-adding, exactly as
+    # ``_residual_returns`` does for the i.i.d. bootstrap).
+    sampled = sampled + mean
     return np.concatenate([np.ones((n_paths, 1)), np.cumprod(1.0 + sampled, axis=1)], axis=1)
 
 

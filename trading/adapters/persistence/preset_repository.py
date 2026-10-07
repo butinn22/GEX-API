@@ -262,3 +262,27 @@ class PresetRepository:
         await self._session.delete(row)
         await self._session.commit()
         return True
+
+    async def delete_group(
+        self, symbol: str, strategy: str, strategy_name: str = ""
+    ) -> int:
+        """Delete **every** version of one named group in a single commit.
+
+        Returns the number of rows removed (``0`` when the group is already
+        empty — e.g. a concurrent delete won the race, which callers surface as
+        a clean 404). Refuses (``ValueError``) while *any* version is
+        ``live_enabled``, so no partial delete can ever strand the live path.
+        """
+        rows = await self.list_versions(symbol, strategy, strategy_name)
+        if not rows:
+            return 0
+        if any(
+            (r.status or STATUS_BACKTEST_ONLY) == STATUS_LIVE_ENABLED for r in rows
+        ):
+            raise ValueError(
+                "saved strategy is live_enabled — demote it before deleting"
+            )
+        for row in rows:
+            await self._session.delete(row)
+        await self._session.commit()
+        return len(rows)

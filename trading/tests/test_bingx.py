@@ -77,3 +77,51 @@ def test_place_order_maps_to_domain():
     order = asyncio.run(broker.place_order(intent))
     assert order.id == "12345"
     assert order.symbol == "BTC-USDT"
+
+
+def test_place_order_refuses_to_downgrade_unsupported_type():
+    """An unsupported/stop order type must raise, never become a MARKET order."""
+    called = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        called["n"] += 1
+        return httpx.Response(200, json={"code": 0, "data": {"order": {"orderId": "x"}}})
+
+    client = BingxClient("key", "secret", transport=httpx.MockTransport(handler))
+    broker = BingxBroker(client)
+    import asyncio
+
+    from trading.domain import BrokerError, Price
+    intent = OrderIntent(
+        "BTC-USDT", Side.SELL, Quantity(0.1), OrderType.TRAILING_STOP,
+        stop_price=Price(60000.0), strategy="s", reason="r",
+    )
+    with pytest.raises(BrokerError):
+        asyncio.run(broker.place_order(intent))
+    assert called["n"] == 0  # nothing was sent to the exchange
+
+
+def test_cancel_order_requires_symbol_scoped_id():
+    client = BingxClient("key", "secret", transport=httpx.MockTransport(
+        lambda r: httpx.Response(200, json={"code": 0, "data": {}})))
+    broker = BingxBroker(client)
+    import asyncio
+
+    from trading.domain import BrokerError
+    with pytest.raises(BrokerError):
+        asyncio.run(broker.cancel_order("123"))
+
+
+def test_cancel_order_calls_symbol_scoped_endpoint():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        return httpx.Response(200, json={"code": 0, "data": {}})
+
+    client = BingxClient("key", "secret", transport=httpx.MockTransport(handler))
+    broker = BingxBroker(client)
+    import asyncio
+    order = asyncio.run(broker.cancel_order("BTC-USDT:999"))
+    assert order.status.value == "cancelled"
+    assert "BTC-USDT" in seen["url"] and "999" in seen["url"]

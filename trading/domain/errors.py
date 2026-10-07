@@ -14,6 +14,7 @@ __all__ = [
     "OrderRejectedError",
     "InsufficientFundsError",
     "RateLimitExceededError",
+    "RiskLimitError",
     "StrategyError",
     "InvalidStateError",
 ]
@@ -49,3 +50,7 @@ class StrategyError(TradingError):
 
 class InvalidStateError(TradingError):
     """An illegal state transition (e.g. order PENDING → FILLED directly)."""
+
+
+class RiskLimitError(TradingError):
+    """A live order was blocked by the risk gate (drawdown/kill switch/limit)."""
