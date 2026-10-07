@@ -19,6 +19,13 @@ from trading.main import app
 async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
+        # Round-2: every /api/v1 business router is JWT-guarded → authenticate
+        # the shared client once so the portfolio surface is reachable.
+        r = await c.post(
+            "/api/v1/auth/token", json={"username": "admin", "password": "admin"}
+        )
+        assert r.status_code == 200, r.text
+        c.headers["Authorization"] = f"Bearer {r.json()['access_token']}"
         yield c
 
 

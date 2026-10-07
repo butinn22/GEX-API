@@ -239,6 +239,12 @@ async def test_portfolio_cancelled_between_tickers():
 async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
+        # Round-2: the /backtest router is JWT-guarded → authenticate once.
+        r = await c.post(
+            "/api/v1/auth/token", json={"username": "admin", "password": "admin"}
+        )
+        assert r.status_code == 200, r.text
+        c.headers["Authorization"] = f"Bearer {r.json()['access_token']}"
         yield c
 
 

@@ -98,6 +98,7 @@ def _strip_provenance(payload: dict) -> dict:
 # ── auth ───────────────────────────────────────────────────────────────
 
 
+@pytest.mark.real_auth
 async def test_export_and_deploy_require_auth(client):
     assert (await client.post(
         "/api/v1/baskets/export", json={"tickers": [{"symbol": "AAA"}]})
@@ -205,7 +206,7 @@ async def test_export_round_trip_reproduces_effective_params(client, session):
     payload = r.json()
 
     req = _strip_provenance(payload)
-    r2 = await client.post("/api/v1/backtest/portfolio", json=req)
+    r2 = await client.post("/api/v1/backtest/portfolio", json=req, headers=headers)
     assert r2.status_code == 200, r2.text
     by_symbol = {t["symbol"]: t for t in r2.json()["tickers"]}
 

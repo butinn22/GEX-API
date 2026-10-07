@@ -35,8 +35,13 @@ def test_trading_error_handler_registered():
 
 def test_monte_carlo_endpoint():
     with TestClient(app) as client:
+        login = client.post(
+            "/api/v1/auth/token", json={"username": "admin", "password": "admin"}
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
         r = client.post("/api/v1/backtest/monte-carlo",
-                        json={"symbol": "SYNTH", "n_paths": 200, "n_steps": 50})
+                        json={"symbol": "SYNTH", "n_paths": 200, "n_steps": 50},
+                        headers=headers)
         assert r.status_code == 200
         d = r.json()
         assert d["n_paths"] == 200

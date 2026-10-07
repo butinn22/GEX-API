@@ -285,6 +285,7 @@ async def _token(client: httpx.AsyncClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
+@pytest.mark.real_auth
 async def test_api_requires_auth(client):
     assert (await client.get("/api/v1/signals")).status_code == 401
     assert (await client.get("/api/v1/signals/engine")).status_code == 401

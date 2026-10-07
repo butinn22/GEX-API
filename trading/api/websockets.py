@@ -3,6 +3,11 @@
 Each endpoint subscribes to its hub and streams messages to the client, with a
 heartbeat when idle. A reader task detects client disconnect and cancels the
 sender cleanly.
+
+**Auth:** the browser WebSocket API cannot set an ``Authorization`` header, so
+the JWT is carried in the ``Sec-WebSocket-Protocol`` subprotocol list
+(``new WebSocket(url, ["gex.jwt", token])``) — with ``?token=`` as a fallback.
+The token is validated **before** ``accept()``; failures close with code 1008.
 """
 from __future__ import annotations
 
@@ -12,6 +17,8 @@ import time
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from trading.application.signal_hub import order_hub, position_hub, signal_hub
+
+from .deps import WS_SUBPROTOCOL, validate_ws_jwt
 
 router = APIRouter()
 
@@ -26,7 +33,12 @@ async def _stream(ws: WebSocket, q: asyncio.Queue, heartbeat: float) -> None:
 
 
 async def _run_stream(ws: WebSocket, hub, hello: dict, heartbeat: float = 5.0) -> None:
-    await ws.accept()
+    if not validate_ws_jwt(ws):
+        # Reject before accept — the handshake fails (HTTP 403) and no stream
+        # ever opens. 1008 = policy violation.
+        await ws.close(code=1008)
+        return
+    await ws.accept(subprotocol=WS_SUBPROTOCOL)
     q = hub.subscribe()
     try:
         await ws.send_json(hello)

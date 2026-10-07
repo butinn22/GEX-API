@@ -207,6 +207,7 @@ class TestExportEndpoints:
             assert (await c.get("/api/v1/export/backtest/99999/trades.csv",
                                 headers=headers)).status_code == 404
 
+    @pytest.mark.real_auth
     async def test_live_export_requires_auth_and_classifies(self, session):
         import httpx
 

@@ -151,13 +151,17 @@ class TestAutotuneEndpoint:
 
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+            login = await c.post(
+                "/api/v1/auth/token", json={"username": "admin", "password": "admin"}
+            )
+            headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
             r = await c.post("/api/v1/backtest/autotune", json={
                 "strategy": "sma_crossover",
                 "symbol": "SYNTH",
                 "risk_profile": "high",
                 "grid": {"fast": [3, 5], "slow": [10]},
                 "limit": 300,
-            })
+            }, headers=headers)
         assert r.status_code == 200
         body = r.json()
         assert body["risk_profile"] == "high"

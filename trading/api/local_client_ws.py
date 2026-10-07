@@ -11,6 +11,7 @@ sessions silent for longer than ``heartbeat_timeout`` with WS code 4001.
 from __future__ import annotations
 
 import asyncio
+import hmac
 import time
 import uuid
 from typing import Any
@@ -34,6 +35,8 @@ from trading.application.native_payloads import (
     signal_from_raw,
 )
 from trading.application.signal_hub import signal_hub
+from trading.config import settings
+from trading.security import SecretError, decode_access_token
 
 from .deps import require_auth
 
@@ -46,6 +49,21 @@ dispatcher = LocalClientDispatcher(registry, signal_hub)
 
 def _error(code: str, message: str) -> dict[str, Any]:
     return {"type": "error", "code": code, "message": message}
+
+
+def _valid_client_token(token: str) -> bool:
+    """A producer authenticates with the static ``TRADING_LOCAL_CLIENT_TOKEN``
+    (preferred) or any valid JWT."""
+    if not token:
+        return False
+    static = settings.local_client_token
+    if static and hmac.compare_digest(token, static):
+        return True
+    try:
+        decode_access_token(settings.secret_key, token)
+        return True
+    except SecretError:
+        return False
 
 
 _ERROR_CODES = {
@@ -130,6 +148,17 @@ async def ws_client(ws: WebSocket) -> None:
             if not isinstance(msg, dict):
                 await ws.send_json(_error("BAD_MESSAGE", "frame must be a JSON object"))
                 continue
+            # Authenticate the producer at the handshake. An invalid/missing
+            # token never registers the session, so no signal frame can ever be
+            # emitted (every signal path requires an active handshake).
+            if msg.get("type") == "handshake" and not _valid_client_token(
+                str(msg.get("token") or "")
+            ):
+                await ws.send_json(
+                    _error("UNAUTHORIZED", "invalid or missing handshake token")
+                )
+                await ws.close(code=1008)
+                return
             try:
                 reply = _handle_message(session, msg)
             except LocalClientError as exc:

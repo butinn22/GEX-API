@@ -39,6 +39,12 @@ async def client():
         await s.commit()
     transport = httpx.ASGITransport(app=__import__("trading.main", fromlist=["app"]).app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        # Round-2: the /presets + /backtest routers are JWT-guarded.
+        r = await c.post(
+            "/api/v1/auth/token", json={"username": "admin", "password": "admin"}
+        )
+        assert r.status_code == 200, r.text
+        c.headers["Authorization"] = f"Bearer {r.json()['access_token']}"
         yield c
 
 

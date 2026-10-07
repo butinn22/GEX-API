@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import httpx
+import pytest
 import pytest_asyncio
 from sqlalchemy import delete
 
@@ -21,12 +22,22 @@ async def client():
         yield c
 
 
+async def _auth(client) -> dict[str, str]:
+    """Log in as the configured admin (Round-2: routers are JWT-guarded)."""
+    r = await client.post(
+        "/api/v1/auth/token", json={"username": "admin", "password": "admin"}
+    )
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
 async def test_health(client):
     r = await client.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
 
 
+@pytest.mark.real_auth
 async def test_login_and_key_crud(client):
     # wrong password → 401
     r = await client.post("/api/v1/auth/token", json={"username": "admin", "password": "nope"})
@@ -63,7 +74,7 @@ async def test_login_and_key_crud(client):
 async def test_backtest_synthetic(client):
     r = await client.post("/api/v1/backtest", json={
         "strategy": "sma_crossover", "symbol": "SYNTH", "fast": 5, "slow": 20, "source": "synthetic",
-    })
+    }, headers=await _auth(client))
     assert r.status_code == 200
     data = r.json()
     assert data["strategy"] == "sma_crossover"
@@ -82,7 +93,7 @@ async def test_backtest_with_bars(client):
     ]
     r = await client.post("/api/v1/backtest", json={
         "strategy": "buy_and_hold", "symbol": "X", "bars": bars,
-    })
+    }, headers=await _auth(client))
     assert r.status_code == 200
     data = r.json()
     assert len(data["equity_curve"]) == 30
@@ -90,19 +101,21 @@ async def test_backtest_with_bars(client):
 
 
 async def test_strategies_and_portfolio(client):
-    r = await client.get("/api/v1/strategies")
+    headers = await _auth(client)
+    r = await client.get("/api/v1/strategies", headers=headers)
     assert r.status_code == 200
     names = [s["name"] for s in r.json()]
     assert "sma_crossover" in names and "buy_and_hold" in names
 
-    r = await client.get("/api/v1/portfolio")
+    r = await client.get("/api/v1/portfolio", headers=headers)
     assert r.status_code == 200
     assert r.json()["configured"] is False  # no live keys
 
 
 async def test_strategy_schema_endpoint(client):
     """The console builds its settings form from this payload."""
-    r = await client.get("/api/v1/strategies/trend_confluence_pine/schema")
+    headers = await _auth(client)
+    r = await client.get("/api/v1/strategies/trend_confluence_pine/schema", headers=headers)
     assert r.status_code == 200
     d = r.json()
     assert d["name"] == "trend_confluence_pine"
@@ -112,10 +125,11 @@ async def test_strategy_schema_endpoint(client):
     assert d["defaults"]["tp_percent"] == 2.0
     assert d["sweep"]["trailing_percent"]
     # an unknown strategy returns an empty (but valid) schema
-    empty = await client.get("/api/v1/strategies/nope/schema")
+    empty = await client.get("/api/v1/strategies/nope/schema", headers=headers)
     assert empty.status_code == 200 and empty.json()["params"] == []
 
 
+@pytest.mark.real_auth
 async def test_orders_require_credentials(client):
     r = await client.post("/api/v1/auth/token", json={"username": "admin", "password": "admin"})
     token = r.json()["access_token"]
@@ -132,8 +146,12 @@ async def test_orders_require_credentials(client):
 
 
 async def test_data_sources_and_synthetic(client):
-    r = await client.get("/api/v1/data/sources")
+    headers = await _auth(client)
+    r = await client.get("/api/v1/data/sources", headers=headers)
     assert "moex" in r.json() and "synthetic" in r.json()
-    r = await client.get("/api/v1/data/ohlcv/SYNTH", params={"source": "synthetic", "limit": 5})
+    r = await client.get(
+        "/api/v1/data/ohlcv/SYNTH",
+        params={"source": "synthetic", "limit": 5}, headers=headers,
+    )
     assert r.status_code == 200
     assert len(r.json()) == 5

@@ -2880,11 +2880,17 @@ function sigRenderFeed() {
 function sigWsOpen() {
   if (SIG.ws) return;
   let ws;
-  try { ws = new WebSocket(sigWsUrl()); } catch (e) { return; }
+  try { ws = new WebSocket(sigWsUrl(), ["gex.jwt", S.token || ""]); } catch (e) { return; }
   SIG.ws = ws;
   ws.onopen = () => { $("sig-ws-state").textContent = "live"; };
-  ws.onclose = () => {
+  ws.onclose = (ev) => {
     SIG.ws = null;
+    if (ev && (ev.code === 1008 || ev.code === 4401)) {
+      // Handshake rejected (expired/missing token) → back to the login screen.
+      $("sig-ws-state").textContent = "auth required";
+      if (typeof handleAuthFailure === "function") handleAuthFailure();
+      return;
+    }
     $("sig-ws-state").textContent = "reconnecting…";
     setTimeout(sigWsOpen, 3000);
   };

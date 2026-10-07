@@ -85,6 +85,12 @@ from ..schemas import (
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
+#: Unguarded companion router. Only the capability-token cancel route lives here:
+#: the console fires it via ``navigator.sendBeacon`` on page unload, which cannot
+#: attach an ``Authorization`` header — so it must stay reachable without a JWT.
+#: Everything else remains on the JWT-guarded ``router`` above.
+public_router = APIRouter(prefix="/backtest", tags=["backtest"])
+
 log = logging.getLogger(__name__)
 
 #: Charts don't need every bar; cap payload size while keeping both endpoints.
@@ -954,9 +960,13 @@ async def autotune_endpoint(request: AutoTuneRequest) -> dict:
 # ── cancellation ───────────────────────────────────────────────────────
 
 
-@router.post("/cancel/{token}", response_model=CancelOut)
+@public_router.post("/cancel/{token}", response_model=CancelOut)
 async def cancel_run(token: str) -> CancelOut:
     """Stop a running backtest / Monte-Carlo identified by ``token``.
+
+    Deliberately **public** (capability token): the console stops a run on page
+    unload via ``navigator.sendBeacon``, which cannot set an Authorization
+    header. The run token itself is the unguessable credential.
 
     Idempotent and safe to call after the run has finished: ``cancelled`` means a
     cancel flag is now in effect for that token, and ``known`` says whether a run

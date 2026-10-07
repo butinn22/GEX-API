@@ -26,7 +26,7 @@ def open_ws(c):
 class TestHandshake:
     def test_handshake_ack_carries_session_and_timing(self, ws_client):
         with open_ws(ws_client) as ws:
-            ws.send_json({"type": "handshake", "client_id": "bot-1", "version": "1"})
+            ws.send_json({"type": "handshake", "token": "test-client-token", "client_id": "bot-1", "version": "1"})
             ack = ws.receive_json()
             assert ack["type"] == "handshake_ack"
             assert ack["session_id"]
@@ -46,7 +46,7 @@ class TestHandshake:
 class TestHeartbeat:
     def test_ping_gets_pong(self, ws_client):
         with open_ws(ws_client) as ws:
-            ws.send_json({"type": "handshake", "client_id": "b"})
+            ws.send_json({"type": "handshake", "token": "test-client-token", "client_id": "b"})
             ws.receive_json()
             ws.send_json({"type": "ping", "ts": 123.0})
             pong = ws.receive_json()
@@ -56,7 +56,7 @@ class TestHeartbeat:
 class TestSubscribe:
     def test_subscribe_ack(self, ws_client):
         with open_ws(ws_client) as ws:
-            ws.send_json({"type": "handshake", "client_id": "b"})
+            ws.send_json({"type": "handshake", "token": "test-client-token", "client_id": "b"})
             ws.receive_json()
             ws.send_json({"type": "subscribe", "tickers": ["btc-usdt", "SBER"]})
             ack = ws.receive_json()
@@ -66,7 +66,7 @@ class TestSubscribe:
 
     def test_over_limit_returns_error(self, ws_client):
         with open_ws(ws_client) as ws:
-            ws.send_json({"type": "handshake", "client_id": "b"})
+            ws.send_json({"type": "handshake", "token": "test-client-token", "client_id": "b"})
             ws.receive_json()
             ws.send_json({"type": "subscribe", "tickers": [f"T{i}" for i in range(21)]})
             err = ws.receive_json()
@@ -77,7 +77,7 @@ class TestSubscribe:
 class TestSignalIngest:
     def test_signal_ack_with_native_payloads(self, ws_client):
         with open_ws(ws_client) as ws:
-            ws.send_json({"type": "handshake", "client_id": "emf-bot"})
+            ws.send_json({"type": "handshake", "token": "test-client-token", "client_id": "emf-bot"})
             ws.receive_json()
             ws.send_json({"type": "signal", "payload": {
                 "symbol": "BTC-USDT", "side": "buy", "strength": 0.8,
@@ -98,7 +98,7 @@ class TestSignalIngest:
 
     def test_bad_signal_returns_error(self, ws_client):
         with open_ws(ws_client) as ws:
-            ws.send_json({"type": "handshake", "client_id": "b"})
+            ws.send_json({"type": "handshake", "token": "test-client-token", "client_id": "b"})
             ws.receive_json()
             ws.send_json({"type": "signal", "payload": {"side": "buy"}})
             err = ws.receive_json()
@@ -115,12 +115,28 @@ class TestSignalIngest:
 
     def test_unknown_message_type(self, ws_client):
         with open_ws(ws_client) as ws:
-            ws.send_json({"type": "handshake", "client_id": "b"})
+            ws.send_json({"type": "handshake", "token": "test-client-token", "client_id": "b"})
             ws.receive_json()
             ws.send_json({"type": "explode"})
             err = ws.receive_json()
             assert err["type"] == "error"
             assert err["code"] == "BAD_MESSAGE"
+
+
+class TestProducerAuth:
+    def test_handshake_without_token_is_rejected(self, ws_client):
+        with open_ws(ws_client) as ws:
+            ws.send_json({"type": "handshake", "client_id": "anon"})
+            err = ws.receive_json()
+            assert err["type"] == "error"
+            assert err["code"] == "UNAUTHORIZED"
+
+    def test_handshake_with_bad_token_is_rejected(self, ws_client):
+        with open_ws(ws_client) as ws:
+            ws.send_json({"type": "handshake", "token": "wrong", "client_id": "anon"})
+            err = ws.receive_json()
+            assert err["type"] == "error"
+            assert err["code"] == "UNAUTHORIZED"
 
 
 class TestHealthEndpoint:
@@ -129,7 +145,7 @@ class TestHealthEndpoint:
                            json={"username": "admin", "password": "admin"})
         headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
         with open_ws(ws_client) as ws:
-            ws.send_json({"type": "handshake", "client_id": "health-bot"})
+            ws.send_json({"type": "handshake", "token": "test-client-token", "client_id": "health-bot"})
             ack = ws.receive_json()
             resp = ws_client.get("/api/v1/local-clients", headers=headers)
             assert resp.status_code == 200
@@ -139,5 +155,6 @@ class TestHealthEndpoint:
             assert mine[0]["state"] == "active"
             assert mine[0]["stale"] is False
 
+    @pytest.mark.real_auth
     def test_requires_auth(self, ws_client):
         assert ws_client.get("/api/v1/local-clients").status_code == 401

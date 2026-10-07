@@ -164,6 +164,7 @@ async def _token(client) -> dict:
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
+@pytest.mark.real_auth
 async def test_signal_key_api_workflow(client, session):
     headers = await _token(client)
 
