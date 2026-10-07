@@ -28,6 +28,9 @@ services:
 
   app:
     build: .
+    # Migrate once before serving so N replicas don't race the upgrade; the
+    # app-level run_migrations() then finds the DB already at head (idempotent).
+    command: sh -c "alembic upgrade head && uvicorn trading.main:app --host 0.0.0.0 --port 8000"
     environment:
       TRADING_DATABASE_URL: postgresql+asyncpg://gex:gex@db:5432/gex_trading
       TRADING_REDIS_URL: redis://redis:6379/0

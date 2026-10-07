@@ -17,7 +17,22 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install .[dev]
+      - name: Migrations (forward/backward + drift gate)
+        env:
+          TRADING_DATABASE_URL: "sqlite+aiosqlite:///./ci.db"
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+          alembic check          # fails the build if models drift from migrations
       - name: Lint
         run: ruff check trading
       - name: Test
         run: pytest trading/tests -q --cov=trading --cov-report=term-missing --cov-fail-under=85
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t gex-trading:ci .

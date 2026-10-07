@@ -13,12 +13,22 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 FROM python:3.12-slim
 WORKDIR /app
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update && apt-get install -y --no-install-recommends libta-lib0 && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --system app && useradd --system --gid app --home-dir /app --shell /usr/sbin/nologin app
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /app /app
 COPY trading/static ./trading/static
+# Alembic config + migrations: run_migrations() (app lifespan) and the compose
+# entrypoint both call `alembic upgrade head`, so the scripts must be present.
+COPY alembic.ini ./
+COPY alembic ./alembic
+# Ticker-universe CSVs ship with the gex engine and back /data/instruments.
+COPY gex/*.csv ./gex/
+RUN chown -R app:app /app
+USER app
 EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"
 CMD ["uvicorn", "trading.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
